@@ -1,0 +1,785 @@
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
+const { Response, Answer, Question, Survey, User, SurveyorQuota, Sequelize, sequelize } = require('../models');
+const { authMiddleware, requireRole } = require('../middleware/auth');
+const { createAuditLog } = require('../middleware/auditLog');
+const { validateAllAnswers } = require('../utils/answerValidator');
+const { validateDateFormat, validateTimeFormat, validateDateAnswer, validateMatrixAnswer } = require('../utils/validators');
+const { validateFieldToolsSubmission } = require('../utils/fieldToolsValidator');
+
+const { Op } = Sequelize;
+
+const router = express.Router();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const SESSION_SECRET = process.env.SESSION_SECRET || JWT_SECRET;
+
+/**
+ * POST /responses/start
+ * Start a new response session for a survey.
+ * Body: { survey_id }
+ * Returns: { session_token, start_time }
+ * Requires: authMiddleware + requireRole('surveyor')
+ * Requirements: 15.1
+ */
+router.post('/start', authMiddleware, requireRole('surveyor'), async (req, res, next) => {
+  try {
+    const { survey_id } = req.body;
+    const surveyor_id = req.user.id;
+
+    if (!survey_id) {
+      return res.status(422).json({ error: 'survey_id wajib diisi' });
+    }
+
+    // Verify survey exists and is active
+    const survey = await Survey.findOne({ where: { id: survey_id, status: 'active' } });
+    if (!survey) {
+      return res.status(409).json({ error: 'Survei tidak lagi aktif' });
+    }
+
+    // Pengecekan periode aktif
+    const now = new Date();
+    if (survey.end_date && new Date(survey.end_date) <= now) {
+      return res.status(409).json({ error: 'Survei sudah berakhir' });
+    }
+    if (survey.start_date && new Date(survey.start_date) > now) {
+      return res.status(409).json({ error: 'Survei belum dimulai' });
+    }
+
+    // --- Quota enforcement ---
+    const quotaRecord = await SurveyorQuota.findOne({
+      where: { survey_id, surveyor_id },
+    });
+    if (!quotaRecord) {
+      return res.status(403).json({ error: 'Anda tidak memiliki kuota untuk survei ini' });
+    }
+
+    // Count committed responses (exclude PENDING-* records)
+    const committedCount = await Response.count({
+      where: {
+        survey_id,
+        surveyor_id,
+        questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+      },
+    });
+    if (committedCount >= quotaRecord.quota) {
+      return res.status(403).json({ error: 'Kuota pengisian survei Anda sudah tercapai' });
+    }
+    // --- End quota enforcement ---
+
+    const start_time = new Date().toISOString();
+
+    // Create a pending response record with a unique temporary questionnaire number
+    const response = await Response.create({
+      survey_id,
+      surveyor_id,
+      questionnaire_number: `PENDING-${uuidv4()}`,
+      start_time,
+      geo_status: 'available',
+    });
+
+    // Issue session token containing response_id, survey_id, surveyor_id
+    const session_token = jwt.sign(
+      {
+        response_id: response.id,
+        survey_id,
+        surveyor_id,
+        start_time,
+      },
+      SESSION_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.status(201).json({ session_token, start_time });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Generate a short survey prefix from the survey title.
+ * Takes up to 6 uppercase alphanumeric characters from the title.
+ * Falls back to 'SRV' if the title yields no alphanumeric characters.
+ * @param {string} title - Survey title
+ * @returns {string} - e.g. 'SRV001', 'SURVEY', 'MYSVR'
+ */
+function generateSurveyPrefix(title) {
+  const cleaned = (title || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return cleaned.slice(0, 6) || 'SRV';
+}
+
+/**
+ * Format a questionnaire number.
+ * Format: {SURVEY_PREFIX}-{YYYYMMDD}-{SUFFIX}
+ * Suffix is either the surveyor-provided unique_id or a zero-padded sequence number.
+ * Example: SRV001-20240115-12345 (unique_id) or SRV001-20240115-0001 (auto-sequence)
+ * @param {string} surveyTitle - Survey title used to derive prefix
+ * @param {Date} endTime - The end time (used for date portion)
+ * @param {number|string} seqVal - The sequence value or unique_id string
+ * @returns {string}
+ */
+function formatQuestionnaireNumber(surveyTitle, endTime, seqVal) {
+  const prefix = generateSurveyPrefix(surveyTitle);
+  const d = endTime;
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const dateStr = `${year}${month}${day}`;
+  // If seqVal is a string (unique_id from surveyor), use as-is; otherwise pad to 4 digits
+  const suffix = typeof seqVal === 'string' ? seqVal : String(seqVal).padStart(4, '0');
+  return `${prefix}-${dateStr}-${suffix}`;
+}
+
+/**
+ * POST /responses/submit
+ * Submit a complete response atomically.
+ * Body: { session_token, answers: [{ question_id, answer_value, answer_json, photo_path }], geo: { status, lat, lng } }
+ * Returns: { questionnaire_number, end_time, duration_seconds }
+ * Requires: authMiddleware + requireRole('surveyor')
+ * Requirements: 9.3, 9.5, 9.6, 9.7, 13.1, 13.2, 13.6, 15.2, 15.3, 16.2, 16.3, 16.4, 16.5
+ */
+router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res, next) => {
+  try {
+    const {
+      session_token,
+      answers = [],
+      geo = {},
+      audio_path,
+      signature_path,
+      photo_paths,
+      start_latitude,
+      start_longitude,
+      start_geo_status,
+    } = req.body;
+
+    if (!session_token) {
+      return res.status(422).json({ error: 'session_token wajib diisi' });
+    }
+
+    // Validate session token
+    let sessionPayload;
+    try {
+      sessionPayload = jwt.verify(session_token, SESSION_SECRET);
+    } catch (err) {
+      return res.status(401).json({ error: 'Session token tidak valid atau sudah kedaluwarsa' });
+    }
+
+    const { response_id, survey_id, surveyor_id, start_time } = sessionPayload;
+
+    // Ensure the token belongs to the authenticated surveyor
+    if (surveyor_id !== req.user.id) {
+      return res.status(403).json({ error: 'Anda tidak memiliki izin untuk mengakses resource ini' });
+    }
+
+    // Find the pending response record
+    const existingResponse = await Response.findOne({
+      where: { id: response_id, survey_id, surveyor_id, questionnaire_number: { [Op.like]: 'PENDING-%' } },
+    });
+    if (!existingResponse) {
+      return res.status(404).json({ error: 'Sesi pengisian tidak ditemukan atau sudah disubmit' });
+    }
+
+    // Fetch survey to get title for questionnaire number prefix and field tools settings
+    const survey = await Survey.findOne({
+      where: { id: survey_id },
+      attributes: ['id', 'title', 'field_tools_settings'],
+    });
+    if (!survey) {
+      return res.status(409).json({ error: 'Survei tidak lagi aktif' });
+    }
+
+    // Validate field tools submission against survey settings
+    const fieldToolsResult = validateFieldToolsSubmission(
+      {
+        signature_path: signature_path || null,
+        audio_path: audio_path || null,
+        photo_paths: Array.isArray(photo_paths) ? photo_paths : [],
+        latitude: start_latitude != null ? start_latitude : null,
+        longitude: start_longitude != null ? start_longitude : null,
+      },
+      survey.field_tools_settings
+    );
+    if (!fieldToolsResult.valid) {
+      return res.status(422).json({ error: fieldToolsResult.error });
+    }
+
+    // Get all questions for this survey
+    const questions = await Question.findAll({
+      where: { survey_id },
+      attributes: ['id', 'is_required', 'type', 'options'],
+    });
+
+    // Validate all required questions are answered
+    const answeredQuestionIds = new Set(answers.map((a) => a.question_id));
+    const missingQuestions = questions
+      .filter((q) => q.is_required && !answeredQuestionIds.has(q.id))
+      .map((q) => q.id);
+
+    if (missingQuestions.length > 0) {
+      return res.status(422).json({
+        error: 'Pertanyaan wajib belum dijawab',
+        missing_questions: missingQuestions,
+      });
+    }
+
+    // Validate answers against validation rules configured on questions
+    const validationResult = validateAllAnswers(answers, questions);
+    if (!validationResult.valid) {
+      return res.status(422).json({
+        error: 'Validasi jawaban gagal',
+        validation_errors: validationResult.errors,
+      });
+    }
+
+    // Build question map for answer validation
+    const questionMap = {};
+    for (const q of questions) {
+      questionMap[q.id] = q;
+    }
+
+    // Validate phone_number and unique_id answers
+    for (const ans of answers) {
+      const q = questionMap[ans.question_id];
+      if (!q) continue;
+
+      if (q.type === 'phone_number' && ans.answer_value) {
+        // Hanya digit
+        if (!/^\d+$/.test(ans.answer_value)) {
+          return res.status(422).json({ error: 'Nomor telepon hanya boleh berisi angka' });
+        }
+        // Panjang sesuai konfigurasi
+        const config = q.options || {};
+        if (config.min_length && ans.answer_value.length < config.min_length) {
+          return res.status(422).json({
+            error: `Panjang nomor telepon harus antara ${config.min_length} dan ${config.max_length} digit`,
+          });
+        }
+        if (config.max_length && ans.answer_value.length > config.max_length) {
+          return res.status(422).json({
+            error: `Panjang nomor telepon harus antara ${config.min_length} dan ${config.max_length} digit`,
+          });
+        }
+      }
+
+      if (q.type === 'unique_id' && ans.answer_value) {
+        // Hanya digit
+        if (!/^\d+$/.test(ans.answer_value)) {
+          return res.status(422).json({ error: 'Nomor kuesioner hanya boleh berisi angka' });
+        }
+        // Panjang sesuai konfigurasi (jika ada)
+        const config = q.options || {};
+        if (config.min_length && ans.answer_value.length < config.min_length) {
+          return res.status(422).json({
+            error: `Panjang nomor kuesioner harus antara ${config.min_length} dan ${config.max_length} digit`,
+          });
+        }
+        if (config.max_length && ans.answer_value.length > config.max_length) {
+          return res.status(422).json({
+            error: `Panjang nomor kuesioner harus antara ${config.min_length} dan ${config.max_length} digit`,
+          });
+        }
+        // Cek duplikat per survei
+        const existingAnswer = await Answer.findOne({
+          where: { question_id: q.id, answer_value: ans.answer_value },
+          include: [{
+            model: Response,
+            as: 'response',
+            where: { survey_id },
+            attributes: ['id'],
+          }],
+        });
+        if (existingAnswer) {
+          return res.status(422).json({ error: 'Nomor kuesioner sudah digunakan dalam survei ini' });
+        }
+      }
+
+      if (q.type === 'date' && ans.answer_value) {
+        if (!validateDateFormat(ans.answer_value)) {
+          return res.status(422).json({ error: 'Format tanggal harus YYYY-MM-DD' });
+        }
+        const config = q.options || {};
+        if (config.min_date || config.max_date) {
+          const dateResult = validateDateAnswer(ans.answer_value, config);
+          if (!dateResult.valid) {
+            return res.status(422).json({ error: dateResult.error });
+          }
+        }
+      }
+
+      if (q.type === 'time' && ans.answer_value) {
+        if (!validateTimeFormat(ans.answer_value)) {
+          return res.status(422).json({ error: 'Format waktu harus HH:mm (24 jam)' });
+        }
+      }
+
+      if (q.type === 'matrix') {
+        const config = q.options || {};
+        const matrixResult = validateMatrixAnswer(ans.answer_json, config, q.is_required);
+        if (!matrixResult.valid) {
+          return res.status(422).json({ error: matrixResult.error });
+        }
+      }
+    }
+
+    const end_time = new Date();
+    const startDate = new Date(start_time);
+    const duration_seconds = Math.floor((end_time - startDate) / 1000);
+
+    // Geo data
+    // If geo_status is not 'available', lat and lng must be null
+    const geo_status = geo.status || 'available';
+    const latitude = geo_status === 'available' && geo.lat != null ? geo.lat : null;
+    const longitude = geo_status === 'available' && geo.lng != null ? geo.lng : null;
+
+    // Atomic transaction: generate questionnaire number + save response + save answers
+    let questionnaire_number;
+    let end_time_iso;
+
+    const transaction = await sequelize.transaction();
+    try {
+      // --- Quota re-check inside transaction (prevents race condition) ---
+      const quotaRecord = await SurveyorQuota.findOne({
+        where: { survey_id, surveyor_id },
+        transaction,
+      });
+      if (quotaRecord) {
+        const committedCount = await Response.count({
+          where: {
+            survey_id,
+            surveyor_id,
+            questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+          },
+          transaction,
+        });
+        if (committedCount >= quotaRecord.quota) {
+          await transaction.rollback();
+          // Clean up the pending response
+          await existingResponse.destroy();
+          return res.status(403).json({ error: 'Kuota pengisian survei Anda sudah tercapai' });
+        }
+      }
+      // --- End quota re-check ---
+
+      // Generate questionnaire number using PostgreSQL sequence
+      // Sequence name uses underscores (hyphens replaced) to match the name created at activation
+      const seqName = `questionnaire_seq_${survey_id.replace(/-/g, '_')}`;
+      const [[{ nextval }]] = await sequelize.query(
+        `SELECT nextval('${seqName}') AS nextval`,
+        { transaction }
+      );
+
+      // Check if surveyor provided a unique_id answer — use it as the suffix instead of auto-sequence
+      let uniqueIdValue = null;
+      for (const ans of answers) {
+        const q = questionMap[ans.question_id];
+        if (q && q.type === 'unique_id' && ans.answer_value) {
+          uniqueIdValue = ans.answer_value;
+          break;
+        }
+      }
+
+      // Format: {SURVEY_PREFIX}-{YYYYMMDD}-{UNIQUE_ID or SEQUENCE_NUMBER:04d}
+      questionnaire_number = formatQuestionnaireNumber(survey.title, end_time, uniqueIdValue || Number(nextval));
+      end_time_iso = end_time.toISOString();
+
+      // Update the pending response record
+      await existingResponse.update(
+        {
+          questionnaire_number,
+          end_time: end_time_iso,
+          duration_seconds,
+          latitude,
+          longitude,
+          geo_status,
+          audio_path: audio_path || null,
+          signature_path: signature_path || null,
+          photo_paths: Array.isArray(photo_paths) ? photo_paths : [],
+          start_latitude: start_latitude != null ? start_latitude : null,
+          start_longitude: start_longitude != null ? start_longitude : null,
+          start_geo_status: start_geo_status || 'available',
+        },
+        { transaction }
+      );
+
+      // Save all answers
+      if (answers.length > 0) {
+        const answerRecords = answers.map((a) => ({
+          response_id,
+          question_id: a.question_id,
+          answer_value: a.answer_value || null,
+          answer_json: a.answer_json || null,
+          photo_path: a.photo_path || null,
+        }));
+        await Answer.bulkCreate(answerRecords, { transaction });
+      }
+
+      await transaction.commit();
+    } catch (txError) {
+      await transaction.rollback();
+      // If sequence doesn't exist or other DB error
+      return res.status(500).json({ error: 'Gagal menyimpan data. Silakan coba kembali' });
+    }
+
+    res.status(201).json({
+      questionnaire_number,
+      end_time: end_time_iso,
+      duration_seconds,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /responses/check-unique
+ * Check if a unique_id value is already used in a survey.
+ * Body: { survey_id, question_id, value }
+ * Returns: { available: boolean }
+ * Requires: authMiddleware + requireRole('surveyor')
+ */
+router.post('/check-unique', authMiddleware, requireRole('surveyor'), async (req, res, next) => {
+  try {
+    const { survey_id, question_id, value } = req.body;
+
+    if (!survey_id || !question_id || !value) {
+      return res.status(422).json({
+        error: 'Parameter survey_id, question_id, dan value wajib diisi',
+      });
+    }
+
+    const existingAnswer = await Answer.findOne({
+      where: { question_id, answer_value: value },
+      include: [{
+        model: Response,
+        as: 'response',
+        where: { survey_id },
+        attributes: ['id'],
+      }],
+    });
+
+    res.json({ available: !existingAnswer });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /responses
+ * List responses.
+ *   - Admin/Supervisor/Viewer: all responses
+ *   - Surveyor: only their own responses
+ * Requirements: 9.2, 9.4, 13.5, 15.5
+ */
+router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 'surveyor']), async (req, res, next) => {
+  try {
+    const { role, id: userId } = req.user;
+
+    const whereClause = {};
+    if (role === 'surveyor') {
+      whereClause.surveyor_id = userId;
+    }
+
+    // Exclude PENDING responses from listing
+    whereClause.questionnaire_number = { [Op.notLike]: 'PENDING-%' };
+
+    // Apply review_status filter for non-surveyor roles
+    const validReviewStatuses = ['unreviewed', 'flagged', 'verified'];
+    if (role !== 'surveyor' && req.query.review_status) {
+      if (validReviewStatuses.includes(req.query.review_status)) {
+        whereClause.review_status = req.query.review_status;
+      }
+      // Invalid filter values are silently ignored (return all)
+    }
+
+    const isSurveyor = role === 'surveyor';
+
+    // Base attributes
+    const attributes = [
+      'id',
+      'questionnaire_number',
+      'survey_id',
+      'surveyor_id',
+      'start_time',
+      'end_time',
+      'duration_seconds',
+      'geo_status',
+      'created_at',
+    ];
+
+    // Include review fields for non-surveyor roles
+    if (!isSurveyor) {
+      attributes.push('review_status', 'review_note', 'reviewed_by', 'reviewed_at');
+    }
+
+    const includeAssociations = [
+      {
+        model: Survey,
+        as: 'survey',
+        attributes: ['id', 'title'],
+      },
+      {
+        model: User,
+        as: 'surveyor',
+        attributes: ['id', 'name'],
+      },
+    ];
+
+    // Include reviewer association for non-surveyor roles
+    if (!isSurveyor) {
+      includeAssociations.push({
+        model: User,
+        as: 'reviewer',
+        attributes: ['id', 'name'],
+      });
+    }
+
+    const responses = await Response.findAll({
+      where: whereClause,
+      attributes,
+      include: includeAssociations,
+      order: [['created_at', 'DESC']],
+    });
+
+    const result = responses.map((r) => {
+      const item = {
+        id: r.id,
+        questionnaire_number: r.questionnaire_number,
+        survey_id: r.survey_id,
+        survey_title: r.survey ? r.survey.title : null,
+        surveyor_id: r.surveyor_id,
+        surveyor_name: r.surveyor ? r.surveyor.name : null,
+        start_time: r.start_time,
+        end_time: r.end_time,
+        duration_seconds: r.duration_seconds,
+        geo_status: r.geo_status,
+        created_at: r.created_at,
+      };
+
+      if (!isSurveyor) {
+        item.review_status = r.review_status;
+        item.review_note = r.review_note;
+        item.reviewed_by = r.reviewed_by;
+        item.reviewed_at = r.reviewed_at;
+        item.reviewer_name = r.reviewer ? r.reviewer.name : null;
+      }
+
+      return item;
+    });
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /responses/:id
+ * Get response detail with all answers.
+ *   - Admin/Supervisor/Viewer: any response
+ *   - Surveyor: only their own
+ * Requirements: 9.4, 13.5, 15.5
+ */
+router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 'surveyor']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { role, id: userId } = req.user;
+
+    const whereClause = { id };
+    if (role === 'surveyor') {
+      whereClause.surveyor_id = userId;
+    }
+
+    const isSurveyor = role === 'surveyor';
+
+    // Base attributes
+    const attributes = [
+      'id',
+      'questionnaire_number',
+      'survey_id',
+      'surveyor_id',
+      'start_time',
+      'end_time',
+      'duration_seconds',
+      'latitude',
+      'longitude',
+      'geo_status',
+      'audio_path',
+      'signature_path',
+      'photo_paths',
+      'start_latitude',
+      'start_longitude',
+      'start_geo_status',
+      'created_at',
+    ];
+
+    // Include review fields for non-surveyor roles
+    if (!isSurveyor) {
+      attributes.push('review_status', 'review_note', 'reviewed_by', 'reviewed_at');
+    }
+
+    const includeAssociations = [
+      {
+        model: Survey,
+        as: 'survey',
+        attributes: ['id', 'title'],
+      },
+      {
+        model: User,
+        as: 'surveyor',
+        attributes: ['id', 'name'],
+      },
+      {
+        model: Answer,
+        as: 'answers',
+        attributes: ['id', 'question_id', 'answer_value', 'answer_json', 'photo_path', 'created_at'],
+        include: [
+          {
+            model: Question,
+            as: 'question',
+            attributes: ['id', 'text', 'type', 'order_index', 'options'],
+          },
+        ],
+      },
+    ];
+
+    // Include reviewer association for non-surveyor roles
+    if (!isSurveyor) {
+      includeAssociations.push({
+        model: User,
+        as: 'reviewer',
+        attributes: ['id', 'name'],
+      });
+    }
+
+    const response = await Response.findOne({
+      where: whereClause,
+      attributes,
+      include: includeAssociations,
+    });
+
+    if (!response) {
+      return res.status(404).json({ error: 'Data responden tidak ditemukan' });
+    }
+
+    const result = {
+      id: response.id,
+      questionnaire_number: response.questionnaire_number,
+      survey_id: response.survey_id,
+      survey_title: response.survey ? response.survey.title : null,
+      surveyor_id: response.surveyor_id,
+      surveyor_name: response.surveyor ? response.surveyor.name : null,
+      start_time: response.start_time,
+      end_time: response.end_time,
+      duration_seconds: response.duration_seconds,
+      latitude: response.latitude,
+      longitude: response.longitude,
+      geo_status: response.geo_status,
+      audio_path: response.audio_path,
+      signature_path: response.signature_path,
+      photo_paths: response.photo_paths,
+      start_latitude: response.start_latitude,
+      start_longitude: response.start_longitude,
+      start_geo_status: response.start_geo_status,
+      created_at: response.created_at,
+      answers: (response.answers || []).map((a) => ({
+        id: a.id,
+        question_id: a.question_id,
+        answer_value: a.answer_value,
+        answer_json: a.answer_json,
+        photo_path: a.photo_path,
+        created_at: a.created_at,
+        question_text: a.question ? a.question.text : null,
+        question_type: a.question ? a.question.type : null,
+        question_order: a.question ? a.question.order_index : null,
+        question_options: a.question ? a.question.options : null,
+      })),
+    };
+
+    if (!isSurveyor) {
+      result.review_status = response.review_status;
+      result.review_note = response.review_note;
+      result.reviewed_by = response.reviewed_by;
+      result.reviewed_at = response.reviewed_at;
+      result.reviewer_name = response.reviewer ? response.reviewer.name : null;
+    }
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /responses/:id/review
+ * Update review status and note for a response.
+ * Body: { review_status, review_note? }
+ * Returns: { id, review_status, review_note, reviewed_by, reviewed_at, reviewer_name }
+ * Requires: authMiddleware + requireRole(['admin', 'supervisor'])
+ * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2
+ */
+router.patch('/:id/review', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { review_status, review_note } = req.body;
+
+    // Validate review_status
+    const validStatuses = ['unreviewed', 'flagged', 'verified'];
+    if (!validStatuses.includes(review_status)) {
+      return res.status(400).json({
+        error: 'Status review tidak valid. Gunakan: unreviewed, flagged, atau verified',
+      });
+    }
+
+    // Find response
+    const response = await Response.findByPk(id);
+    if (!response) {
+      return res.status(404).json({ error: 'Data responden tidak ditemukan' });
+    }
+
+    // Capture old review state for audit log
+    const oldValue = {
+      review_status: response.review_status,
+      review_note: response.review_note,
+    };
+
+    // Update review fields
+    const reviewedAt = new Date();
+    await response.update({
+      review_status,
+      review_note: review_note !== undefined ? review_note : null,
+      reviewed_by: req.user.id,
+      reviewed_at: reviewedAt,
+    });
+
+    // Create audit log
+    await createAuditLog({
+      userId: req.user.id,
+      action: 'REVIEW_RESPONSE',
+      entityType: 'response',
+      entityId: id,
+      oldValue,
+      newValue: {
+        review_status,
+        review_note: review_note !== undefined ? review_note : null,
+      },
+      ipAddress: req.ip,
+    });
+
+    // Fetch reviewer name
+    const reviewer = await User.findByPk(req.user.id, { attributes: ['name'] });
+
+    res.json({
+      id: response.id,
+      review_status: response.review_status,
+      review_note: response.review_note,
+      reviewed_by: response.reviewed_by,
+      reviewed_at: response.reviewed_at,
+      reviewer_name: reviewer ? reviewer.name : null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+module.exports = router;

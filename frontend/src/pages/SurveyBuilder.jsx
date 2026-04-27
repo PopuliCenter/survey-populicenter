@@ -1,0 +1,1659 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Layout from '../components/Layout';
+import SkipLogicEditor from '../components/SkipLogicEditor';
+import ValidationRulesEditor from '../components/ValidationRulesEditor';
+import api from '../services/api';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const QUESTION_TYPES = [
+  { value: 'single_choice', label: 'Pilihan Tunggal' },
+  { value: 'multiple_choice', label: 'Pilihan Ganda' },
+  { value: 'short_text', label: 'Teks Pendek' },
+  { value: 'long_text', label: 'Teks Panjang' },
+  { value: 'numeric_scale', label: 'Skala Numerik' },
+  { value: 'date', label: 'Tanggal' },
+  { value: 'photo', label: 'Upload Foto' },
+  { value: 'rating_scale', label: 'Rating Scale' },
+  { value: 'phone_number', label: 'Nomor Telepon' },
+  { value: 'unique_id', label: 'Nomor Kuesioner (Unik)' },
+  { value: 'time', label: 'Waktu' },
+  { value: 'matrix', label: 'Matrix/Grid' },
+];
+
+const CHOICE_TYPES = ['single_choice', 'multiple_choice'];
+
+// ─── Field Tools Settings Constants ──────────────────────────────────────────
+
+const DEFAULT_FIELD_TOOLS_SETTINGS = {
+  signature_mode: 'required',
+  audio_mode: 'required',
+  photo_mode: 'required',
+  gps_mode: 'required',
+};
+
+const FIELD_TOOLS = [
+  { key: 'signature_mode', label: 'Tanda Tangan' },
+  { key: 'audio_mode', label: 'Rekaman Audio' },
+  { key: 'photo_mode', label: 'Pengambilan Foto' },
+  { key: 'gps_mode', label: 'Lokasi GPS' },
+];
+
+const FIELD_TOOL_MODES = [
+  { value: 'required', label: 'Wajib' },
+  { value: 'optional', label: 'Opsional' },
+  { value: 'disabled', label: 'Nonaktif' },
+];
+
+// ─── Status Badge ─────────────────────────────────────────────────────────────
+function SurveyStatusBadge({ status }) {
+  const map = {
+    draft: 'bg-gray-100 text-gray-600',
+    active: 'bg-green-100 text-green-700',
+    inactive: 'bg-yellow-100 text-yellow-700',
+  };
+  const label = { draft: 'Draft', active: 'Aktif', inactive: 'Nonaktif' };
+  return (
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${map[status] || map.draft}`}
+    >
+      {label[status] || status}
+    </span>
+  );
+}
+
+// ─── Type Badge ───────────────────────────────────────────────────────────────
+function TypeBadge({ type }) {
+  const found = QUESTION_TYPES.find((t) => t.value === type);
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700">
+      {found ? found.label : type}
+    </span>
+  );
+}
+
+// ─── Options Editor ───────────────────────────────────────────────────────────
+/**
+ * Editor for adding/removing choice options (value + label).
+ *
+ * @param {{
+ *   options: Array<{ value: string, label: string }>,
+ *   onChange: (opts: Array) => void,
+ * }} props
+ */
+function OptionsEditor({ options, onChange }) {
+  function addOption() {
+    onChange([...options, { value: '', label: '' }]);
+  }
+
+  function removeOption(index) {
+    onChange(options.filter((_, i) => i !== index));
+  }
+
+  function updateOption(index, field, val) {
+    onChange(
+      options.map((opt, i) => (i === index ? { ...opt, [field]: val } : opt))
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {options.map((opt, index) => (
+        <div key={index} className="flex items-center gap-2">
+          <input
+            type="text"
+            value={opt.value}
+            onChange={(e) => updateOption(index, 'value', e.target.value)}
+            placeholder="Nilai"
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-28"
+            aria-label={`Nilai opsi ${index + 1}`}
+          />
+          <input
+            type="text"
+            value={opt.label}
+            onChange={(e) => updateOption(index, 'label', e.target.value)}
+            placeholder="Label tampilan"
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 flex-1"
+            aria-label={`Label opsi ${index + 1}`}
+          />
+          <button
+            type="button"
+            onClick={() => removeOption(index)}
+            className="px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+            aria-label={`Hapus opsi ${index + 1}`}
+          >
+            Hapus
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addOption}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+      >
+        <span aria-hidden="true">+</span> Tambah Opsi
+      </button>
+    </div>
+  );
+}
+
+// ─── Rating Config Editor ─────────────────────────────────────────────────────
+/**
+ * Editor konfigurasi untuk tipe pertanyaan rating_scale.
+ * Mengelola min, max, display mode, dan label opsional.
+ *
+ * @param {{
+ *   config: { min: number, max: number, display: string, labels: object },
+ *   onChange: (config: object) => void,
+ * }} props
+ */
+function RatingConfigEditor({ config, onChange }) {
+  const { min = 1, max = 5, display = 'stars', labels = {} } = config || {};
+
+  function update(field, value) {
+    onChange({ min, max, display, labels, [field]: value });
+  }
+
+  function updateLabel(key, value) {
+    onChange({ min, max, display, labels: { ...labels, [key]: value } });
+  }
+
+  return (
+    <div className="space-y-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+      <p className="text-sm font-medium text-amber-800">Konfigurasi Rating Scale</p>
+
+      {/* Min / Max / Display */}
+      <div className="flex items-end gap-4 flex-wrap">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Nilai Min
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={9}
+            value={min}
+            onChange={(e) => update('min', parseInt(e.target.value, 10) || 1)}
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Nilai minimum rating"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Nilai Max
+          </label>
+          <input
+            type="number"
+            min={2}
+            max={10}
+            value={max}
+            onChange={(e) => update('max', parseInt(e.target.value, 10) || 5)}
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Nilai maksimum rating"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Tampilan
+          </label>
+          <select
+            value={display}
+            onChange={(e) => update('display', e.target.value)}
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+            aria-label="Mode tampilan rating"
+          >
+            <option value="stars">Bintang (Stars)</option>
+            <option value="numbers">Angka (Numbers)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Preview */}
+      <div className="text-xs text-gray-500">
+        Skala: {min} – {max} ({max - min + 1} nilai)
+      </div>
+
+      {/* Labels opsional */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-gray-600">Label Ujung Skala (opsional)</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs text-gray-500 mb-1">Label Min</label>
+            <input
+              type="text"
+              value={labels.min || ''}
+              onChange={(e) => updateLabel('min', e.target.value)}
+              placeholder="Sangat Tidak Puas"
+              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              aria-label="Label nilai minimum"
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs text-gray-500 mb-1">Label Max</label>
+            <input
+              type="text"
+              value={labels.max || ''}
+              onChange={(e) => updateLabel('max', e.target.value)}
+              placeholder="Sangat Puas"
+              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              aria-label="Label nilai maksimum"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Phone Config Editor ──────────────────────────────────────────────────────
+/**
+ * Editor konfigurasi untuk tipe pertanyaan phone_number.
+ * Mengelola min_length dan max_length.
+ */
+function PhoneConfigEditor({ config, onChange }) {
+  const { min_length = 10, max_length = 13 } = config || {};
+
+  function update(field, value) {
+    onChange({ min_length, max_length, [field]: value });
+  }
+
+  return (
+    <div className="space-y-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+      <p className="text-sm font-medium text-green-800">Konfigurasi Nomor Telepon</p>
+      <div className="flex items-end gap-4 flex-wrap">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Min Digit</label>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={min_length}
+            onChange={(e) => update('min_length', parseInt(e.target.value, 10) || 1)}
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Panjang minimum digit"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Max Digit</label>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={max_length}
+            onChange={(e) => update('max_length', parseInt(e.target.value, 10) || 13)}
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Panjang maksimum digit"
+          />
+        </div>
+      </div>
+      <div className="text-xs text-gray-500">
+        Menerima nomor telepon {min_length}–{max_length} digit (angka saja, tanpa +62)
+      </div>
+    </div>
+  );
+}
+
+// ─── Unique ID Config Editor ─────────────────────────────────────────────────
+/**
+ * Editor konfigurasi untuk tipe pertanyaan unique_id.
+ * Mengelola min_length dan max_length (opsional).
+ */
+function UniqueIdConfigEditor({ config, onChange }) {
+  const { min_length = 1, max_length = 20 } = config || {};
+
+  function update(field, value) {
+    onChange({ min_length, max_length, [field]: value });
+  }
+
+  return (
+    <div className="space-y-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+      <p className="text-sm font-medium text-purple-800">Konfigurasi Nomor Kuesioner (Unik)</p>
+      <div className="flex items-end gap-4 flex-wrap">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Min Digit</label>
+          <input
+            type="number"
+            min={1}
+            max={50}
+            value={min_length}
+            onChange={(e) => update('min_length', parseInt(e.target.value, 10) || 1)}
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Panjang minimum digit"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Max Digit</label>
+          <input
+            type="number"
+            min={1}
+            max={50}
+            value={max_length}
+            onChange={(e) => update('max_length', parseInt(e.target.value, 10) || 20)}
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Panjang maksimum digit"
+          />
+        </div>
+      </div>
+      <div className="text-xs text-gray-500">
+        Nomor kuesioner manual {min_length}–{max_length} digit (angka saja, unik per survei)
+      </div>
+    </div>
+  );
+}
+
+// ─── Date Config Editor ───────────────────────────────────────────────────────
+/**
+ * Editor konfigurasi untuk tipe pertanyaan date.
+ * Mengelola min_date dan max_date (opsional).
+ *
+ * @param {{
+ *   config: { min_date: string, max_date: string },
+ *   onChange: (config: object) => void,
+ * }} props
+ */
+function DateConfigEditor({ config, onChange }) {
+  const { min_date = '', max_date = '' } = config || {};
+
+  const hasValidationError = min_date && max_date && min_date > max_date;
+
+  function update(field, value) {
+    onChange({ min_date, max_date, [field]: value });
+  }
+
+  return (
+    <div className="space-y-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+      <p className="text-sm font-medium text-teal-800">Konfigurasi Tanggal</p>
+      <div className="flex items-end gap-4 flex-wrap">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Tanggal Minimum
+          </label>
+          <input
+            type="date"
+            value={min_date}
+            onChange={(e) => update('min_date', e.target.value)}
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Tanggal minimum"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Tanggal Maksimum
+          </label>
+          <input
+            type="date"
+            value={max_date}
+            onChange={(e) => update('max_date', e.target.value)}
+            className={`border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+              hasValidationError ? 'border-red-400' : 'border-gray-300'
+            }`}
+            aria-label="Tanggal maksimum"
+            aria-invalid={hasValidationError}
+          />
+        </div>
+      </div>
+      {hasValidationError && (
+        <p className="text-xs text-red-600">
+          Tanggal minimum tidak boleh lebih besar dari tanggal maksimum
+        </p>
+      )}
+      <p className="text-xs text-gray-500">
+        Kosongkan untuk tanpa batasan tanggal
+      </p>
+    </div>
+  );
+}
+
+// ─── Matrix Config Editor ─────────────────────────────────────────────────────
+/**
+ * Editor konfigurasi untuk tipe pertanyaan matrix.
+ * Mengelola daftar baris (rows) dan kolom (columns).
+ *
+ * @param {{
+ *   config: { rows: string[], columns: string[] },
+ *   onChange: (config: object) => void,
+ * }} props
+ */
+function MatrixConfigEditor({ config, onChange }) {
+  const { rows = [], columns = [] } = config || {};
+
+  // ── Row helpers ──
+  function addRow() {
+    onChange({ rows: [...rows, ''], columns });
+  }
+
+  function removeRow(index) {
+    onChange({ rows: rows.filter((_, i) => i !== index), columns });
+  }
+
+  function updateRow(index, value) {
+    onChange({ rows: rows.map((r, i) => (i === index ? value : r)), columns });
+  }
+
+  // ── Column helpers ──
+  function addColumn() {
+    onChange({ rows, columns: [...columns, ''] });
+  }
+
+  function removeColumn(index) {
+    onChange({ rows, columns: columns.filter((_, i) => i !== index) });
+  }
+
+  function updateColumn(index, value) {
+    onChange({ rows, columns: columns.map((c, i) => (i === index ? value : c)) });
+  }
+
+  // ── Validation ──
+  const trimmedRows = rows.map((r) => r.trim());
+  const trimmedCols = columns.map((c) => c.trim());
+  const hasEmptyRow = trimmedRows.some((r) => r === '');
+  const hasEmptyCol = trimmedCols.some((c) => c === '');
+  const hasDuplicateRow = new Set(trimmedRows.filter((r) => r !== '')).size !== trimmedRows.filter((r) => r !== '').length;
+  const hasDuplicateCol = new Set(trimmedCols.filter((c) => c !== '')).size !== trimmedCols.filter((c) => c !== '').length;
+  const rowCountError = rows.length < 1;
+  const colCountError = columns.length < 2;
+
+  const validationErrors = [];
+  if (rowCountError) validationErrors.push('Minimal 1 baris diperlukan');
+  if (colCountError) validationErrors.push('Minimal 2 kolom diperlukan');
+  if (hasEmptyRow) validationErrors.push('Elemen baris tidak boleh kosong');
+  if (hasEmptyCol) validationErrors.push('Elemen kolom tidak boleh kosong');
+  if (hasDuplicateRow) validationErrors.push('Elemen baris tidak boleh duplikat');
+  if (hasDuplicateCol) validationErrors.push('Elemen kolom tidak boleh duplikat');
+
+  // Only show preview when there are valid rows and columns
+  const canPreview = rows.length > 0 && columns.length > 0 && trimmedRows.some((r) => r !== '') && trimmedCols.some((c) => c !== '');
+
+  return (
+    <div className="space-y-4 p-4 bg-rose-50 border border-rose-200 rounded-lg">
+      <p className="text-sm font-medium text-rose-800">Konfigurasi Matrix/Grid</p>
+
+      {/* Rows editor */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-gray-600">Baris (Sub-pertanyaan)</p>
+        {rows.map((row, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={row}
+              onChange={(e) => updateRow(index, e.target.value)}
+              placeholder={`Baris ${index + 1}`}
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 flex-1"
+              aria-label={`Baris ${index + 1}`}
+            />
+            <button
+              type="button"
+              onClick={() => removeRow(index)}
+              className="px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+              aria-label={`Hapus baris ${index + 1}`}
+            >
+              Hapus
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={addRow}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-700 bg-rose-100 hover:bg-rose-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-rose-300"
+        >
+          <span aria-hidden="true">+</span> Tambah Baris
+        </button>
+      </div>
+
+      {/* Columns editor */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-gray-600">Kolom (Opsi Jawaban)</p>
+        {columns.map((col, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={col}
+              onChange={(e) => updateColumn(index, e.target.value)}
+              placeholder={`Kolom ${index + 1}`}
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 flex-1"
+              aria-label={`Kolom ${index + 1}`}
+            />
+            <button
+              type="button"
+              onClick={() => removeColumn(index)}
+              className="px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+              aria-label={`Hapus kolom ${index + 1}`}
+            >
+              Hapus
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={addColumn}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-700 bg-rose-100 hover:bg-rose-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-rose-300"
+        >
+          <span aria-hidden="true">+</span> Tambah Kolom
+        </button>
+      </div>
+
+      {/* Validation errors */}
+      {validationErrors.length > 0 && (
+        <div className="space-y-1">
+          {validationErrors.map((err, i) => (
+            <p key={i} className="text-xs text-red-600">{err}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Matrix preview */}
+      {canPreview && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-gray-600">Preview Matrix</p>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs border border-gray-200 rounded">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border border-gray-200 px-3 py-2 text-left font-medium text-gray-600"></th>
+                  {columns.map((col, i) => (
+                    <th key={i} className="border border-gray-200 px-3 py-2 text-center font-medium text-gray-600">
+                      {col.trim() || `Kolom ${i + 1}`}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, ri) => (
+                  <tr key={ri} className="hover:bg-gray-50">
+                    <td className="border border-gray-200 px-3 py-2 font-medium text-gray-700">
+                      {row.trim() || `Baris ${ri + 1}`}
+                    </td>
+                    {columns.map((_, ci) => (
+                      <td key={ci} className="border border-gray-200 px-3 py-2 text-center">
+                        <span className="inline-block w-4 h-4 rounded-full border-2 border-gray-300" aria-hidden="true"></span>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Field Tools Settings Section ────────────────────────────────────────────
+/**
+ * Section for configuring field tools modes per survey.
+ *
+ * @param {{
+ *   settings: object,
+ *   onChange: (key: string, value: string) => void,
+ * }} props
+ */
+function FieldToolsSettingsSection({ settings, onChange }) {
+  return (
+    <div className="bg-white rounded-xl shadow px-6 py-4 space-y-3">
+      <p className="text-sm font-medium text-gray-700">Pengaturan Field Tools</p>
+      <div className="space-y-3">
+        {FIELD_TOOLS.map(({ key, label }) => (
+          <div key={key} className="flex items-center gap-6 flex-wrap">
+            <span className="text-sm text-gray-700 w-36 shrink-0">{label}</span>
+            <div className="flex items-center gap-4 flex-wrap">
+              {FIELD_TOOL_MODES.map(({ value, label: modeLabel }) => (
+                <label
+                  key={value}
+                  htmlFor={`${key}_${value}`}
+                  className="inline-flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    id={`${key}_${value}`}
+                    name={key}
+                    value={value}
+                    checked={settings[key] === value}
+                    onChange={() => onChange(key, value)}
+                    className="accent-blue-600 focus:ring-2 focus:ring-blue-400"
+                  />
+                  {modeLabel}
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Date Picker Section ──────────────────────────────────────────────────────
+/**
+ * Section for setting survey start_date and end_date.
+ *
+ * @param {{
+ *   startDate: string,
+ *   endDate: string,
+ *   onStartDateChange: (v: string) => void,
+ *   onEndDateChange: (v: string) => void,
+ *   dateError: string,
+ * }} props
+ */
+function DatePickerSection({ startDate, endDate, onStartDateChange, onEndDateChange, dateError }) {
+  return (
+    <div className="bg-white rounded-xl shadow px-6 py-4 space-y-3">
+      <p className="text-sm font-medium text-gray-700">Periode Pengisian Survei</p>
+      <div className="flex items-start gap-4 flex-wrap">
+        <div>
+          <label htmlFor="survey-start-date" className="block text-xs font-medium text-gray-600 mb-1">
+            Tanggal Mulai
+          </label>
+          <input
+            id="survey-start-date"
+            type="datetime-local"
+            value={startDate}
+            onChange={(e) => onStartDateChange(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Tanggal mulai survei"
+          />
+        </div>
+        <div>
+          <label htmlFor="survey-end-date" className="block text-xs font-medium text-gray-600 mb-1">
+            Tanggal Berakhir
+          </label>
+          <input
+            id="survey-end-date"
+            type="datetime-local"
+            value={endDate}
+            onChange={(e) => onEndDateChange(e.target.value)}
+            className={`border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+              dateError ? 'border-red-400' : 'border-gray-300'
+            }`}
+            aria-label="Tanggal berakhir survei"
+            aria-describedby={dateError ? 'date-error' : undefined}
+            aria-invalid={!!dateError}
+          />
+        </div>
+      </div>
+      {dateError && (
+        <p id="date-error" className="text-xs text-red-600">{dateError}</p>
+      )}
+      <p className="text-xs text-gray-400">
+        Kosongkan untuk survei tanpa batasan waktu.
+      </p>
+    </div>
+  );
+}
+
+// ─── Question Form Modal ──────────────────────────────────────────────────────
+/**
+ * Modal form for adding or editing a question.
+ *
+ * @param {{
+ *   mode: 'create' | 'edit',
+ *   initial: object | null,
+ *   surveyId: string,
+ *   questions: Array,
+ *   onClose: () => void,
+ *   onSaved: () => void,
+ * }} props
+ */
+function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSaved }) {
+  const isEdit = mode === 'edit';
+
+  const [text, setText] = useState(initial?.text || '');
+  const [type, setType] = useState(initial?.type || 'single_choice');
+  const [isRequired, setIsRequired] = useState(initial?.is_required ?? false);
+  const [options, setOptions] = useState(
+    initial?.options && Array.isArray(initial.options) ? [...initial.options] : []
+  );
+  const [randomizeOptions, setRandomizeOptions] = useState(
+    initial?.randomize_options ?? false
+  );
+  const [allowOther, setAllowOther] = useState(
+    initial?.options && !Array.isArray(initial.options) && initial.options.allow_other
+      ? true
+      : Array.isArray(initial?.options) && initial.options.some?.((o) => o.value === '__other__')
+        ? true
+        : false
+  );
+  const [skipLogic, setSkipLogic] = useState(
+    initial?.skip_logic ? [...initial.skip_logic] : []
+  );
+  const [ratingConfig, setRatingConfig] = useState(
+    initial?.type === 'rating_scale' && initial?.options && !Array.isArray(initial.options)
+      ? initial.options
+      : { min: 1, max: 5, display: 'stars', labels: {} }
+  );
+  const [phoneConfig, setPhoneConfig] = useState(
+    initial?.type === 'phone_number' && initial?.options && !Array.isArray(initial.options)
+      ? initial.options
+      : { min_length: 10, max_length: 13 }
+  );
+  const [uniqueIdConfig, setUniqueIdConfig] = useState(
+    initial?.type === 'unique_id' && initial?.options && !Array.isArray(initial.options)
+      ? initial.options
+      : { min_length: 1, max_length: 20 }
+  );
+  const [dateConfig, setDateConfig] = useState(
+    initial?.type === 'date' && initial?.options && !Array.isArray(initial.options)
+      ? initial.options
+      : { min_date: '', max_date: '' }
+  );
+  const [matrixConfig, setMatrixConfig] = useState(
+    initial?.type === 'matrix' && initial?.options && !Array.isArray(initial.options)
+      ? initial.options
+      : { rows: [], columns: [] }
+  );
+  const [validationConfig, setValidationConfig] = useState(() => {
+    if (initial?.options && !Array.isArray(initial.options) && initial.options.validation) {
+      return initial.options.validation;
+    }
+    return null;
+  });
+
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [textError, setTextError] = useState('');
+
+  const isChoiceType = CHOICE_TYPES.includes(type);
+
+  // Reset options when type changes away from choice types
+  function handleTypeChange(newType) {
+    setType(newType);
+    if (!CHOICE_TYPES.includes(newType)) {
+      setRandomizeOptions(false);
+    }
+    if (newType !== 'rating_scale') {
+      setRatingConfig({ min: 1, max: 5, display: 'stars', labels: {} });
+    }
+    if (newType !== 'phone_number') setPhoneConfig({ min_length: 10, max_length: 13 });
+    if (newType !== 'unique_id') setUniqueIdConfig({ min_length: 1, max_length: 20 });
+    if (newType !== 'date') setDateConfig({ min_date: '', max_date: '' });
+    if (newType !== 'matrix') setMatrixConfig({ rows: [], columns: [] });
+    setValidationConfig(null);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setFormError(null);
+    setTextError('');
+
+    if (!text.trim()) {
+      setTextError('Teks pertanyaan wajib diisi');
+      return;
+    }
+
+    const validationPayload = validationConfig ? { validation: validationConfig } : {};
+
+    const payload = {
+      text: text.trim(),
+      type,
+      is_required: isRequired,
+      ...(isChoiceType
+        ? {
+            options: options.filter((o) => o.value.trim() || o.label.trim()),
+            randomize_options: randomizeOptions,
+            allow_other: allowOther,
+          }
+        : {}),
+      ...(type === 'rating_scale' ? { options: { ...ratingConfig, ...validationPayload } } : {}),
+      ...(type === 'phone_number' ? { options: { ...phoneConfig, ...validationPayload } } : {}),
+      ...(type === 'unique_id' ? { options: { ...uniqueIdConfig, ...validationPayload } } : {}),
+      ...(type === 'date' ? { options: { ...dateConfig, ...validationPayload } } : {}),
+      ...(type === 'matrix' ? { options: { ...matrixConfig, ...validationPayload } } : {}),
+      ...(!isChoiceType && type !== 'rating_scale' && type !== 'phone_number' && type !== 'unique_id' && type !== 'date' && type !== 'matrix' && validationConfig
+        ? { options: validationPayload }
+        : {}),
+      skip_logic: skipLogic,
+    };
+
+    setSubmitting(true);
+    try {
+      if (isEdit) {
+        await api.put(`/surveys/${surveyId}/questions/${initial.id}`, payload);
+      } else {
+        await api.post(`/surveys/${surveyId}/questions`, payload);
+      }
+      onSaved();
+    } catch (err) {
+      setFormError(
+        err.response?.data?.message ||
+          err.message ||
+          'Terjadi kesalahan. Silakan coba lagi.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="question-modal-title"
+    >
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-6">
+        <h2
+          id="question-modal-title"
+          className="text-lg font-semibold text-gray-800 mb-5"
+        >
+          {isEdit ? 'Edit Pertanyaan' : 'Tambah Pertanyaan'}
+        </h2>
+
+        {formError && (
+          <div
+            className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm"
+            role="alert"
+          >
+            {formError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+          {/* Question text */}
+          <div>
+            <label
+              htmlFor="question-text"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Teks Pertanyaan{' '}
+              <span aria-hidden="true" className="text-red-500">*</span>
+            </label>
+            <textarea
+              id="question-text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={3}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none ${
+                textError ? 'border-red-400' : 'border-gray-300'
+              }`}
+              aria-describedby={textError ? 'question-text-error' : undefined}
+              aria-invalid={!!textError}
+              autoFocus
+            />
+            {textError && (
+              <p id="question-text-error" className="mt-1 text-xs text-red-600">
+                {textError}
+              </p>
+            )}
+          </div>
+
+          {/* Type selector */}
+          <div>
+            <label
+              htmlFor="question-type"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Tipe Pertanyaan
+            </label>
+            <select
+              id="question-type"
+              value={type}
+              onChange={(e) => handleTypeChange(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+            >
+              {QUESTION_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Rating Scale Config (hanya untuk tipe rating_scale) */}
+          {type === 'rating_scale' && (
+            <RatingConfigEditor
+              config={ratingConfig}
+              onChange={setRatingConfig}
+            />
+          )}
+
+          {/* Phone Number Config */}
+          {type === 'phone_number' && (
+            <PhoneConfigEditor config={phoneConfig} onChange={setPhoneConfig} />
+          )}
+
+          {/* Unique ID Config */}
+          {type === 'unique_id' && (
+            <UniqueIdConfigEditor config={uniqueIdConfig} onChange={setUniqueIdConfig} />
+          )}
+
+          {/* Date Config */}
+          {type === 'date' && (
+            <DateConfigEditor config={dateConfig} onChange={setDateConfig} />
+          )}
+
+          {/* Matrix Config */}
+          {type === 'matrix' && (
+            <MatrixConfigEditor config={matrixConfig} onChange={setMatrixConfig} />
+          )}
+
+          {/* Is Required toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isRequired}
+              onClick={() => setIsRequired((v) => !v)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                isRequired ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+              aria-label="Pertanyaan wajib diisi"
+            >
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                  isRequired ? 'translate-x-4' : 'translate-x-1'
+                }`}
+              />
+            </button>
+            <span className="text-sm text-gray-700">Pertanyaan wajib diisi</span>
+          </div>
+
+          {/* Options editor (only for choice types) */}
+          {isChoiceType && (
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Pilihan Jawaban
+                </p>
+                <OptionsEditor options={options} onChange={setOptions} />
+              </div>
+
+              {/* Randomize options toggle */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={randomizeOptions}
+                  onClick={() => setRandomizeOptions((v) => !v)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                    randomizeOptions ? 'bg-blue-600' : 'bg-gray-300'
+                  }`}
+                  aria-label="Acak urutan pilihan jawaban"
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                      randomizeOptions ? 'translate-x-4' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className="text-sm text-gray-700">
+                  Acak urutan pilihan jawaban
+                </span>
+              </div>
+
+              {/* Allow "Lainnya" (Other) option toggle */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={allowOther}
+                  onClick={() => setAllowOther((v) => !v)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                    allowOther ? 'bg-blue-600' : 'bg-gray-300'
+                  }`}
+                  aria-label="Tambah opsi Lainnya"
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                      allowOther ? 'translate-x-4' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className="text-sm text-gray-700">
+                  Tambah opsi "Lainnya" (input teks dari surveyor)
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Skip Logic section */}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">Skip Logic</p>
+            <SkipLogicEditor
+              questions={questions}
+              skipLogic={skipLogic}
+              onChange={setSkipLogic}
+            />
+          </div>
+
+          {/* Validation Rules section */}
+          <ValidationRulesEditor
+            questionType={type}
+            validation={validationConfig}
+            onChange={setValidationConfig}
+          />
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {submitting
+                ? 'Menyimpan…'
+                : isEdit
+                ? 'Simpan Perubahan'
+                : 'Tambah Pertanyaan'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── SurveyBuilder Page ───────────────────────────────────────────────────────
+/**
+ * Question builder page for a specific survey.
+ *
+ * Features:
+ * - Fetch survey detail + questions from GET /surveys/:id
+ * - Display survey title and status
+ * - List questions with order, text, type badge, required indicator, edit/delete
+ * - "Tambah Pertanyaan" button → modal with all question types, options, skip logic
+ * - Edit question: same form pre-filled
+ * - Delete question: with confirmation
+ * - Reorder: up/down buttons (calls PATCH /surveys/:id/questions/reorder)
+ * - Back button to /surveys
+ */
+function SurveyBuilder() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [survey, setSurvey] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
+  const [actionError, setActionError] = useState(null);
+
+  // Modal state
+  const [modalMode, setModalMode] = useState(null); // 'create' | 'edit'
+  const [editTarget, setEditTarget] = useState(null);
+
+  // Inline delete confirmation
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  // Date picker state
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [dateError, setDateError] = useState('');
+  const [savingDates, setSavingDates] = useState(false);
+
+  // Field tools settings state
+  const [fieldToolsSettings, setFieldToolsSettings] = useState(null);
+  const [savingFieldTools, setSavingFieldTools] = useState(false);
+
+  // Form mode state
+  const [formMode, setFormMode] = useState('wizard');
+  const [savingFormMode, setSavingFormMode] = useState(false);
+
+  // ── Fetch survey detail ─────────────────────────────────────────────────────
+  const fetchSurvey = useCallback(async () => {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      const res = await api.get(`/surveys/${id}`);
+      setSurvey(res.data);
+      const qs = res.data.questions || [];
+      // Sort by order_index
+      setQuestions([...qs].sort((a, b) => a.order_index - b.order_index));
+    } catch (err) {
+      setFetchError(
+        err.response?.data?.message ||
+          err.message ||
+          'Gagal memuat data survei.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchSurvey();
+  }, [fetchSurvey]);
+
+  // ── Initialize date picker from survey data ─────────────────────────────────
+  useEffect(() => {
+    if (survey) {
+      // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm)
+      const toLocal = (isoStr) => {
+        if (!isoStr) return '';
+        const d = new Date(isoStr);
+        if (isNaN(d.getTime())) return '';
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      };
+      setStartDate(toLocal(survey.start_date));
+      setEndDate(toLocal(survey.end_date));
+      setDateError('');
+      setFieldToolsSettings(survey.field_tools_settings || DEFAULT_FIELD_TOOLS_SETTINGS);
+      setFormMode(survey.form_mode || 'wizard');
+    }
+  }, [survey]);
+
+  // ── Date change handlers with validation ────────────────────────────────────
+  function handleStartDateChange(value) {
+    setStartDate(value);
+    if (value && endDate) {
+      const s = new Date(value);
+      const e = new Date(endDate);
+      if (e <= s) {
+        setDateError('Tanggal berakhir harus setelah tanggal mulai');
+        return;
+      }
+    }
+    setDateError('');
+  }
+
+  function handleEndDateChange(value) {
+    setEndDate(value);
+    if (startDate && value) {
+      const s = new Date(startDate);
+      const e = new Date(value);
+      if (e <= s) {
+        setDateError('Tanggal berakhir harus setelah tanggal mulai');
+        return;
+      }
+    }
+    setDateError('');
+  }
+
+  // ── Save survey dates ───────────────────────────────────────────────────────
+  async function handleSaveDates() {
+    setActionError(null);
+
+    // Frontend validation
+    if (startDate && endDate) {
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      if (e <= s) {
+        setDateError('Tanggal berakhir harus setelah tanggal mulai');
+        return;
+      }
+    }
+    setDateError('');
+
+    setSavingDates(true);
+    try {
+      await api.put(`/surveys/${id}`, {
+        start_date: startDate ? new Date(startDate).toISOString() : null,
+        end_date: endDate ? new Date(endDate).toISOString() : null,
+      });
+      setSuccessMsg('Periode survei berhasil disimpan.');
+      fetchSurvey();
+    } catch (err) {
+      setActionError(
+        err.response?.data?.error ||
+          err.message ||
+          'Gagal menyimpan periode survei.'
+      );
+    } finally {
+      setSavingDates(false);
+    }
+  }
+
+  // ── Field tools settings handlers ───────────────────────────────────────────
+  function handleFieldToolsChange(key, value) {
+    setFieldToolsSettings((prev) => ({
+      ...(prev || DEFAULT_FIELD_TOOLS_SETTINGS),
+      [key]: value,
+    }));
+  }
+
+  async function handleSaveFieldTools() {
+    setActionError(null);
+    setSavingFieldTools(true);
+    try {
+      await api.put(`/surveys/${id}`, {
+        field_tools_settings: fieldToolsSettings || DEFAULT_FIELD_TOOLS_SETTINGS,
+      });
+      setSuccessMsg('Pengaturan field tools berhasil disimpan.');
+    } catch (err) {
+      setActionError(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          err.message ||
+          'Gagal menyimpan pengaturan field tools.'
+      );
+    } finally {
+      setSavingFieldTools(false);
+    }
+  }
+
+  // ── Save form mode ──────────────────────────────────────────────────────────
+  async function handleSaveFormMode(mode) {
+    setFormMode(mode);
+    setSavingFormMode(true);
+    setActionError(null);
+    try {
+      await api.put(`/surveys/${id}`, { form_mode: mode });
+      setSuccessMsg(`Mode formulir berhasil diubah ke "${mode === 'wizard' ? 'Per Pertanyaan' : 'Satu Halaman'}".`);
+    } catch (err) {
+      setActionError(
+        err.response?.data?.error || err.message || 'Gagal menyimpan mode formulir.'
+      );
+    } finally {
+      setSavingFormMode(false);
+    }
+  }
+
+  // ── Auto-dismiss success message ────────────────────────────────────────────
+  useEffect(() => {
+    if (!successMsg) return;
+    const timer = setTimeout(() => setSuccessMsg(null), 4000);
+    return () => clearTimeout(timer);
+  }, [successMsg]);
+
+  // ── Delete question ─────────────────────────────────────────────────────────
+  async function handleDeleteQuestion(question) {
+    setActionError(null);
+    try {
+      await api.delete(`/surveys/${id}/questions/${question.id}`);
+      setSuccessMsg('Pertanyaan berhasil dihapus.');
+      setConfirmDeleteId(null);
+      fetchSurvey();
+    } catch (err) {
+      setActionError(
+        err.response?.data?.message ||
+          err.message ||
+          'Gagal menghapus pertanyaan.'
+      );
+      setConfirmDeleteId(null);
+    }
+  }
+
+  // ── Reorder question ────────────────────────────────────────────────────────
+  async function handleReorder(questionId, direction) {
+    setActionError(null);
+    const sorted = [...questions].sort((a, b) => a.order_index - b.order_index);
+    const currentIndex = sorted.findIndex((q) => q.id === questionId);
+    if (currentIndex === -1) return;
+
+    const swapIndex =
+      direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (swapIndex < 0 || swapIndex >= sorted.length) return;
+
+    // Swap order_index values
+    const updated = sorted.map((q, i) => {
+      if (i === currentIndex)
+        return { ...q, order_index: sorted[swapIndex].order_index };
+      if (i === swapIndex)
+        return { ...q, order_index: sorted[currentIndex].order_index };
+      return q;
+    });
+
+    const payload = updated.map((q) => ({
+      id: q.id,
+      order_index: q.order_index,
+    }));
+
+    try {
+      await api.patch(`/surveys/${id}/questions/reorder`, {
+        order: payload,
+      });
+      setQuestions(updated.sort((a, b) => a.order_index - b.order_index));
+    } catch (err) {
+      setActionError(
+        err.response?.data?.message ||
+          err.message ||
+          'Gagal mengubah urutan pertanyaan.'
+      );
+    }
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+  return (
+    <Layout>
+      <div className="space-y-5">
+        {/* Back button */}
+        <div>
+          <button
+            onClick={() => navigate('/surveys')}
+            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 transition-colors focus:outline-none focus:underline"
+            aria-label="Kembali ke daftar survei"
+          >
+            <span aria-hidden="true">←</span> Kembali ke Daftar Survei
+          </button>
+        </div>
+
+        {loading ? (
+          <div
+            className="flex items-center justify-center h-48 text-gray-400 text-sm"
+            role="status"
+            aria-live="polite"
+          >
+            Memuat data survei…
+          </div>
+        ) : fetchError ? (
+          <div
+            className="flex flex-col items-center justify-center h-48 gap-3"
+            role="alert"
+          >
+            <p className="text-red-600 text-sm">{fetchError}</p>
+            <button
+              onClick={fetchSurvey}
+              className="text-sm text-blue-600 underline hover:text-blue-800"
+            >
+              Coba lagi
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Survey header */}
+            <div className="bg-white rounded-xl shadow px-6 py-4 flex items-center justify-between gap-4">
+              <div>
+                <h1 className="text-xl font-bold text-gray-800">
+                  {survey?.title}
+                </h1>
+                {survey?.description && (
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {survey.description}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <SurveyStatusBadge status={survey?.status} />
+                <button
+                  onClick={() => {
+                    setEditTarget(null);
+                    setModalMode('create');
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <span aria-hidden="true">+</span> Tambah Pertanyaan
+                </button>
+              </div>
+            </div>
+
+            {/* Date Picker Section */}
+            <div className="flex items-end gap-4">
+              <div className="flex-1">
+                <DatePickerSection
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={handleStartDateChange}
+                  onEndDateChange={handleEndDateChange}
+                  dateError={dateError}
+                />
+              </div>
+              <button
+                onClick={handleSaveDates}
+                disabled={savingDates || !!dateError}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 shrink-0 self-start mt-8"
+              >
+                {savingDates ? 'Menyimpan…' : 'Simpan Periode'}
+              </button>
+            </div>
+
+            {/* Field Tools Settings Section */}
+            <div className="flex items-end gap-4">
+              <div className="flex-1">
+                <FieldToolsSettingsSection
+                  settings={fieldToolsSettings || DEFAULT_FIELD_TOOLS_SETTINGS}
+                  onChange={handleFieldToolsChange}
+                />
+              </div>
+              <button
+                onClick={handleSaveFieldTools}
+                disabled={savingFieldTools}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 shrink-0 self-start mt-8"
+              >
+                {savingFieldTools ? 'Menyimpan…' : 'Simpan Pengaturan'}
+              </button>
+            </div>
+
+            {/* Form Mode Toggle */}
+            <div className="bg-white rounded-xl shadow px-6 py-4 space-y-3">
+              <p className="text-sm font-medium text-gray-700">Mode Tampilan Formulir Surveyor</p>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleSaveFormMode('wizard')}
+                  disabled={savingFormMode}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                    formMode === 'wizard'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Per Pertanyaan (Wizard)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveFormMode('scroll')}
+                  disabled={savingFormMode}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                    formMode === 'scroll'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Satu Halaman (Scroll)
+                </button>
+              </div>
+              <p className="text-xs text-gray-400">
+                {formMode === 'wizard'
+                  ? 'Surveyor melihat satu pertanyaan per halaman dengan navigasi Selanjutnya/Kembali.'
+                  : 'Surveyor melihat semua pertanyaan dalam satu halaman (scroll ke bawah).'}
+              </p>
+            </div>
+
+            {/* Success message */}
+            {successMsg && (
+              <div
+                className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm"
+                role="status"
+                aria-live="polite"
+              >
+                {successMsg}
+              </div>
+            )}
+
+            {/* Action error */}
+            {actionError && (
+              <div
+                className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm"
+                role="alert"
+              >
+                {actionError}
+                <button
+                  className="ml-3 underline text-red-600 hover:text-red-800 text-xs"
+                  onClick={() => setActionError(null)}
+                >
+                  Tutup
+                </button>
+              </div>
+            )}
+
+            {/* Questions list */}
+            <div className="bg-white rounded-xl shadow overflow-hidden">
+              {questions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 gap-3 text-gray-400 text-sm">
+                  <p>Belum ada pertanyaan.</p>
+                  <button
+                    onClick={() => {
+                      setEditTarget(null);
+                      setModalMode('create');
+                    }}
+                    className="text-blue-600 underline hover:text-blue-800 text-sm"
+                  >
+                    Tambah pertanyaan pertama
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {questions.map((question, index) => {
+                    const isConfirmingDelete =
+                      confirmDeleteId === question.id;
+                    const isFirst = index === 0;
+                    const isLast = index === questions.length - 1;
+
+                    return (
+                      <div
+                        key={question.id}
+                        className="px-5 py-4 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Order number */}
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-semibold">
+                            {index + 1}
+                          </div>
+
+                          {/* Question content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <TypeBadge type={question.type} />
+                              {question.is_required && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-600">
+                                  Wajib
+                                </span>
+                              )}
+                              {question.randomize_options && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-600">
+                                  Acak
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-800 leading-snug">
+                              {question.text}
+                            </p>
+                            {/* Options preview */}
+                            {question.options &&
+                              question.options.length > 0 && (
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {question.options.length} pilihan jawaban
+                                </p>
+                              )}
+                            {/* Skip logic preview */}
+                            {question.skip_logic &&
+                              question.skip_logic.length > 0 && (
+                                <p className="text-xs text-indigo-500 mt-1">
+                                  {question.skip_logic.length} aturan skip logic
+                                </p>
+                              )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                            {/* Reorder up */}
+                            <button
+                              onClick={() =>
+                                handleReorder(question.id, 'up')
+                              }
+                              disabled={isFirst}
+                              className="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                              aria-label={`Pindah pertanyaan ${index + 1} ke atas`}
+                              title="Pindah ke atas"
+                            >
+                              ↑
+                            </button>
+
+                            {/* Reorder down */}
+                            <button
+                              onClick={() =>
+                                handleReorder(question.id, 'down')
+                              }
+                              disabled={isLast}
+                              className="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                              aria-label={`Pindah pertanyaan ${index + 1} ke bawah`}
+                              title="Pindah ke bawah"
+                            >
+                              ↓
+                            </button>
+
+                            {/* Edit */}
+                            <button
+                              onClick={() => {
+                                setEditTarget(question);
+                                setModalMode('edit');
+                              }}
+                              className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+                              aria-label={`Edit pertanyaan ${index + 1}`}
+                            >
+                              Edit
+                            </button>
+
+                            {/* Delete with confirmation */}
+                            {isConfirmingDelete ? (
+                              <span className="flex items-center gap-1.5">
+                                <span className="text-xs text-gray-600">
+                                  Hapus?
+                                </span>
+                                <button
+                                  onClick={() =>
+                                    handleDeleteQuestion(question)
+                                  }
+                                  className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                                  aria-label={`Konfirmasi hapus pertanyaan ${index + 1}`}
+                                >
+                                  Ya
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteId(null)}
+                                  className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                                  aria-label="Batal hapus"
+                                >
+                                  Batal
+                                </button>
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() =>
+                                  setConfirmDeleteId(question.id)
+                                }
+                                className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                                aria-label={`Hapus pertanyaan ${index + 1}`}
+                              >
+                                Hapus
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Question Form Modal */}
+      {modalMode && (
+        <QuestionFormModal
+          mode={modalMode}
+          initial={editTarget}
+          surveyId={id}
+          questions={questions}
+          onClose={() => {
+            setModalMode(null);
+            setEditTarget(null);
+          }}
+          onSaved={() => {
+            setModalMode(null);
+            setEditTarget(null);
+            setSuccessMsg(
+              modalMode === 'edit'
+                ? 'Pertanyaan berhasil diperbarui.'
+                : 'Pertanyaan berhasil ditambahkan.'
+            );
+            fetchSurvey();
+          }}
+        />
+      )}
+    </Layout>
+  );
+}
+
+export default SurveyBuilder;
