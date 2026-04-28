@@ -39,11 +39,15 @@ module.exports = {
       underscored: true,
       timestamps: true,
     },
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false,
-      },
-    },
+    ...(process.env.DB_SSL === 'true'
+      ? {
+          dialectOptions: {
+            ssl: {
+              require: true,
+              rejectUnauthorized: false,
+            },
+          },
+        }
+      : {}),
   },
 };

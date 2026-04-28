@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ── PostgreSQL ─────────────────────────────────────────────
   postgres:
@@ -8,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: web_survey_platform
       POSTGRES_USER: surveyapp
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-ganti_password_aman}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Populi13!}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -45,9 +43,9 @@ services:
       DB_PORT: 5432
       DB_NAME: web_survey_platform
       DB_USER: surveyapp
-      DB_PASSWORD: ${DB_PASSWORD:-ganti_password_aman}
-      JWT_SECRET: ${JWT_SECRET:-ganti_jwt_secret_minimal_64_karakter}
-      SESSION_SECRET: ${SESSION_SECRET:-ganti_session_secret_minimal_64_karakter}
+      DB_PASSWORD: ${DB_PASSWORD:-Populi13!}
+      JWT_SECRET: ${JWT_SECRET:-dca503c239758113e1324da185e1f962a8df821310bada9a7e4b0729f310900c}
+      SESSION_SECRET: ${SESSION_SECRET:-ffd3f5900450d1517cefd1c861cba3413fe7587e81eee9be888deb5395d36bb5}
       REDIS_URL: redis://redis:6379
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       UPLOAD_DIR: uploads/photos
@@ -72,7 +70,7 @@ services:
       DB_PORT: 5432
       DB_NAME: web_survey_platform
       DB_USER: surveyapp
-      DB_PASSWORD: ${DB_PASSWORD:-ganti_password_aman}
+      DB_PASSWORD: ${DB_PASSWORD:-Populi13!}
       REDIS_URL: redis://redis:6379
     volumes:
       - uploads:/app/uploads
