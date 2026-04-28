@@ -11,7 +11,8 @@
 7. [Variabel Lingkungan](#7-variabel-lingkungan)
 8. [Fitur Utama](#8-fitur-utama)
 9. [Deployment ke AWS EC2](#9-deployment-ke-aws-ec2)
-10. [Troubleshooting](#10-troubleshooting)
+10. [Deployment dengan Docker Compose](#10-deployment-dengan-docker-compose)
+11. [Troubleshooting](#11-troubleshooting)
 
 ---
 
@@ -668,7 +669,98 @@ npm run build
 
 ---
 
-## 10. Troubleshooting
+## 10. Deployment dengan Docker Compose
+
+Cara paling mudah untuk deploy ke VPS/server manapun.
+
+### 10.1 Prasyarat
+
+Install Docker dan Docker Compose di server:
+```bash
+# Ubuntu/Debian
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+# Logout dan login kembali
+```
+
+### 10.2 Konfigurasi
+
+```bash
+# Clone repo ke server
+git clone <URL_REPO> web-survey-platform
+cd web-survey-platform
+
+# Buat file .env dari template
+cp .env.docker .env
+
+# Edit .env — WAJIB ganti semua nilai default
+nano .env
+```
+
+Generate secret keys:
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
+
+### 10.3 Build dan Jalankan
+
+```bash
+# Build semua images dan jalankan
+docker compose up -d --build
+
+# Jalankan migrasi database
+docker compose exec backend node node_modules/sequelize-cli/lib/sequelize db:migrate
+
+# Jalankan seeder (akun admin default)
+docker compose exec backend node node_modules/sequelize-cli/lib/sequelize db:seed:all
+
+# Verifikasi semua service berjalan
+docker compose ps
+```
+
+Aplikasi berjalan di **http://IP_SERVER** (port 80).
+
+### 10.4 Update Aplikasi
+
+```bash
+cd web-survey-platform
+git pull
+docker compose up -d --build
+docker compose exec backend node node_modules/sequelize-cli/lib/sequelize db:migrate
+```
+
+### 10.5 Monitoring
+
+```bash
+# Lihat logs semua service
+docker compose logs -f
+
+# Lihat logs backend saja
+docker compose logs -f backend
+
+# Restart service tertentu
+docker compose restart backend
+
+# Stop semua
+docker compose down
+
+# Stop dan hapus data (HATI-HATI)
+docker compose down -v
+```
+
+### 10.6 Backup Database
+
+```bash
+# Backup
+docker compose exec postgres pg_dump -U surveyapp web_survey_platform > backup_$(date +%Y%m%d).sql
+
+# Restore
+cat backup_20260427.sql | docker compose exec -T postgres psql -U surveyapp web_survey_platform
+```
+
+---
+
+## 11. Troubleshooting
 
 ### Backend tidak bisa terhubung ke database
 

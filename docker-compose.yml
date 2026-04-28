@@ -1,23 +1,94 @@
-services:
-  postgres:
-    image: postgres:15
-    container_name: survey_postgres
-    restart: always
-    environment:
-      POSTGRES_USER: survey_user
-      POSTGRES_PASSWORD: survey_password
-      POSTGRES_DB: survey_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+version: '3.8'
 
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: web_survey_platform
+      POSTGRES_USER: surveyapp
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Populi13!}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U surveyapp -d web_survey_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ──────────────────────────────────────────────────
   redis:
-    image: redis:7
-    container_name: survey_redis
-    restart: always
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend API ────────────────────────────────────────────
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: web_survey_platform
+      DB_USER: surveyapp
+      DB_PASSWORD: ${DB_PASSWORD:-Populi13!}
+      JWT_SECRET: ${JWT_SECRET:-dca503c239758113e1324da185e1f962a8df821310bada9a7e4b0729f310900c}
+      SESSION_SECRET: ${SESSION_SECRET:-ffd3f5900450d1517cefd1c861cba3413fe7587e81eee9be888deb5395d36bb5}
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      UPLOAD_DIR: uploads/photos
+      MAX_FILE_SIZE_MB: 5
+    volumes:
+      - uploads:/app/uploads
+
+  # ── Export Worker ──────────────────────────────────────────
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: web_survey_platform
+      DB_USER: surveyapp
+      DB_PASSWORD: ${DB_PASSWORD:-Populi13!}
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - uploads:/app/uploads
+    command: ["node", "src/workers/index.js"]
+
+  # ── Nginx (reverse proxy + frontend) ──────────────────────
+  nginx:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
     ports:
-      - "6379:6379"
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - uploads:/app/uploads:ro
 
 volumes:
-  postgres_data:
+  pgdata:
+  redisdata:
+  uploads:
