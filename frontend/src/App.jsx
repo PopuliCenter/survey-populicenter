@@ -13,11 +13,9 @@ import Reports from './pages/Reports';
 import MapView from './pages/MapView';
 import AuditLog from './pages/AuditLog';
 import Cleanup from './pages/Cleanup';
-import ServerConfig from './pages/ServerConfig';
 import SurveyList from './surveyor/pages/SurveyList';
 import SurveyForm from './surveyor/pages/SurveyForm';
 import SubmitSuccess from './surveyor/pages/SubmitSuccess';
-import { isNativePlatform } from './utils/capacitorBridge';
 
 // ─── Protected Route ──────────────────────────────────────────────────────────
 /**
@@ -64,15 +62,8 @@ function App() {
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
 
-        {/* Redirect root — native app tanpa server config → ke setup */}
-        <Route path="/" element={
-          isNativePlatform() && !localStorage.getItem('api_server_url')
-            ? <Navigate to="/server-config" replace />
-            : <Navigate to="/login" replace />
-        } />
-
-        {/* Server config — untuk native app (Capacitor) */}
-        <Route path="/server-config" element={<ServerConfig />} />
+        {/* Redirect root ke login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* Protected admin/supervisor routes */}
         <Route

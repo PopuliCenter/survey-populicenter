@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { isNativePlatform } from '../utils/capacitorBridge';
 
 /**
  * Login page with email + password form.
@@ -9,13 +8,6 @@ import { isNativePlatform } from '../utils/capacitorBridge';
  */
 function Login() {
   const navigate = useNavigate();
-
-  // Jika native app dan belum ada server URL, redirect ke server config
-  useEffect(() => {
-    if (isNativePlatform() && !localStorage.getItem('api_server_url')) {
-      navigate('/server-config', { replace: true });
-    }
-  }, [navigate]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -69,20 +61,7 @@ function Login() {
             className="h-20 w-20 mx-auto mb-3 object-contain rounded-xl"
           />
           <h1 className="text-xl font-bold text-blue-700">Populi Center</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Web Survey Platform</p>
           <p className="text-xs text-gray-400 mt-1">Masuk ke akun Anda</p>
-          {isNativePlatform() && localStorage.getItem('api_server_url') && (
-            <p className="text-xs text-blue-500 mt-1">
-              Server: {localStorage.getItem('api_server_url')}
-              <button
-                type="button"
-                onClick={() => navigate('/server-config')}
-                className="ml-2 underline text-blue-600"
-              >
-                Ubah
-              </button>
-            </p>
-          )}
         </div>
 
         {/* Error message */}
