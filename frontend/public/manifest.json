@@ -1,6 +1,6 @@
 {
-  "name": "Populi Center — Web Survey Platform",
-  "short_name": "Populi Survey",
+  "name": "Populi Center",
+  "short_name": "Populi Center",
   "start_url": "/surveyor",
   "display": "standalone",
   "theme_color": "#2563eb",
