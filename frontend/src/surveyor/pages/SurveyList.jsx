@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import QuotaProgress from '../../components/QuotaProgress';
 import useSyncManager from '../hooks/useSyncManager';
-import { cacheSurveyList, getCachedSurveyList } from '../../utils/offlineDB';
+import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey } from '../../utils/offlineDB';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 
 /**
@@ -45,10 +45,10 @@ export function getSurveyTemporalStatus(startDate, endDate) {
 }
 
 /**
- * SurveyList page for Surveyor role.
+ * SurveyList page for TPD role.
  *
  * Displays:
- * - Logged-in surveyor name (from localStorage `user`)
+ * - Logged-in TPD name (from localStorage `user`)
  * - Session counter: number of responses submitted in the current session
  * - List of active surveys with quota progress per survey
  * - Logout button
@@ -59,7 +59,7 @@ function SurveyList() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ─── Surveyor identity ──────────────────────────────────────────────────────
+  // ─── TPD identity ──────────────────────────────────────────────────────────
   const [user, setUser] = useState(null);
 
   // ─── Session counter (persisted in sessionStorage) ──────────────────────────
@@ -70,10 +70,14 @@ function SurveyList() {
 
   // ─── Surveys & quota data ───────────────────────────────────────────────────
   const [surveys, setSurveys] = useState([]);
-  const [quotaMap, setQuotaMap] = useState({}); // { [survey_id]: { quota, filled } }
-  const [questionnaireMap, setQuestionnaireMap] = useState({}); // { [survey_id]: string[] }
+  const [quotaMap, setQuotaMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // ─── Download status per survey ─────────────────────────────────────────────
+  const [downloadedSurveys, setDownloadedSurveys] = useState(new Set());
+  const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
 
   // ─── Offline / Sync ─────────────────────────────────────────────────────────
   const { isOnline, isSyncing, pendingCount, failedItems, deleteFailedItem } = useSyncManager();
@@ -95,8 +99,9 @@ function SurveyList() {
     setLoading(true);
     setError(null);
     try {
-      if (isOnline) {
-        // Online: fetch from API and cache the result
+      // Selalu coba fetch dari API dulu (jangan bergantung navigator.onLine
+      // karena di Capacitor WebView bisa unreliable)
+      try {
         const surveysRes = await api.get('/surveys');
         const activeSurveys = surveysRes.data || [];
         setSurveys(activeSurveys);
@@ -108,67 +113,90 @@ function SurveyList() {
           // Caching failure is non-fatal
         }
 
-        // Fetch quota info for current surveyor
+        // Fetch quota info for current TPD
         const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-        const surveyorId = storedUser.id;
-        if (surveyorId) {
+        const tpdUserId = storedUser.id;
+        if (tpdUserId) {
           try {
-            const quotaRes = await api.get(`/surveyors/${surveyorId}/quota`);
+            const quotaRes = await api.get(`/surveyors/${tpdUserId}/quota`);
             const quotaData = quotaRes.data || [];
             const map = {};
             quotaData.forEach((item) => {
-              map[item.survey_id] = { quota: item.quota, filled: item.filled };
+              map[item.survey_id] = {
+                quota: item.quota,
+                filled: item.filled,
+                assigned_numbers: item.assigned_numbers || null,
+                submitted_numbers: item.submitted_numbers || [],
+              };
             });
             setQuotaMap(map);
           } catch {
             setQuotaMap({});
           }
-
-          // Fetch questionnaire numbers for this surveyor
-          try {
-            const qnRes = await api.get(`/surveyors/${surveyorId}/questionnaire-numbers`);
-            setQuestionnaireMap(qnRes.data || {});
-          } catch {
-            setQuestionnaireMap({});
-          }
         }
-      } else {
-        // Offline: load from IndexedDB cache
+      } catch (apiErr) {
+        // API gagal — coba load dari cache (offline fallback)
+        console.error('[SurveyList] API error:', apiErr.message, apiErr.code, apiErr.response?.status);
         const cached = await getCachedSurveyList();
         if (cached && cached.length > 0) {
           setSurveys(cached);
           setQuotaMap({});
         } else {
-          setSurveys([]);
-          setError('Data survei belum tersedia offline. Hubungkan ke internet untuk mengunduh data survei terlebih dahulu.');
+          throw apiErr; // re-throw agar ditangkap catch luar
         }
       }
     } catch (err) {
-      if (!isOnline) {
-        // If we're offline and the API call somehow ran and failed
-        try {
-          const cached = await getCachedSurveyList();
-          if (cached && cached.length > 0) {
-            setSurveys(cached);
-            setQuotaMap({});
-            setError(null);
-          } else {
-            setError('Data survei belum tersedia offline. Hubungkan ke internet untuk mengunduh data survei terlebih dahulu.');
-          }
-        } catch {
-          setError('Data survei belum tersedia offline. Hubungkan ke internet untuk mengunduh data survei terlebih dahulu.');
-        }
-      } else {
-        setError(err.response?.data?.error || err.response?.data?.message || 'Gagal memuat daftar survei.');
-      }
+      const detail = err.response?.data?.error || err.response?.data?.message || err.message || '';
+      setError(`Gagal memuat daftar survei. ${detail}`);
     } finally {
       setLoading(false);
     }
-  }, [isOnline]);
+  }, []);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // ─── Check which surveys are already cached ─────────────────────────────────
+  useEffect(() => {
+    async function checkCached() {
+      const cached = new Set();
+      for (const s of surveys) {
+        const data = await getCachedSurvey(s.id);
+        if (data && data.questions && data.questions.length > 0) {
+          cached.add(s.id);
+        }
+      }
+      setDownloadedSurveys(cached);
+    }
+    if (surveys.length > 0) checkCached();
+  }, [surveys]);
+
+  // ─── Download all surveys (questions + data) for offline use ────────────────
+  async function handleDownloadAll() {
+    setDownloading(true);
+    setDownloadProgress({ current: 0, total: surveys.length });
+    const newCached = new Set(downloadedSurveys);
+
+    for (let i = 0; i < surveys.length; i++) {
+      const s = surveys[i];
+      setDownloadProgress({ current: i + 1, total: surveys.length });
+      try {
+        const res = await api.get(`/surveys/${s.id}`);
+        await cacheSurvey(res.data);
+        newCached.add(s.id);
+      } catch {
+        // Skip failed — will retry next time
+      }
+    }
+
+    setDownloadedSurveys(newCached);
+    setDownloading(false);
+    localStorage.setItem('last_download_time', new Date().toISOString());
+  }
+
+  // ─── Last download time ─────────────────────────────────────────────────────
+  const lastDownload = localStorage.getItem('last_download_time');
 
   // ─── Refresh data when navigating back from SubmitSuccess (Requirement 6.3) ─
   useEffect(() => {
@@ -208,37 +236,90 @@ function SurveyList() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-800">Daftar Survei</h1>
-            {user && (
-              <p className="text-sm text-gray-500 mt-0.5">
-                Halo, <span className="font-medium text-gray-700">{user.name || user.email}</span>
-              </p>
-            )}
+        <div className="max-w-3xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-semibold text-gray-800">Daftar Survei</h1>
+              {user && (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Halo, <span className="font-medium text-gray-700">{user.name || user.email}</span>
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <OfflineStatusBar isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
+              <button onClick={handleLogout} className="text-xs text-red-600 hover:text-red-800 border border-red-200 rounded-lg px-2.5 py-1.5">
+                Keluar
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Session counter — Requirement 9.4 */}
-            <div className="text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
-              Responden diisi sesi ini:{' '}
-              <span className="font-semibold text-blue-700">{sessionCount}</span>
+          {/* ── Sync & Download Status Bar ── */}
+          <div className="mt-3 space-y-2">
+            {/* Upload pending indicator */}
+            {pendingCount > 0 && (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <svg className="animate-spin h-4 w-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                <span className="text-xs text-amber-700 font-medium">
+                  {isSyncing ? 'Mengunggah data...' : `${pendingCount} data menunggu diunggah`}
+                </span>
+              </div>
+            )}
+
+            {/* Download all button + status */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={handleDownloadAll}
+                disabled={downloading || surveys.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg disabled:opacity-50 transition-colors"
+              >
+                {downloading ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Mengunduh {downloadProgress.current}/{downloadProgress.total}...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    {downloadedSurveys.size === surveys.length && surveys.length > 0
+                      ? 'Perbarui Data Offline'
+                      : 'Unduh Semua untuk Offline'}
+                  </>
+                )}
+              </button>
+
+              {/* Download status summary */}
+              {surveys.length > 0 && (
+                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                  downloadedSurveys.size === surveys.length
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {downloadedSurveys.size === surveys.length ? '✓' : '○'} {downloadedSurveys.size}/{surveys.length} survei tersimpan offline
+                </span>
+              )}
+
+              {lastDownload && (
+                <span className="text-xs text-gray-400">
+                  Terakhir diunduh: {new Date(lastDownload).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
+                </span>
+              )}
             </div>
 
-            {/* Offline status indicator */}
-            <OfflineStatusBar
-              isOnline={isOnline}
-              isSyncing={isSyncing}
-              pendingCount={pendingCount}
-            />
-
-            {/* Logout button */}
-            <button
-              onClick={handleLogout}
-              className="text-sm text-red-600 hover:text-red-800 border border-red-200 hover:border-red-400 rounded-lg px-3 py-1.5 transition-colors"
-            >
-              Keluar
-            </button>
+            {/* Session counter */}
+            {sessionCount > 0 && (
+              <div className="text-xs text-gray-500">
+                Responden diisi sesi ini: <span className="font-semibold text-blue-700">{sessionCount}</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -279,6 +360,10 @@ function SurveyList() {
               const quota = hasQuota ? quotaInfo.quota : null;
               const targetMet = hasQuota && filled >= quota;
               const temporal = getSurveyTemporalStatus(survey.start_date, survey.end_date);
+              // Fitur #6: nomor kuesioner yang ditugaskan dan sudah diisi
+              const assignedNumbers = quotaInfo?.assigned_numbers || null;
+              const submittedNumbers = quotaInfo?.submitted_numbers || [];
+              const submittedSet = new Set(submittedNumbers);
 
               return (
                 <div
@@ -287,11 +372,24 @@ function SurveyList() {
                 >
                   {/* Survey title & description */}
                   <div className="mb-3">
-                    <h2 className="text-base font-semibold text-gray-800">{survey.title}</h2>
+                    <div className="flex items-start justify-between gap-2">
+                      <h2 className="text-base font-semibold text-gray-800">{survey.title}</h2>
+                      {/* Download status badge */}
+                      <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                        downloadedSurveys.has(survey.id)
+                          ? 'bg-green-50 text-green-700 border border-green-200'
+                          : 'bg-gray-100 text-gray-400 border border-gray-200'
+                      }`}>
+                        {downloadedSurveys.has(survey.id) ? (
+                          <><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg> Offline</>
+                        ) : (
+                          <><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" /></svg> Online</>
+                        )}
+                      </span>
+                    </div>
                     {survey.description && (
                       <p className="text-sm text-gray-500 mt-1">{survey.description}</p>
                     )}
-                    {/* Informasi sisa hari — Requirements 9.1, 9.2, 9.3, 9.4, 9.5 */}
                     {temporal.label && (
                       <p className={`text-xs mt-1 font-medium ${temporal.isUrgent ? 'text-red-600' : 'text-gray-500'}`}>
                         {temporal.label}
@@ -318,14 +416,68 @@ function SurveyList() {
                     )}
                   </div>
 
-                  {/* Questionnaire numbers already submitted */}
-                  {questionnaireMap[survey.id] && questionnaireMap[survey.id].length > 0 && (
+                  {/* Fitur #6: Daftar nomor kuesioner yang ditugaskan */}
+                  {assignedNumbers && assignedNumbers.length > 0 && (() => {
+                    const doneCount = assignedNumbers.filter((n) => submittedSet.has(n)).length;
+                    const allDone = doneCount === assignedNumbers.length;
+                    return (
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-gray-600 font-medium">
+                            Daftar Kuesioner ({doneCount}/{assignedNumbers.length})
+                          </p>
+                          {allDone && (
+                            <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                              ✓ Semua selesai
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Progress bar mini */}
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                          <div
+                            className={`h-1.5 rounded-full transition-all ${allDone ? 'bg-green-500' : 'bg-blue-500'}`}
+                            style={{ width: `${(doneCount / assignedNumbers.length) * 100}%` }}
+                          />
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5">
+                          {assignedNumbers.map((num) => {
+                            const isDone = submittedSet.has(num);
+                            return (
+                              <span
+                                key={num}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                                  isDone
+                                    ? 'bg-green-100 text-green-800 border-green-300'
+                                    : 'bg-white text-gray-600 border-gray-300'
+                                }`}
+                                title={isDone ? `Kuesioner ${num} sudah diisi` : `Kuesioner ${num} belum diisi`}
+                              >
+                                {isDone ? (
+                                  <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                ) : (
+                                  <span className="w-3.5 h-3.5 rounded-full border-2 border-gray-300 inline-block" />
+                                )}
+                                {num}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Nomor kuesioner sudah tersimpan (tanpa penugasan spesifik) */}
+                  {(!assignedNumbers || assignedNumbers.length === 0) && submittedNumbers.length > 0 && (
                     <div className="mb-4">
                       <p className="text-xs text-gray-500 mb-2">
-                        Nomor kuesioner tersimpan ({questionnaireMap[survey.id].length}):
+                        Nomor kuesioner tersimpan ({submittedNumbers.length}):
                       </p>
                       <div className="flex flex-wrap gap-1.5">
-                        {questionnaireMap[survey.id].map((qn) => (
+                        {submittedNumbers.map((qn) => (
                           <span
                             key={qn}
                             className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200"

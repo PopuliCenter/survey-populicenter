@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { isNativePlatform } from '../utils/capacitorBridge';
 
 /**
  * Login page with email + password form.
@@ -8,6 +9,13 @@ import api from '../services/api';
  */
 function Login() {
   const navigate = useNavigate();
+
+  // Jika native app dan belum ada server URL, redirect ke server config
+  useEffect(() => {
+    if (isNativePlatform() && !localStorage.getItem('api_server_url')) {
+      navigate('/server-config', { replace: true });
+    }
+  }, [navigate]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,9 +42,16 @@ function Login() {
         navigate('/surveyor');
       }
     } catch (err) {
-      const message =
-        err.response?.data?.error ||
-        'Terjadi kesalahan. Silakan coba kembali.';
+      let message;
+      if (err.response?.data?.error) {
+        message = err.response.data.error;
+      } else if (err.message === 'Network Error') {
+        message = 'Tidak dapat terhubung ke server. Periksa koneksi internet dan URL server.';
+      } else if (err.code === 'ECONNABORTED') {
+        message = 'Koneksi timeout. Server tidak merespons.';
+      } else {
+        message = `Terjadi kesalahan: ${err.message || 'Unknown error'}`;
+      }
       setError(message);
     } finally {
       setLoading(false);
@@ -56,6 +71,18 @@ function Login() {
           <h1 className="text-xl font-bold text-blue-700">Populi Center</h1>
           <p className="text-sm text-gray-500 mt-0.5">Web Survey Platform</p>
           <p className="text-xs text-gray-400 mt-1">Masuk ke akun Anda</p>
+          {isNativePlatform() && localStorage.getItem('api_server_url') && (
+            <p className="text-xs text-blue-500 mt-1">
+              Server: {localStorage.getItem('api_server_url')}
+              <button
+                type="button"
+                onClick={() => navigate('/server-config')}
+                className="ml-2 underline text-blue-600"
+              >
+                Ubah
+              </button>
+            </p>
+          )}
         </div>
 
         {/* Error message */}

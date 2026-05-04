@@ -38,26 +38,25 @@ const bulkUpload = multer({
 
 /**
  * GET /surveyors/:id/quota
- * Get quota summary for a surveyor.
- * - Admin/Supervisor: can access any surveyor's quota
- * - Surveyor: can only access their own quota
+ * Get quota summary for a TPD.
+ * - Admin/Supervisor: can access any TPD's quota
+ * - TPD: can only access their own quota
  */
 router.get('/:id/quota', authMiddleware, requireRole(['admin', 'supervisor', 'surveyor']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Surveyor can only access their own quota
+    // TPD can only access their own quota
     if (req.user.role === 'surveyor' && req.user.id !== id) {
       return res.status(403).json({ error: 'Anda tidak memiliki izin untuk mengakses resource ini' });
     }
-    // Admin and supervisor can access any surveyor's quota
 
     const surveyor = await User.findOne({ where: { id, role: 'surveyor' } });
     if (!surveyor) {
-      return res.status(404).json({ error: 'Surveyor tidak ditemukan' });
+      return res.status(404).json({ error: 'TPD tidak ditemukan' });
     }
 
-    // Get all quotas for this surveyor, including only active surveys
+    // Get all quotas for this TPD, including only active surveys
     const quotas = await SurveyorQuota.findAll({
       where: { surveyor_id: id },
       include: [
@@ -70,7 +69,7 @@ router.get('/:id/quota', authMiddleware, requireRole(['admin', 'supervisor', 'su
       ],
     });
 
-    // Get response counts per survey for this surveyor (only committed, exclude PENDING)
+    // Get response counts per survey for this TPD (only committed, exclude PENDING)
     const surveyIds = quotas.map((q) => q.survey_id);
     let responseCounts = {};
     if (surveyIds.length > 0) {
@@ -92,11 +91,35 @@ router.get('/:id/quota', authMiddleware, requireRole(['admin', 'supervisor', 'su
       });
     }
 
+    // Get submitted questionnaire numbers per survey
+    // Extract suffix (unique_id part) agar cocok dengan assigned_numbers
+    let submittedNumbers = {};
+    if (surveyIds.length > 0) {
+      const submitted = await Response.findAll({
+        where: {
+          surveyor_id: id,
+          survey_id: { [Op.in]: surveyIds },
+          questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+        },
+        attributes: ['survey_id', 'questionnaire_number'],
+        raw: true,
+      });
+      submitted.forEach((r) => {
+        if (!submittedNumbers[r.survey_id]) submittedNumbers[r.survey_id] = [];
+        // Extract suffix dari format PREFIX-YYYYMMDD-SUFFIX
+        const parts = r.questionnaire_number.split('-');
+        const suffix = parts.length >= 3 ? parts.slice(2).join('-') : r.questionnaire_number;
+        submittedNumbers[r.survey_id].push(suffix);
+      });
+    }
+
     const result = quotas.map((q) => ({
       survey_id: q.survey_id,
       survey_title: q.survey ? q.survey.title : null,
       quota: q.quota,
       filled: responseCounts[q.survey_id] || 0,
+      assigned_numbers: q.assigned_numbers || null,
+      submitted_numbers: submittedNumbers[q.survey_id] || [],
     }));
 
     res.json(result);
@@ -107,16 +130,16 @@ router.get('/:id/quota', authMiddleware, requireRole(['admin', 'supervisor', 'su
 
 /**
  * GET /surveyors/:id/questionnaire-numbers
- * Get questionnaire numbers submitted by a surveyor, grouped by survey.
- * - Surveyor: can only access their own data
- * - Admin/Supervisor: can access any surveyor's data
+ * Get questionnaire numbers submitted by a TPD, grouped by survey.
+ * - TPD: can only access their own data
+ * - Admin/Supervisor: can access any TPD's data
  * Returns: { [survey_id]: string[] }
  */
 router.get('/:id/questionnaire-numbers', authMiddleware, requireRole(['admin', 'supervisor', 'surveyor']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Surveyor can only access their own data
+    // TPD can only access their own data
     if (req.user.role === 'surveyor' && req.user.id !== id) {
       return res.status(403).json({ error: 'Anda tidak memiliki izin untuk mengakses resource ini' });
     }
@@ -153,12 +176,12 @@ router.get('/:id/questionnaire-numbers', authMiddleware, requireRole(['admin', '
   }
 });
 
-// All remaining surveyor management routes require authentication + admin or supervisor role
+// All remaining TPD management routes require authentication + admin or supervisor role
 router.use(authMiddleware, requireRole(['admin', 'supervisor']));
 
 /**
  * GET /surveyors
- * List all surveyors (role='surveyor'), include response count per surveyor
+ * List all TPD (role='surveyor'), include response count per TPD
  */
 router.get('/', async (req, res, next) => {
   try {
@@ -168,13 +191,20 @@ router.get('/', async (req, res, next) => {
       order: [['created_at', 'ASC']],
     });
 
-    // Get response counts for each surveyor
+    // Get response counts for each TPD
+    // Bug #6: hanya hitung response yang sudah selesai (bukan PENDING/sesi belum selesai)
     const surveyorIds = surveyors.map((s) => s.id);
 
     let responseCounts = {};
     if (surveyorIds.length > 0) {
       const counts = await Response.findAll({
-        where: { surveyor_id: { [Op.in]: surveyorIds } },
+        where: {
+          surveyor_id: { [Op.in]: surveyorIds },
+          // Hanya hitung response yang sudah selesai (end_time tidak null)
+          end_time: { [Op.ne]: null },
+          // Exclude sesi PENDING yang belum selesai
+          questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+        },
         attributes: [
           'surveyor_id',
           [Response.sequelize.fn('COUNT', Response.sequelize.col('id')), 'count'],
@@ -204,7 +234,7 @@ router.get('/', async (req, res, next) => {
 
 /**
  * POST /surveyors
- * Create a new surveyor account
+ * Create a new TPD account
  */
 router.post('/', async (req, res, next) => {
   try {
@@ -244,7 +274,7 @@ router.post('/', async (req, res, next) => {
     // Hash password
     const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Create surveyor
+    // Create TPD
     const surveyor = await User.create({
       name,
       email,
@@ -253,7 +283,7 @@ router.post('/', async (req, res, next) => {
       is_active: true,
     });
 
-    // If survey_id and quota provided, create SurveyorQuota record
+    // If survey_id and quota provided, create TPDQuota record
     if (survey_id && quota) {
       await SurveyorQuota.create({
         survey_id,
@@ -296,7 +326,7 @@ router.put('/:id', async (req, res, next) => {
 
     const surveyor = await User.findOne({ where: { id, role: 'surveyor' } });
     if (!surveyor) {
-      return res.status(404).json({ error: 'Surveyor tidak ditemukan' });
+      return res.status(404).json({ error: 'TPD tidak ditemukan' });
     }
 
     // Save old values for audit log
@@ -359,7 +389,7 @@ router.patch('/:id/deactivate', async (req, res, next) => {
 
     const surveyor = await User.findOne({ where: { id, role: 'surveyor' } });
     if (!surveyor) {
-      return res.status(404).json({ error: 'Surveyor tidak ditemukan' });
+      return res.status(404).json({ error: 'TPD tidak ditemukan' });
     }
 
     const oldValue = { name: surveyor.name, email: surveyor.email, is_active: surveyor.is_active };
@@ -400,7 +430,7 @@ router.patch('/:id/activate', async (req, res, next) => {
 
     const surveyor = await User.findOne({ where: { id, role: 'surveyor' } });
     if (!surveyor) {
-      return res.status(404).json({ error: 'Surveyor tidak ditemukan' });
+      return res.status(404).json({ error: 'TPD tidak ditemukan' });
     }
 
     const oldValue = { name: surveyor.name, email: surveyor.email, is_active: surveyor.is_active };
@@ -446,7 +476,7 @@ router.delete('/:id', requireRole('admin'), async (req, res, next) => {
 
     const user = await User.findOne({ where: { id, role: 'surveyor' } });
     if (!user) {
-      return res.status(404).json({ error: 'Surveyor tidak ditemukan' });
+      return res.status(404).json({ error: 'TPD tidak ditemukan' });
     }
 
     // Snapshot old value before deletion
@@ -497,15 +527,17 @@ router.delete('/:id', requireRole('admin'), async (req, res, next) => {
 /**
  * POST /surveyors/:id/quota
  * Create or update quota for a surveyor on a specific survey (upsert)
+ * Body: { survey_id, quota, assigned_numbers? }
+ * assigned_numbers: array of string nomor kuesioner yang ditugaskan, e.g. ["001","002"]
  */
 router.post('/:id/quota', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { survey_id, quota } = req.body;
+    const { survey_id, quota, assigned_numbers } = req.body;
 
     const surveyor = await User.findOne({ where: { id, role: 'surveyor' } });
     if (!surveyor) {
-      return res.status(404).json({ error: 'Surveyor tidak ditemukan' });
+      return res.status(404).json({ error: 'TPD tidak ditemukan' });
     }
 
     // Validate quota: must be a positive integer > 0
@@ -515,14 +547,41 @@ router.post('/:id/quota', async (req, res, next) => {
       });
     }
 
+    // Validate assigned_numbers if provided
+    if (assigned_numbers !== undefined && assigned_numbers !== null) {
+      if (!Array.isArray(assigned_numbers)) {
+        return res.status(422).json({ error: 'assigned_numbers harus berupa array' });
+      }
+      for (const num of assigned_numbers) {
+        if (typeof num !== 'string' || num.trim() === '') {
+          return res.status(422).json({ error: 'Setiap nomor kuesioner harus berupa string tidak kosong' });
+        }
+      }
+      // Check for duplicates
+      const unique = new Set(assigned_numbers.map((n) => n.trim()));
+      if (unique.size !== assigned_numbers.length) {
+        return res.status(422).json({ error: 'Nomor kuesioner tidak boleh duplikat' });
+      }
+    }
+
     // Upsert: create or update quota record
     const [quotaRecord, created] = await SurveyorQuota.findOrCreate({
       where: { survey_id, surveyor_id: id },
-      defaults: { survey_id, surveyor_id: id, quota },
+      defaults: {
+        survey_id,
+        surveyor_id: id,
+        quota,
+        assigned_numbers: assigned_numbers || null,
+      },
     });
 
     if (!created) {
       quotaRecord.quota = quota;
+      if (assigned_numbers !== undefined) {
+        quotaRecord.assigned_numbers = assigned_numbers && assigned_numbers.length > 0
+          ? assigned_numbers.map((n) => n.trim())
+          : null;
+      }
       await quotaRecord.save();
     }
 
@@ -531,6 +590,7 @@ router.post('/:id/quota', async (req, res, next) => {
       survey_id: quotaRecord.survey_id,
       surveyor_id: quotaRecord.surveyor_id,
       quota: quotaRecord.quota,
+      assigned_numbers: quotaRecord.assigned_numbers,
       created_at: quotaRecord.created_at,
     });
   } catch (error) {

@@ -34,6 +34,12 @@ module.exports = (sequelize) => {
         isInt: true,
       },
     },
+    assigned_numbers: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: null,
+      // Format: ["001", "002", "003"] — nomor kuesioner yang ditugaskan ke surveyor
+    },
   }, {
     tableName: 'surveyor_quotas',
     underscored: true,

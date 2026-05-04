@@ -43,7 +43,7 @@ function ExportJobTracker({ job, onDone }) {
   const [error, setError] = useState(null);
   const intervalRef = useRef(null);
 
-  const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const BASE_URL = import.meta.env.VITE_API_URL || '';
 
   const pollStatus = useCallback(async () => {
     try {
@@ -169,12 +169,12 @@ function Reports() {
 
   // ── Dropdown data ───────────────────────────────────────────────────────────
   const [surveys, setSurveys] = useState([]);
-  // Viewer cannot access /surveyors endpoint (403), so surveyor filter is hidden for them
-  const [surveyors, setSurveyors] = useState([]);
+  // Viewer cannot access /surveyors endpoint (403), so TPD filter is hidden for them
+  const [tpdList, setTpdList] = useState([]);
 
   // ── Filter state ────────────────────────────────────────────────────────────
   const [selectedSurveyId, setSelectedSurveyId] = useState('');
-  const [selectedSurveyorId, setSelectedSurveyorId] = useState('');
+  const [selectedTpdId, setSelectedTpdId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [responseStatus, setResponseStatus] = useState('committed');
@@ -195,9 +195,9 @@ function Reports() {
         const requests = [api.get('/surveys')];
         if (!isViewer) requests.push(api.get('/surveyors'));
 
-        const [surveysRes, surveyorsRes] = await Promise.all(requests);
+        const [surveysRes, tpdRes] = await Promise.all(requests);
         setSurveys(surveysRes.data || []);
-        if (!isViewer && surveyorsRes) setSurveyors(surveyorsRes.data || []);
+        if (!isViewer && tpdRes) setTpdList(tpdRes.data || []);
       } catch {
         // Non-critical; dropdowns will just be empty
       }
@@ -208,7 +208,7 @@ function Reports() {
   // ── Build filter params ─────────────────────────────────────────────────────
   function buildParams() {
     const params = {};
-    if (selectedSurveyorId) params.surveyor_id = selectedSurveyorId;
+    if (selectedTpdId) params.surveyor_id = selectedTpdId;
     if (startDate) params.start_date = startDate;
     if (endDate) params.end_date = endDate;
     if (responseStatus) params.response_status = responseStatus;
@@ -351,23 +351,23 @@ function Reports() {
               />
             </div>
 
-            {/* Surveyor filter — hidden for viewer (no access to /surveyors) */}
+            {/* TPD filter — hidden for viewer (no access to /surveyors) */}
             {!isViewer && (
               <div>
                 <label
-                  htmlFor="export-surveyor"
+                  htmlFor="export-tpd"
                   className="block text-xs font-medium text-gray-600 mb-1"
                 >
-                  Surveyor
+                  TPD
                 </label>
                 <select
-                  id="export-surveyor"
-                  value={selectedSurveyorId}
-                  onChange={(e) => setSelectedSurveyorId(e.target.value)}
+                  id="export-tpd"
+                  value={selectedTpdId}
+                  onChange={(e) => setSelectedTpdId(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
-                  <option value="">Semua Surveyor</option>
-                  {surveyors.map((sv) => (
+                  <option value="">Semua TPD</option>
+                  {tpdList.map((sv) => (
                     <option key={sv.id} value={sv.id}>
                       {sv.name}
                     </option>
@@ -532,7 +532,7 @@ function Reports() {
           <h3 className="text-sm font-semibold text-blue-800 mb-1">Informasi Ekspor</h3>
           <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
             <li>
-              File ekspor mencakup semua kolom metadata: ID responden, nama surveyor,
+              File ekspor mencakup semua kolom metadata: ID responden, nama TPD,
               tanggal &amp; waktu pengisian, nomor kuesioner, timestamp mulai/selesai,
               durasi, latitude, longitude, dan status geolokasi.
             </li>

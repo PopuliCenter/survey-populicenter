@@ -1,0 +1,99 @@
+# Deploy Populi Survey ke Production
+
+## Langkah 1: Push ke GitHub
+
+Di komputer lokal, buka terminal di folder project:
+
+```bash
+git init
+git add .
+git commit -m "Initial commit - Populi Survey Platform"
+git branch -M main
+git remote add origin https://github.com/PopuliCenter/survey-populicenter.git
+git push -u origin main
+```
+
+Jika diminta login GitHub, gunakan Personal Access Token:
+- GitHub → Settings → Developer Settings → Personal Access Tokens → Generate
+
+## Langkah 2: Setup VPS
+
+SSH ke VPS:
+```bash
+ssh root@187.127.114.159
+```
+
+Download dan jalankan deploy script:
+```bash
+curl -fsSL https://raw.githubusercontent.com/PopuliCenter/survey-populicenter/main/deploy.sh -o deploy.sh
+bash deploy.sh
+```
+
+Script ini otomatis:
+- Install Docker
+- Clone repo
+- Generate secrets (.env)
+- Build semua container
+- Jalankan migration database
+- Seed admin default
+
+## Langkah 3: Konfigurasi Domain (Opsional tapi Direkomendasikan)
+
+1. Di DNS provider, tambahkan A record:
+   - `survey.populicenter.com` → `187.127.114.159`
+
+2. Di VPS, edit `.env`:
+   ```bash
+   cd /opt/survey-populicenter
+   nano .env
+   ```
+   Ubah `FRONTEND_URL=https://survey.populicenter.com`
+
+3. Restart:
+   ```bash
+   docker compose up -d --force-recreate backend nginx
+   ```
+
+## Langkah 4: Build APK Android
+
+Di komputer lokal:
+
+1. Edit `frontend/src/services/api.js` — default URL:
+   ```
+   return 'http://187.127.114.159:3000';
+   ```
+   Atau biarkan user input URL via Server Config.
+
+2. Build:
+   ```bash
+   cd frontend
+   npm run cap:build
+   ```
+
+3. Di Android Studio:
+   - Build → Generate Signed Bundle/APK → APK
+   - Buat keystore → Build release
+
+4. Distribusi `app-release.apk` ke TPD
+
+## Langkah 5: Update Deployment
+
+Setelah ada perubahan code:
+
+```bash
+# Di komputer lokal
+git add .
+git commit -m "Update fitur XYZ"
+git push origin main
+
+# Di VPS
+ssh root@187.127.114.159
+cd /opt/survey-populicenter
+bash deploy.sh update
+```
+
+## Default Login
+
+- Email: `admin@populicenter.com`
+- Password: `Admin123!`
+- **SEGERA ganti password setelah login pertama!**

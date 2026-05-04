@@ -580,6 +580,118 @@ router.patch('/surveys/:surveyId/questions/reorder', authMiddleware, requireRole
   }
 });
 
+/**
+ * GET /surveys/:surveyId/questions/export
+ * Export semua pertanyaan survei sebagai JSON.
+ * Bisa digunakan untuk backup atau import ke survei lain.
+ */
+router.get('/surveys/:surveyId/questions/export', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const { surveyId } = req.params;
+
+    const survey = await Survey.findOne({ where: { id: surveyId }, attributes: ['id', 'title'] });
+    if (!survey) {
+      return res.status(404).json({ error: 'Survei tidak ditemukan' });
+    }
+
+    const questions = await Question.findAll({
+      where: { survey_id: surveyId },
+      attributes: ['text', 'type', 'order_index', 'is_required', 'randomize_options', 'allow_other', 'options', 'skip_logic'],
+      order: [['order_index', 'ASC']],
+      raw: true,
+    });
+
+    const exportData = {
+      _format: 'populi-survey-questionnaire-v1',
+      _exported_at: new Date().toISOString(),
+      survey_title: survey.title,
+      question_count: questions.length,
+      questions: questions.map((q) => ({
+        text: q.text,
+        type: q.type,
+        is_required: q.is_required,
+        randomize_options: q.randomize_options,
+        allow_other: q.allow_other,
+        options: q.options,
+        // Skip logic tidak di-export karena referensi ID akan berbeda di survei baru
+      })),
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="kuesioner-${survey.title.replace(/[^a-zA-Z0-9]/g, '_')}.json"`);
+    res.json(exportData);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /surveys/:surveyId/questions/import
+ * Import pertanyaan dari JSON file ke survei.
+ * Body: { questions: [{ text, type, is_required, options, ... }] }
+ * Pertanyaan ditambahkan setelah pertanyaan yang sudah ada.
+ */
+router.post('/surveys/:surveyId/questions/import', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const { surveyId } = req.params;
+    const { questions: importQuestions } = req.body;
+
+    const survey = await Survey.findOne({ where: { id: surveyId } });
+    if (!survey) {
+      return res.status(404).json({ error: 'Survei tidak ditemukan' });
+    }
+
+    if (!importQuestions || !Array.isArray(importQuestions) || importQuestions.length === 0) {
+      return res.status(422).json({ error: 'Data pertanyaan tidak valid. Pastikan format JSON benar.' });
+    }
+
+    // Validate each question
+    const errors = [];
+    importQuestions.forEach((q, i) => {
+      if (!q.text || !q.text.trim()) {
+        errors.push(`Pertanyaan ${i + 1}: teks wajib diisi`);
+      }
+      if (!q.type || !VALID_QUESTION_TYPES.includes(q.type)) {
+        errors.push(`Pertanyaan ${i + 1}: tipe "${q.type}" tidak valid`);
+      }
+    });
+
+    if (errors.length > 0) {
+      return res.status(422).json({ error: errors.join('; ') });
+    }
+
+    // Get current max order_index
+    const maxOrder = await Question.max('order_index', { where: { survey_id: surveyId } });
+    let nextOrder = (maxOrder ?? -1) + 1;
+
+    // Create questions in transaction
+    const created = [];
+    await sequelize.transaction(async (t) => {
+      for (const q of importQuestions) {
+        const question = await Question.create({
+          survey_id: surveyId,
+          text: q.text.trim(),
+          type: q.type,
+          order_index: nextOrder++,
+          is_required: q.is_required ?? false,
+          randomize_options: q.randomize_options ?? false,
+          allow_other: q.allow_other ?? false,
+          options: q.options || null,
+          skip_logic: null, // Skip logic tidak di-import
+        }, { transaction: t });
+        created.push(question.id);
+      }
+    });
+
+    res.status(201).json({
+      imported_count: created.length,
+      message: `${created.length} pertanyaan berhasil diimport ke survei "${survey.title}".`,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
 module.exports.validateRatingConfig = validateRatingConfig;
 module.exports.validatePhoneConfig = validatePhoneConfig;

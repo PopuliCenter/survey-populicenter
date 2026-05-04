@@ -2,7 +2,7 @@ import React from 'react';
 import { StatusBadge, QuotaPanel } from './SurveyorBadges';
 
 /**
- * Komponen kartu untuk menampilkan satu surveyor dalam mode grid.
+ * Komponen kartu untuk menampilkan satu TPD dalam mode grid.
  *
  * @param {{
  *   surveyor: object,
@@ -96,7 +96,7 @@ function SurveyorCard({
         <button
           onClick={() => onEdit(surveyor)}
           className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
-          aria-label={`Edit surveyor ${surveyor.name}`}
+          aria-label={`Edit TPD ${surveyor.name}`}
         >
           Edit
         </button>
@@ -126,7 +126,7 @@ function SurveyorCard({
               <button
                 onClick={() => onConfirmDeactivate(surveyor.id)}
                 className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                aria-label={`Nonaktifkan surveyor ${surveyor.name}`}
+                aria-label={`Nonaktifkan TPD ${surveyor.name}`}
               >
                 Nonaktifkan
               </button>
@@ -136,7 +136,7 @@ function SurveyorCard({
           <button
             onClick={() => onActivate(surveyor)}
             className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
-            aria-label={`Aktifkan kembali surveyor ${surveyor.name}`}
+            aria-label={`Aktifkan kembali TPD ${surveyor.name}`}
           >
             Aktifkan
           </button>
@@ -167,7 +167,7 @@ function SurveyorCard({
               <button
                 onClick={() => onConfirmDelete(surveyor.id)}
                 className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                aria-label={`Hapus surveyor ${surveyor.name}`}
+                aria-label={`Hapus TPD ${surveyor.name}`}
               >
                 Hapus
               </button>

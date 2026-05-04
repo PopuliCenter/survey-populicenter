@@ -198,6 +198,164 @@ function CreateSurveyModal({ onClose, onSaved }) {
   );
 }
 
+// ─── Edit Survey Modal ─────────────────────────────────────────────────────────
+function EditSurveyModal({ survey, onClose, onSaved }) {
+  const [title, setTitle] = useState(survey.title || '');
+  const [description, setDescription] = useState(survey.description || '');
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState(null);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!title.trim()) { setFormError('Judul wajib diisi'); return; }
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await api.put(`/surveys/${survey.id}`, {
+        title: title.trim(),
+        description: description.trim() || null,
+      });
+      onSaved();
+    } catch (err) {
+      setFormError(err.response?.data?.error || err.response?.data?.message || 'Gagal menyimpan.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-5">Edit Survei</h2>
+        {formError && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{formError}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="edit-title" className="block text-sm font-medium text-gray-700 mb-1">
+              Judul <span className="text-red-500">*</span>
+            </label>
+            <input id="edit-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" autoFocus />
+          </div>
+          <div>
+            <label htmlFor="edit-desc" className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+            <textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} disabled={submitting}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Batal</button>
+            <button type="submit" disabled={submitting}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg">
+              {submitting ? 'Menyimpan…' : 'Simpan'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Import Questionnaire Modal ───────────────────────────────────────────────
+function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
+  const [targetSurveyId, setTargetSurveyId] = useState('');
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [error, setError] = useState(null);
+  const fileRef = React.useRef(null);
+
+  function handleFileChange(e) {
+    const f = e.target.files?.[0];
+    setFile(f);
+    setPreview(null);
+    setError(null);
+    if (!f) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!data.questions || !Array.isArray(data.questions)) {
+          setError('Format file tidak valid. Pastikan file berisi field "questions".');
+          return;
+        }
+        setPreview(data);
+      } catch {
+        setError('File bukan JSON yang valid.');
+      }
+    };
+    reader.readAsText(f);
+  }
+
+  async function handleImport() {
+    if (!targetSurveyId || !preview) return;
+    setImporting(true);
+    setError(null);
+    try {
+      const res = await api.post(`/surveys/${targetSurveyId}/questions/import`, {
+        questions: preview.questions,
+      });
+      onSuccess(res.data.message);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Gagal import kuesioner.');
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8" role="dialog" aria-modal="true">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Import Kuesioner</h2>
+
+        {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Survei Tujuan <span className="text-red-500">*</span></label>
+            <select value={targetSurveyId} onChange={(e) => setTargetSurveyId(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+              <option value="">— Pilih survei —</option>
+              {surveys.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.status})</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">File JSON Kuesioner</label>
+            <input ref={fileRef} type="file" accept=".json" onChange={handleFileChange}
+              className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+            <p className="mt-1 text-xs text-gray-400">Upload file .json hasil export kuesioner</p>
+          </div>
+
+          {preview && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+              <p className="text-sm font-medium text-gray-700">Preview: {preview.survey_title || 'Kuesioner'}</p>
+              <p className="text-xs text-gray-500">{preview.question_count || preview.questions.length} pertanyaan akan diimport</p>
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {preview.questions.map((q, i) => (
+                  <div key={i} className="text-xs text-gray-600 flex gap-2">
+                    <span className="text-gray-400 shrink-0">{i + 1}.</span>
+                    <span className="truncate">{q.text}</span>
+                    <span className="text-gray-400 shrink-0">({q.type})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Batal</button>
+            <button onClick={handleImport} disabled={!targetSurveyId || !preview || importing}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg">
+              {importing ? 'Mengimport…' : `Import ${preview?.questions?.length || 0} Pertanyaan`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Surveys Page ─────────────────────────────────────────────────────────────
 /**
  * Survey list page for admin.
@@ -220,6 +378,8 @@ function Surveys() {
 
   // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Inline confirmation states
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -322,13 +482,26 @@ function Surveys() {
       setSuccessMsg(`Survei "${survey.title}" berhasil diduplikasi.`);
       navigate(`/surveys/${res.data.id}/builder`);
     } catch (err) {
-      setActionError(
-        err.response?.data?.error ||
-          err.message ||
-          'Gagal menduplikasi survei.'
-      );
+      setActionError(err.response?.data?.error || err.message || 'Gagal menduplikasi survei.');
     } finally {
       setCloningId(null);
+    }
+  }
+
+  // ── Export questionnaire handler ────────────────────────────────────────────
+  async function handleExportQuestionnaire(survey) {
+    try {
+      const res = await api.get(`/surveys/${survey.id}/questions/export`);
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `kuesioner-${survey.title.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setSuccessMsg(`Kuesioner "${survey.title}" berhasil diexport.`);
+    } catch (err) {
+      setActionError(err.response?.data?.error || 'Gagal export kuesioner.');
     }
   }
 
@@ -363,6 +536,12 @@ function Surveys() {
           <h1 className="text-2xl font-bold text-gray-800">Manajemen Survei</h1>
           <div className="flex items-center gap-3">
             <ViewToggle viewMode={viewMode} onViewChange={handleViewChange} />
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
+            >
+              Import Kuesioner
+            </button>
             <button
               onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -571,14 +750,32 @@ function Surveys() {
                           <div className="flex items-center justify-end gap-2 flex-wrap">
                             {/* Builder button */}
                             <button
-                              onClick={() =>
-                                navigate(`/surveys/${survey.id}/builder`)
-                              }
+                              onClick={() => navigate(`/surveys/${survey.id}/builder`)}
                               className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
                               aria-label={`Buka builder untuk survei ${survey.title}`}
                             >
                               Builder
                             </button>
+
+                            {/* Edit button */}
+                            <button
+                              onClick={() => setEditTarget(survey)}
+                              className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                              aria-label={`Edit survei ${survey.title}`}
+                            >
+                              Edit
+                            </button>
+
+                            {/* Export questionnaire */}
+                            {(survey.question_count ?? 0) > 0 && (
+                              <button
+                                onClick={() => handleExportQuestionnaire(survey)}
+                                className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
+                                aria-label={`Export kuesioner ${survey.title}`}
+                              >
+                                Export
+                              </button>
+                            )}
 
                             {/* Duplikasi button */}
                             <button
@@ -704,6 +901,32 @@ function Surveys() {
           onSaved={() => {
             setShowCreateModal(false);
             setSuccessMsg('Survei baru berhasil dibuat.');
+            fetchSurveys();
+          }}
+        />
+      )}
+
+      {/* Edit Survey Modal */}
+      {editTarget && (
+        <EditSurveyModal
+          survey={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            setSuccessMsg('Survei berhasil diperbarui.');
+            fetchSurveys();
+          }}
+        />
+      )}
+
+      {/* Import Questionnaire Modal */}
+      {showImportModal && (
+        <ImportQuestionnaireModal
+          surveys={surveys}
+          onClose={() => setShowImportModal(false)}
+          onSuccess={(msg) => {
+            setShowImportModal(false);
+            setSuccessMsg(msg);
             fetchSurveys();
           }}
         />

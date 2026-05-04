@@ -35,9 +35,9 @@ function validatePassword(password) {
   return { valid: errors.length === 0, errors };
 }
 
-// ─── Surveyor Form Modal ──────────────────────────────────────────────────────
+// ─── TPD Form Modal ──────────────────────────────────────────────────────
 /**
- * Modal form for creating or editing a surveyor account.
+ * Modal form for creating or editing a TPD account.
  *
  * @param {{
  *   mode: 'create' | 'edit',
@@ -46,17 +46,28 @@ function validatePassword(password) {
  *   onSaved: () => void,
  * }} props
  */
-function SurveyorFormModal({ mode, initial, onClose, onSaved, surveys }) {
+function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
   const [name, setName] = useState(initial?.name || '');
   const [email, setEmail] = useState(initial?.email || '');
   const [password, setPassword] = useState('');
   const [surveyId, setSurveyId] = useState('');
   const [quota, setQuota] = useState('');
+  // Fitur #1: nomor kuesioner yang ditugaskan ke surveyor
+  const [assignedNumbersText, setAssignedNumbersText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
 
   const isEdit = mode === 'edit';
+
+  // Parse assigned numbers dari textarea (satu per baris atau koma-separated)
+  function parseAssignedNumbers(text) {
+    if (!text.trim()) return null;
+    return text
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
 
   function validate() {
     const errors = {};
@@ -68,7 +79,6 @@ function SurveyorFormModal({ mode, initial, onClose, onSaved, surveys }) {
     }
 
     if (!isEdit) {
-      // Password required for create
       if (!password) {
         errors.password = 'Password wajib diisi';
       } else {
@@ -76,16 +86,24 @@ function SurveyorFormModal({ mode, initial, onClose, onSaved, surveys }) {
         if (!valid) errors.password = pwErrors.join(', ');
       }
     } else if (password) {
-      // Password optional for edit — validate only if filled
       const { valid, errors: pwErrors } = validatePassword(password);
       if (!valid) errors.password = pwErrors.join(', ');
     }
 
-    // Quota validation (when a survey is selected)
     if (surveyId) {
       const q = Number(quota);
       if (!quota || !Number.isInteger(q) || q <= 0) {
         errors.quota = 'Kuota harus berupa bilangan bulat positif lebih dari 0';
+      }
+      // Validasi nomor kuesioner jika diisi
+      if (assignedNumbersText.trim()) {
+        const nums = parseAssignedNumbers(assignedNumbersText);
+        if (nums) {
+          const unique = new Set(nums);
+          if (unique.size !== nums.length) {
+            errors.assignedNumbers = 'Nomor kuesioner tidak boleh duplikat';
+          }
+        }
       }
     }
 
@@ -112,17 +130,30 @@ function SurveyorFormModal({ mode, initial, onClose, onSaved, surveys }) {
 
     setSubmitting(true);
     try {
+      let surveyorId;
       if (isEdit) {
         await api.put(`/surveyors/${initial.id}`, payload);
-        // If survey + quota selected in edit mode, assign quota separately
+        surveyorId = initial.id;
         if (surveyId && quota) {
+          const assignedNums = parseAssignedNumbers(assignedNumbersText);
           await api.post(`/surveyors/${initial.id}/quota`, {
             survey_id: surveyId,
             quota: Number(quota),
+            assigned_numbers: assignedNums,
           });
         }
       } else {
-        await api.post('/surveyors', payload);
+        const res = await api.post('/surveyors', payload);
+        surveyorId = res.data.id;
+        // Jika ada nomor kuesioner yang ditugaskan, update quota record
+        if (surveyId && assignedNumbersText.trim()) {
+          const assignedNums = parseAssignedNumbers(assignedNumbersText);
+          await api.post(`/surveyors/${surveyorId}/quota`, {
+            survey_id: surveyId,
+            quota: Number(quota),
+            assigned_numbers: assignedNums,
+          });
+        }
       }
       onSaved();
     } catch (err) {
@@ -138,19 +169,18 @@ function SurveyorFormModal({ mode, initial, onClose, onSaved, surveys }) {
   }
 
   return (
-    /* Backdrop */
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-6"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="surveyor-modal-title"
+      aria-labelledby="tpd-modal-title"
     >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
         <h2
-          id="surveyor-modal-title"
+          id="tpd-modal-title"
           className="text-lg font-semibold text-gray-800 mb-5"
         >
-          {isEdit ? 'Edit Surveyor' : 'Tambah Surveyor Baru'}
+          {isEdit ? 'Edit TPD' : 'Tambah TPD Baru'}
         </h2>
 
         {formError && (
@@ -165,158 +195,129 @@ function SurveyorFormModal({ mode, initial, onClose, onSaved, surveys }) {
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           {/* Name */}
           <div>
-            <label
-              htmlFor="surveyor-name"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="tpd-name" className="block text-sm font-medium text-gray-700 mb-1">
               Nama <span aria-hidden="true" className="text-red-500">*</span>
             </label>
             <input
-              id="surveyor-name"
+              id="tpd-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                fieldErrors.name ? 'border-red-400' : 'border-gray-300'
-              }`}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${fieldErrors.name ? 'border-red-400' : 'border-gray-300'}`}
               autoComplete="name"
-              aria-describedby={fieldErrors.name ? 'surveyor-name-error' : undefined}
               aria-invalid={!!fieldErrors.name}
             />
-            {fieldErrors.name && (
-              <p id="surveyor-name-error" className="mt-1 text-xs text-red-600">
-                {fieldErrors.name}
-              </p>
-            )}
+            {fieldErrors.name && <p className="mt-1 text-xs text-red-600">{fieldErrors.name}</p>}
           </div>
 
           {/* Email */}
           <div>
-            <label
-              htmlFor="surveyor-email"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="tpd-email" className="block text-sm font-medium text-gray-700 mb-1">
               Email <span aria-hidden="true" className="text-red-500">*</span>
             </label>
             <input
-              id="surveyor-email"
+              id="tpd-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                fieldErrors.email ? 'border-red-400' : 'border-gray-300'
-              }`}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${fieldErrors.email ? 'border-red-400' : 'border-gray-300'}`}
               autoComplete="email"
-              aria-describedby={fieldErrors.email ? 'surveyor-email-error' : undefined}
               aria-invalid={!!fieldErrors.email}
             />
-            {fieldErrors.email && (
-              <p id="surveyor-email-error" className="mt-1 text-xs text-red-600">
-                {fieldErrors.email}
-              </p>
-            )}
+            {fieldErrors.email && <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>}
           </div>
 
           {/* Password */}
           <div>
-            <label
-              htmlFor="surveyor-password"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="tpd-password" className="block text-sm font-medium text-gray-700 mb-1">
               Password{' '}
-              {!isEdit && (
-                <span aria-hidden="true" className="text-red-500">*</span>
-              )}
-              {isEdit && (
-                <span className="text-gray-400 font-normal text-xs ml-1">
-                  (kosongkan jika tidak ingin mengubah)
-                </span>
-              )}
+              {!isEdit && <span aria-hidden="true" className="text-red-500">*</span>}
+              {isEdit && <span className="text-gray-400 font-normal text-xs ml-1">(kosongkan jika tidak ingin mengubah)</span>}
             </label>
             <input
-              id="surveyor-password"
+              id="tpd-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                fieldErrors.password ? 'border-red-400' : 'border-gray-300'
-              }`}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${fieldErrors.password ? 'border-red-400' : 'border-gray-300'}`}
               autoComplete="new-password"
-              aria-describedby="surveyor-password-hint surveyor-password-error"
               aria-invalid={!!fieldErrors.password}
             />
-            <p id="surveyor-password-hint" className="mt-1 text-xs text-gray-400">
-              Min. 8 karakter, huruf besar, huruf kecil, dan angka
-            </p>
-            {fieldErrors.password && (
-              <p id="surveyor-password-error" className="mt-1 text-xs text-red-600">
-                {fieldErrors.password}
-              </p>
-            )}
+            <p className="mt-1 text-xs text-gray-400">Min. 8 karakter, huruf besar, huruf kecil, dan angka</p>
+            {fieldErrors.password && <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
           </div>
 
-          {/* Survey + Quota (for create and edit mode) */}
+          {/* Survey selector */}
           <div>
-            <label
-              htmlFor="surveyor-survey"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="tpd-survey" className="block text-sm font-medium text-gray-700 mb-1">
               Tugaskan ke Survei{' '}
-              <span className="text-gray-400 font-normal text-xs ml-1">
-                (opsional)
-              </span>
+              <span className="text-gray-400 font-normal text-xs ml-1">(opsional)</span>
             </label>
             <select
-              id="surveyor-survey"
+              id="tpd-survey"
               value={surveyId}
-              onChange={(e) => setSurveyId(e.target.value)}
+              onChange={(e) => { setSurveyId(e.target.value); setAssignedNumbersText(''); }}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
             >
               <option value="">— Pilih survei —</option>
               {(surveys || []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.title}
-                </option>
+                <option key={s.id} value={s.id}>{s.title}</option>
               ))}
             </select>
             {isEdit && (
-              <p className="mt-1 text-xs text-gray-400">
-                Pilih survei untuk menambah/memperbarui kuota surveyor ini
-              </p>
+              <p className="mt-1 text-xs text-gray-400">Pilih survei untuk menambah/memperbarui kuota TPD ini</p>
             )}
           </div>
 
           {surveyId && (
-            <div>
-              <label
-                htmlFor="surveyor-quota"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Kuota <span aria-hidden="true" className="text-red-500">*</span>
-              </label>
-              <input
-                id="surveyor-quota"
-                type="number"
-                min="1"
-                step="1"
-                value={quota}
-                onChange={(e) => setQuota(e.target.value)}
-                placeholder="Contoh: 10"
-                className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                  fieldErrors.quota ? 'border-red-400' : 'border-gray-300'
-                }`}
-                aria-describedby={fieldErrors.quota ? 'surveyor-quota-error' : 'surveyor-quota-hint'}
-                aria-invalid={!!fieldErrors.quota}
-              />
-              <p id="surveyor-quota-hint" className="mt-1 text-xs text-gray-400">
-                Jumlah maksimum kuesioner yang boleh diisi surveyor untuk survei ini
-              </p>
-              {fieldErrors.quota && (
-                <p id="surveyor-quota-error" className="mt-1 text-xs text-red-600">
-                  {fieldErrors.quota}
+            <>
+              {/* Kuota */}
+              <div>
+                <label htmlFor="tpd-quota" className="block text-sm font-medium text-gray-700 mb-1">
+                  Kuota <span aria-hidden="true" className="text-red-500">*</span>
+                </label>
+                <input
+                  id="tpd-quota"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={quota}
+                  onChange={(e) => setQuota(e.target.value)}
+                  placeholder="Contoh: 10"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${fieldErrors.quota ? 'border-red-400' : 'border-gray-300'}`}
+                  aria-invalid={!!fieldErrors.quota}
+                />
+                <p className="mt-1 text-xs text-gray-400">Jumlah maksimum kuesioner yang boleh diisi TPD untuk survei ini</p>
+                {fieldErrors.quota && <p className="mt-1 text-xs text-red-600">{fieldErrors.quota}</p>}
+              </div>
+
+              {/* Nomor kuesioner yang ditugaskan (Fitur #1) */}
+              <div>
+                <label htmlFor="tpd-assigned-numbers" className="block text-sm font-medium text-gray-700 mb-1">
+                  Nomor Kuesioner yang Ditugaskan{' '}
+                  <span className="text-gray-400 font-normal text-xs ml-1">(opsional)</span>
+                </label>
+                <textarea
+                  id="tpd-assigned-numbers"
+                  value={assignedNumbersText}
+                  onChange={(e) => setAssignedNumbersText(e.target.value)}
+                  rows={4}
+                  placeholder={'Masukkan nomor kuesioner, satu per baris atau pisahkan dengan koma:\n001\n002\n003\natau: 001, 002, 003'}
+                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono resize-none ${fieldErrors.assignedNumbers ? 'border-red-400' : 'border-gray-300'}`}
+                  aria-invalid={!!fieldErrors.assignedNumbers}
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  TPD akan melihat daftar nomor ini sebagai tugas yang harus diisi.
+                  Kosongkan jika tidak ingin menentukan nomor spesifik.
                 </p>
-              )}
-            </div>
+                {assignedNumbersText.trim() && (
+                  <p className="mt-1 text-xs text-blue-600">
+                    {parseAssignedNumbers(assignedNumbersText)?.length || 0} nomor kuesioner akan ditugaskan
+                  </p>
+                )}
+                {fieldErrors.assignedNumbers && <p className="mt-1 text-xs text-red-600">{fieldErrors.assignedNumbers}</p>}
+              </div>
+            </>
           )}
 
           {/* Actions */}
@@ -334,11 +335,7 @@ function SurveyorFormModal({ mode, initial, onClose, onSaved, surveys }) {
               disabled={submitting}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              {submitting
-                ? 'Menyimpan…'
-                : isEdit
-                ? 'Simpan Perubahan'
-                : 'Buat Surveyor'}
+              {submitting ? 'Menyimpan…' : isEdit ? 'Simpan Perubahan' : 'Buat TPD'}
             </button>
           </div>
         </form>
@@ -347,17 +344,17 @@ function SurveyorFormModal({ mode, initial, onClose, onSaved, surveys }) {
   );
 }
 
-// ─── Surveyors Page ───────────────────────────────────────────────────────────
+// ─── TPD Page ───────────────────────────────────────────────────────────────
 /**
- * Surveyor management page.
+ * TPD management page.
  *
  * Features:
- * - Table listing all surveyors: Name, Email, Status badge, Response Count, Joined Date
- * - "Tambah Surveyor" button opens a create modal
+ * - Table listing all TPD: Name, Email, Status badge, Response Count, Joined Date
+ * - "Tambah TPD" button opens a create modal
  * - Edit button per row opens an edit modal
  * - Deactivate/Activate toggle button per row (with inline confirmation for deactivate)
  * - Delete button per row (admin only) with inline confirmation
- * - Expandable quota summary per surveyor via "Lihat Kuota" button
+ * - Expandable quota summary per TPD via "Lihat Kuota" button
  */
 function Surveyors() {
   const currentUser = (() => {
@@ -369,7 +366,7 @@ function Surveyors() {
   })();
 
   const [viewMode, handleViewChange] = useViewMode('surveyors_view_mode');
-  const [surveyors, setSurveyors] = useState([]);
+  const [tpdList, setTpdList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
@@ -379,13 +376,13 @@ function Surveyors() {
   const [modalMode, setModalMode] = useState(null); // 'create' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
 
-  // Inline deactivate confirmation state: stores the surveyor id being confirmed
+  // Inline deactivate confirmation state: stores the TPD id being confirmed
   const [confirmDeactivateId, setConfirmDeactivateId] = useState(null);
 
-  // Inline delete confirmation state: stores the surveyor id being confirmed for deletion
+  // Inline delete confirmation state: stores the TPD id being confirmed for deletion
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
-  // Expanded quota panel: stores the surveyor id whose quota panel is open
+  // Expanded quota panel: stores the TPD id whose quota panel is open
   const [expandedQuotaId, setExpandedQuotaId] = useState(null);
 
   // Bulk upload / assign modal state
@@ -409,18 +406,18 @@ function Surveyors() {
     }
   }, []);
 
-  // ── Fetch surveyors ─────────────────────────────────────────────────────────
+  // ── Fetch TPD ─────────────────────────────────────────────────────────────
   const fetchSurveyors = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
     try {
       const res = await api.get('/surveyors');
-      setSurveyors(res.data);
+      setTpdList(res.data);
     } catch (err) {
       setFetchError(
         err.response?.data?.message ||
           err.message ||
-          'Gagal memuat daftar surveyor.'
+          'Gagal memuat daftar TPD.'
       );
     } finally {
       setLoading(false);
@@ -440,45 +437,45 @@ function Surveyors() {
   }, [successMsg]);
 
   // ── Deactivate handler ──────────────────────────────────────────────────────
-  async function handleDeactivate(surveyor) {
+  async function handleDeactivate(tpd) {
     setActionError(null);
     try {
-      await api.patch(`/surveyors/${surveyor.id}/deactivate`);
-      setSuccessMsg(`Akun "${surveyor.name}" berhasil dinonaktifkan.`);
+      await api.patch(`/surveyors/${tpd.id}/deactivate`);
+      setSuccessMsg(`Akun "${tpd.name}" berhasil dinonaktifkan.`);
       setConfirmDeactivateId(null);
       fetchSurveyors();
     } catch (err) {
       setActionError(
         err.response?.data?.message ||
           err.message ||
-          'Gagal menonaktifkan surveyor.'
+          'Gagal menonaktifkan TPD.'
       );
       setConfirmDeactivateId(null);
     }
   }
 
   // ── Activate handler ────────────────────────────────────────────────────────
-  async function handleActivate(surveyor) {
+  async function handleActivate(tpd) {
     setActionError(null);
     try {
-      await api.patch(`/surveyors/${surveyor.id}/activate`);
-      setSuccessMsg(`Akun "${surveyor.name}" berhasil diaktifkan kembali.`);
+      await api.patch(`/surveyors/${tpd.id}/activate`);
+      setSuccessMsg(`Akun "${tpd.name}" berhasil diaktifkan kembali.`);
       fetchSurveyors();
     } catch (err) {
       setActionError(
         err.response?.data?.message ||
           err.message ||
-          'Gagal mengaktifkan surveyor.'
+          'Gagal mengaktifkan TPD.'
       );
     }
   }
 
   // ── Delete handler ──────────────────────────────────────────────────────────
-  async function handleDeleteSurveyor(surveyor) {
+  async function handleDeleteSurveyor(tpd) {
     setActionError(null);
     try {
-      await api.delete(`/surveyors/${surveyor.id}`);
-      setSuccessMsg(`Akun "${surveyor.name}" berhasil dihapus.`);
+      await api.delete(`/surveyors/${tpd.id}`);
+      setSuccessMsg(`Akun "${tpd.name}" berhasil dihapus.`);
       setConfirmDeleteId(null);
       fetchSurveyors();
     } catch (err) {
@@ -486,15 +483,15 @@ function Surveyors() {
         err.response?.data?.error ||
           err.response?.data?.message ||
           err.message ||
-          'Gagal menghapus surveyor.'
+          'Gagal menghapus TPD.'
       );
       setConfirmDeleteId(null);
     }
   }
 
   // ── Toggle quota panel ──────────────────────────────────────────────────────
-  function toggleQuotaPanel(surveyorId) {
-    setExpandedQuotaId((prev) => (prev === surveyorId ? null : surveyorId));
+  function toggleQuotaPanel(tpdId) {
+    setExpandedQuotaId((prev) => (prev === tpdId ? null : tpdId));
   }
 
   // ── Format date ─────────────────────────────────────────────────────────────
@@ -507,23 +504,23 @@ function Surveyors() {
     });
   }
 
-  // ── Filtered surveyors ────────────────────────────────────────────────────────
-  const filteredSurveyors = surveyors.filter((s) => {
-    if (filterName && !s.name.toLowerCase().includes(filterName.toLowerCase())) return false;
-    if (filterSurveyId && Array.isArray(s.quotas)) {
-      const hasSurvey = s.quotas.some((q) => q.survey_id === filterSurveyId);
+  // ── Filtered TPD ────────────────────────────────────────────────────────────
+  const filteredSurveyors = tpdList.filter((tpd) => {
+    if (filterName && !tpd.name.toLowerCase().includes(filterName.toLowerCase())) return false;
+    if (filterSurveyId && Array.isArray(tpd.quotas)) {
+      const hasSurvey = tpd.quotas.some((q) => q.survey_id === filterSurveyId);
       if (!hasSurvey) return false;
     }
     if (filterYear || filterMonth) {
-      const date = new Date(s.created_at);
+      const date = new Date(tpd.created_at);
       if (filterYear && date.getFullYear() !== parseInt(filterYear, 10)) return false;
       if (filterMonth && (date.getMonth() + 1) !== parseInt(filterMonth, 10)) return false;
     }
     return true;
   });
 
-  // Get unique years from surveyors for the dropdown
-  const availableYears = [...new Set(surveyors.map((s) => new Date(s.created_at).getFullYear()))].sort((a, b) => b - a);
+  // Get unique years from TPD list for the dropdown
+  const availableYears = [...new Set(tpdList.map((tpd) => new Date(tpd.created_at).getFullYear()))].sort((a, b) => b - a);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -531,7 +528,7 @@ function Surveyors() {
       <div className="space-y-5">
         {/* Page header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-800">Manajemen Surveyor</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Manajemen TPD</h1>
           <div className="flex items-center gap-2">
             <ViewToggle viewMode={viewMode} onViewChange={handleViewChange} />
             <button
@@ -544,7 +541,7 @@ function Surveyors() {
               onClick={() => setBulkUploadOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
             >
-              Upload Surveyor
+              Upload TPD
             </button>
             <button
               onClick={() => {
@@ -553,7 +550,7 @@ function Surveyors() {
               }}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              <span aria-hidden="true">+</span> Tambah Surveyor
+              <span aria-hidden="true">+</span> Tambah TPD
             </button>
           </div>
         </div>
@@ -591,9 +588,9 @@ function Surveyors() {
             type="text"
             value={filterName}
             onChange={(e) => setFilterName(e.target.value)}
-            placeholder="Cari nama surveyor…"
+            placeholder="Cari nama TPD…"
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-48"
-            aria-label="Cari nama surveyor"
+            aria-label="Cari nama TPD"
           />
           <select
             value={filterSurveyId}
@@ -646,7 +643,7 @@ function Surveyors() {
             </button>
           )}
           <span className="text-xs text-gray-400 ml-auto">
-            {filteredSurveyors.length} dari {surveyors.length} surveyor
+            {filteredSurveyors.length} dari {tpdList.length} TPD
           </span>
         </div>
 
@@ -658,7 +655,7 @@ function Surveyors() {
               role="status"
               aria-live="polite"
             >
-              Memuat daftar surveyor…
+              Memuat daftar TPD…
             </div>
           ) : fetchError ? (
             <div
@@ -673,20 +670,20 @@ function Surveyors() {
                 Coba lagi
               </button>
             </div>
-          ) : surveyors.length === 0 ? (
+          ) : tpdList.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
-              Belum ada data surveyor.
+              Belum ada data TPD.
             </div>
           ) : filteredSurveyors.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
-              Tidak ada surveyor yang sesuai filter.
+              Tidak ada TPD yang sesuai filter.
             </div>
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-              {filteredSurveyors.map((surveyor) => (
+              {filteredSurveyors.map((tpd) => (
                 <SurveyorCard
-                  key={surveyor.id}
-                  surveyor={surveyor}
+                  key={tpd.id}
+                  surveyor={tpd}
                   currentUser={currentUser}
                   onEdit={(s) => { setEditTarget(s); setModalMode('edit'); }}
                   onActivate={handleActivate}
@@ -724,36 +721,36 @@ function Surveyors() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filteredSurveyors.map((surveyor) => {
-                    const isConfirming = confirmDeactivateId === surveyor.id;
-                    const isQuotaExpanded = expandedQuotaId === surveyor.id;
+                  {filteredSurveyors.map((tpd) => {
+                    const isConfirming = confirmDeactivateId === tpd.id;
+                    const isQuotaExpanded = expandedQuotaId === tpd.id;
 
                     return (
-                      <React.Fragment key={surveyor.id}>
+                      <React.Fragment key={tpd.id}>
                         <tr className="hover:bg-gray-50 transition-colors">
                           {/* Name */}
                           <td className="px-5 py-3 font-medium text-gray-800">
-                            {surveyor.name}
+                            {tpd.name}
                           </td>
 
                           {/* Email */}
                           <td className="px-5 py-3 text-gray-600">
-                            {surveyor.email}
+                            {tpd.email}
                           </td>
 
                           {/* Status */}
                           <td className="px-5 py-3">
-                            <StatusBadge isActive={surveyor.is_active} />
+                            <StatusBadge isActive={tpd.is_active} />
                           </td>
 
                           {/* Response Count */}
                           <td className="px-5 py-3 text-gray-600">
-                            {surveyor.response_count ?? 0}
+                            {tpd.response_count ?? 0}
                           </td>
 
                           {/* Joined Date */}
                           <td className="px-5 py-3 text-gray-500">
-                            {formatDate(surveyor.created_at)}
+                            {formatDate(tpd.created_at)}
                           </td>
 
                           {/* Actions */}
@@ -761,14 +758,14 @@ function Surveyors() {
                             <div className="flex items-center justify-end gap-2 flex-wrap">
                               {/* Lihat Kuota button */}
                               <button
-                                onClick={() => toggleQuotaPanel(surveyor.id)}
+                                onClick={() => toggleQuotaPanel(tpd.id)}
                                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-300 ${
                                   isQuotaExpanded
                                     ? 'text-indigo-700 bg-indigo-100 hover:bg-indigo-200'
                                     : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
                                 }`}
                                 aria-expanded={isQuotaExpanded}
-                                aria-label={`${isQuotaExpanded ? 'Sembunyikan' : 'Lihat'} kuota ${surveyor.name}`}
+                                aria-label={`${isQuotaExpanded ? 'Sembunyikan' : 'Lihat'} kuota ${tpd.name}`}
                               >
                                 {isQuotaExpanded ? 'Sembunyikan Kuota' : 'Lihat Kuota'}
                               </button>
@@ -776,17 +773,17 @@ function Surveyors() {
                               {/* Edit button */}
                               <button
                                 onClick={() => {
-                                  setEditTarget(surveyor);
+                                  setEditTarget(tpd);
                                   setModalMode('edit');
                                 }}
                                 className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                aria-label={`Edit surveyor ${surveyor.name}`}
+                                aria-label={`Edit TPD ${tpd.name}`}
                               >
                                 Edit
                               </button>
 
                               {/* Deactivate / Activate toggle */}
-                              {surveyor.is_active ? (
+                              {tpd.is_active ? (
                                 <>
                                   {isConfirming ? (
                                     <span className="flex items-center gap-1.5">
@@ -794,9 +791,9 @@ function Surveyors() {
                                         Nonaktifkan?
                                       </span>
                                       <button
-                                        onClick={() => handleDeactivate(surveyor)}
+                                        onClick={() => handleDeactivate(tpd)}
                                         className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                        aria-label={`Konfirmasi nonaktifkan ${surveyor.name}`}
+                                        aria-label={`Konfirmasi nonaktifkan ${tpd.name}`}
                                       >
                                         Ya
                                       </button>
@@ -810,11 +807,9 @@ function Surveyors() {
                                     </span>
                                   ) : (
                                     <button
-                                      onClick={() =>
-                                        setConfirmDeactivateId(surveyor.id)
-                                      }
+                                      onClick={() => setConfirmDeactivateId(tpd.id)}
                                       className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                      aria-label={`Nonaktifkan surveyor ${surveyor.name}`}
+                                      aria-label={`Nonaktifkan TPD ${tpd.name}`}
                                     >
                                       Nonaktifkan
                                     </button>
@@ -822,9 +817,9 @@ function Surveyors() {
                                 </>
                               ) : (
                                 <button
-                                  onClick={() => handleActivate(surveyor)}
+                                  onClick={() => handleActivate(tpd)}
                                   className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
-                                  aria-label={`Aktifkan kembali surveyor ${surveyor.name}`}
+                                  aria-label={`Aktifkan kembali TPD ${tpd.name}`}
                                 >
                                   Aktifkan
                                 </button>
@@ -833,13 +828,13 @@ function Surveyors() {
                               {/* Delete button — only for admin role */}
                               {currentUser.role === 'admin' && (
                                 <>
-                                  {confirmDeleteId === surveyor.id ? (
+                                  {confirmDeleteId === tpd.id ? (
                                     <span className="flex items-center gap-1.5">
                                       <span className="text-xs text-gray-600">Hapus permanen?</span>
                                       <button
-                                        onClick={() => handleDeleteSurveyor(surveyor)}
+                                        onClick={() => handleDeleteSurveyor(tpd)}
                                         className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                        aria-label={`Konfirmasi hapus ${surveyor.name}`}
+                                        aria-label={`Konfirmasi hapus ${tpd.name}`}
                                       >
                                         Ya, Hapus
                                       </button>
@@ -853,9 +848,9 @@ function Surveyors() {
                                     </span>
                                   ) : (
                                     <button
-                                      onClick={() => setConfirmDeleteId(surveyor.id)}
+                                      onClick={() => setConfirmDeleteId(tpd.id)}
                                       className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                      aria-label={`Hapus surveyor ${surveyor.name}`}
+                                      aria-label={`Hapus TPD ${tpd.name}`}
                                     >
                                       Hapus
                                     </button>
@@ -870,7 +865,7 @@ function Surveyors() {
                         {isQuotaExpanded && (
                           <tr>
                             <td colSpan={6} className="p-0">
-                              <QuotaPanel surveyorId={surveyor.id} />
+                              <QuotaPanel surveyorId={tpd.id} />
                             </td>
                           </tr>
                         )}
@@ -886,7 +881,7 @@ function Surveyors() {
 
       {/* Modal */}
       {modalMode && (
-        <SurveyorFormModal
+        <TPDFormModal
           mode={modalMode}
           initial={editTarget}
           surveys={surveys}
@@ -899,8 +894,8 @@ function Surveyors() {
             setEditTarget(null);
             setSuccessMsg(
               modalMode === 'edit'
-                ? 'Data surveyor berhasil diperbarui.'
-                : 'Surveyor baru berhasil dibuat.'
+                ? 'Data TPD berhasil diperbarui.'
+                : 'TPD baru berhasil dibuat.'
             );
             fetchSurveyors();
           }}
@@ -912,7 +907,7 @@ function Surveyors() {
         open={bulkUploadOpen}
         onClose={() => setBulkUploadOpen(false)}
         onSuccess={() => {
-          setSuccessMsg('Surveyor berhasil diupload secara massal.');
+          setSuccessMsg('TPD berhasil diupload secara massal.');
           fetchSurveyors();
         }}
       />
@@ -923,7 +918,7 @@ function Surveyors() {
         surveys={surveys}
         onClose={() => setBulkAssignOpen(false)}
         onSuccess={() => {
-          setSuccessMsg('Penugasan surveyor berhasil diupload.');
+          setSuccessMsg('Penugasan TPD berhasil diupload.');
           fetchSurveyors();
         }}
       />

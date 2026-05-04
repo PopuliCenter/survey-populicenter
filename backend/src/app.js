@@ -13,10 +13,17 @@ const app = express();
 app.use(helmet());
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
+// Izinkan semua origin untuk development + Capacitor native app
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: true, // Izinkan semua origin
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Disposition'],
 }));
+
+// Explicit OPTIONS handler untuk preflight requests
+app.options('*', cors());
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────
 app.use(express.json());

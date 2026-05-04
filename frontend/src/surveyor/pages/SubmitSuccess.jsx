@@ -1,7 +1,7 @@
 /**
  * SubmitSuccess.jsx
  *
- * Displayed after a surveyor successfully submits a response.
+ * Displayed after a TPD successfully submits a response.
  * Shows the questionnaire number and provides navigation options.
  *
  * Route: /surveyor/survey/:id/success
@@ -39,7 +39,7 @@ function SubmitSuccess() {
     navigate(`/surveyor/survey/${surveyId}`);
   };
 
-  // Navigate back to the surveyor survey list with refresh flag (Requirement 6.3)
+  // Navigate back to the TPD survey list with refresh flag (Requirement 6.3)
   const handleBackToList = () => {
     navigate('/surveyor', { state: { refreshQuota: true } });
   };

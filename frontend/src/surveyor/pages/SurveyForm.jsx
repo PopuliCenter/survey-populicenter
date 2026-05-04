@@ -1,7 +1,7 @@
 /**
  * SurveyForm.jsx
  *
- * Survey form page for the Surveyor Interface.
+ * Survey form page for the TPD Interface.
  * Renders all question types, evaluates skip logic in real-time,
  * randomises option order where configured, validates required questions,
  * requests geolocation on submit, and posts the completed response.
@@ -232,28 +232,99 @@ function PhoneNumberField({ question, answer, onChange, hasError }) {
 
 /**
  * Komponen input untuk pertanyaan unique_id.
- * Hanya menerima karakter digit (0-9) dengan indikator ketersediaan real-time.
+ * Jika admin sudah menugaskan nomor kuesioner (assignedNumbers), tampilkan dropdown.
+ * Jika tidak, tampilkan input bebas digit (0-9) dengan indikator ketersediaan real-time.
  *
- * @param {{ question: object, answer: string, onChange: function, hasError: boolean, surveyId: string, isOnline: boolean }} props
+ * @param {{ question: object, answer: string, onChange: function, hasError: boolean, surveyId: string, isOnline: boolean, assignedNumbers: string[]|null, usedNumbers: string[] }} props
  */
-function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnline }) {
+function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnline, assignedNumbers, usedNumbers }) {
   const config = question.options && !Array.isArray(question.options) ? question.options : {};
   const { min_length, max_length } = config;
 
-  const [availability, setAvailability] = useState(null); // null | 'checking' | 'available' | 'taken'
+  const [availability, setAvailability] = useState(null);
   const debounceRef = useRef(null);
 
+  const usedSet = useMemo(() => new Set(usedNumbers || []), [usedNumbers]);
+
+  // Jika ada assigned_numbers dari admin, tampilkan dropdown
+  if (assignedNumbers && Array.isArray(assignedNumbers) && assignedNumbers.length > 0) {
+    const availableNumbers = assignedNumbers.filter((num) => !usedSet.has(num));
+
+    return (
+      <div className="space-y-2">
+        <select
+          value={answer || ''}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors bg-white ${
+            hasError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+          }`}
+          aria-label={`Pilih nomor kuesioner untuk: ${question.text}`}
+        >
+          <option value="">— Pilih nomor kuesioner —</option>
+          {assignedNumbers.map((num) => {
+            const isUsed = usedSet.has(num);
+            return (
+              <option key={num} value={num} disabled={isUsed}>
+                {num} {isUsed ? '(sudah diisi)' : ''}
+              </option>
+            );
+          })}
+        </select>
+
+        {/* Info jumlah tersedia */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-500">
+            {availableNumbers.length} dari {assignedNumbers.length} nomor tersedia
+          </span>
+        </div>
+
+        {/* Daftar visual nomor */}
+        <div className="flex flex-wrap gap-1.5">
+          {assignedNumbers.map((num) => {
+            const isUsed = usedSet.has(num);
+            const isSelected = answer === num;
+            return (
+              <span
+                key={num}
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
+                  isSelected
+                    ? 'bg-blue-100 text-blue-800 border-blue-300 ring-2 ring-blue-400'
+                    : isUsed
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 line-through cursor-not-allowed'
+                      : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                }`}
+                onClick={() => !isUsed && onChange(num)}
+                title={isUsed ? 'Sudah diisi' : isSelected ? 'Terpilih' : 'Klik untuk memilih'}
+                role="button"
+                tabIndex={isUsed ? -1 : 0}
+                onKeyDown={(e) => e.key === 'Enter' && !isUsed && onChange(num)}
+                aria-label={`Nomor ${num}${isUsed ? ' (sudah diisi)' : isSelected ? ' (terpilih)' : ''}`}
+              >
+                {isUsed ? '✓' : isSelected ? '●' : '○'} {num}
+              </span>
+            );
+          })}
+        </div>
+
+        {availableNumbers.length === 0 && (
+          <p className="text-xs text-red-600 font-medium">
+            Semua nomor kuesioner sudah diisi.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // Fallback: input bebas (tidak ada assigned_numbers dari admin)
   function handleChange(e) {
     const digits = e.target.value.replace(/\D/g, '');
     onChange(digits);
 
-    // Skip availability check when offline
     if (!isOnline) {
       setAvailability(null);
       return;
     }
 
-    // Debounced availability check
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (digits.length > 0) {
       setAvailability('checking');
@@ -383,6 +454,7 @@ function TimePickerField({ question, answer, onChange, hasError }) {
  * Komponen input untuk pertanyaan matrix/grid.
  * Tabel HTML dengan radio button per baris (satu pilihan per baris).
  * Responsive dengan horizontal scroll pada layar kecil.
+ * Kolom pertama (label baris) di-freeze/sticky agar tidak terpotong di mobile.
  *
  * @param {{ question: object, answer: object, onChange: function, hasError: boolean }} props
  */
@@ -405,15 +477,25 @@ function MatrixField({ question, answer, onChange, hasError }) {
     <div
       className={`${hasError ? 'p-2 rounded-lg border border-red-400 bg-red-50' : ''}`}
     >
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
+      {/* Petunjuk scroll untuk mobile */}
+      {columns.length > 3 && (
+        <p className="text-xs text-gray-400 mb-1 md:hidden">← Geser ke kanan untuk melihat semua kolom</p>
+      )}
+      {/* Wrapper dengan overflow-x-auto dan max-height untuk freeze header */}
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="text-sm border-collapse" style={{ minWidth: `${120 + columns.length * 90}px` }}>
           <thead>
-            <tr>
-              <th className="text-left p-2 border-b border-gray-200 text-gray-500 font-medium min-w-[120px]" />
+            <tr className="bg-gray-50">
+              {/* Kolom pertama (label baris) — sticky kiri */}
+              <th
+                className="text-left p-2 border-b border-gray-200 text-gray-500 font-medium bg-gray-50"
+                style={{ position: 'sticky', left: 0, zIndex: 2, minWidth: '120px', maxWidth: '180px' }}
+              />
               {columns.map((col) => (
                 <th
                   key={col}
-                  className="text-center p-2 border-b border-gray-200 text-gray-600 font-medium min-w-[80px]"
+                  className="text-center p-2 border-b border-gray-200 text-gray-600 font-medium bg-gray-50"
+                  style={{ minWidth: '80px' }}
                 >
                   {col}
                 </th>
@@ -428,8 +510,12 @@ function MatrixField({ question, answer, onChange, hasError }) {
                   key={row}
                   className={`${isUnanswered ? 'bg-red-50' : 'hover:bg-gray-50'} transition-colors`}
                 >
-                  <td className="p-2 border-b border-gray-100 text-gray-700 font-medium">
-                    {row}
+                  {/* Label baris — sticky kiri agar tidak terpotong saat scroll horizontal */}
+                  <td
+                    className={`p-2 border-b border-gray-100 text-gray-700 font-medium text-sm ${isUnanswered ? 'bg-red-50' : 'bg-white'}`}
+                    style={{ position: 'sticky', left: 0, zIndex: 1, minWidth: '120px', maxWidth: '180px' }}
+                  >
+                    <span className="block truncate" title={row}>{row}</span>
                     {isUnanswered && (
                       <span className="text-red-500 ml-1 text-xs">*</span>
                     )}
@@ -441,7 +527,7 @@ function MatrixField({ question, answer, onChange, hasError }) {
                         name={`matrix_${question.id}_${row}`}
                         checked={value[row] === col}
                         onChange={() => handleSelect(row, col)}
-                        className="accent-blue-600"
+                        className="accent-blue-600 w-5 h-5"
                         aria-label={`${row}: ${col}`}
                       />
                     </td>
@@ -462,7 +548,7 @@ function MatrixField({ question, answer, onChange, hasError }) {
 /**
  * Renders a single question based on its type.
  */
-function QuestionField({ question, answer, onChange, hasError, displayOptions, surveyId, isOnline }) {
+function QuestionField({ question, answer, onChange, hasError, displayOptions, surveyId, isOnline, assignedNumbers, usedNumbers }) {
   const baseInputClass =
     'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors';
   const errorBorder = hasError ? 'border-red-400 bg-red-50' : 'border-gray-300';
@@ -676,6 +762,8 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
           hasError={hasError}
           surveyId={surveyId}
           isOnline={isOnline}
+          assignedNumbers={assignedNumbers}
+          usedNumbers={usedNumbers}
         />
       );
 
@@ -761,6 +849,10 @@ function SurveyForm() {
   // so the order doesn't change as the user fills in the form.
   const [displayOptionsMap, setDisplayOptionsMap] = useState({});
 
+  // ─── Assigned questionnaire numbers (from admin) ────────────────────────────
+  const [assignedNumbers, setAssignedNumbers] = useState(null); // string[] | null
+  const [usedNumbers, setUsedNumbers] = useState([]); // string[]
+
   // ─── Skip logic ─────────────────────────────────────────────────────────────
   const { visibleQuestions } = useSkipLogic(questions, answers);
 
@@ -783,82 +875,86 @@ function SurveyForm() {
       setLoading(true);
       setLoadingError(null);
 
-      // Use navigator.onLine directly to avoid stale closure issues
-      if (navigator.onLine) {
+      // Selalu coba online dulu, fallback ke cache jika gagal
+      // (navigator.onLine unreliable di Capacitor WebView)
+      try {
         // ─── Online mode: fetch from API ────────────────────────────────
-        try {
-          // Start response session — records start_time on server (Requirement 15.1)
-          const startRes = await api.post('/responses/start', { survey_id: id });
-          if (!cancelled) {
-            sessionTokenRef.current = startRes.data.session_token;
+        // Start response session — records start_time on server (Requirement 15.1)
+        const startRes = await api.post('/responses/start', { survey_id: id });
+        if (!cancelled) {
+          sessionTokenRef.current = startRes.data.session_token;
+        }
+
+        // Fetch survey details + questions
+        const surveyRes = await api.get(`/surveys/${id}`);
+        if (!cancelled) {
+          const surveyData = surveyRes.data;
+          setSurvey(surveyData);
+
+          const qs = surveyData.questions || [];
+          setQuestions(qs);
+          setAnswers(buildEmptyAnswers(qs));
+
+          // Compute stable randomised display options for choice questions
+          const optMap = {};
+          for (const q of qs) {
+            if (
+              (q.type === 'single_choice' || q.type === 'multiple_choice') &&
+              Array.isArray(q.options)
+            ) {
+              optMap[q.id] = getDisplayOptions(q.options, q.randomize_options === true);
+            }
           }
+          setDisplayOptionsMap(optMap);
 
-          // Fetch survey details + questions
-          const surveyRes = await api.get(`/surveys/${id}`);
-          if (!cancelled) {
-            const surveyData = surveyRes.data;
-            setSurvey(surveyData);
+          // Cache survey data for offline use
+          await cacheSurvey(surveyData);
 
-            const qs = surveyData.questions || [];
-            setQuestions(qs);
-            setAnswers(buildEmptyAnswers(qs));
-
-            // Compute stable randomised display options for choice questions
-            const optMap = {};
-            for (const q of qs) {
-              if (
-                (q.type === 'single_choice' || q.type === 'multiple_choice') &&
-                Array.isArray(q.options)
-              ) {
-                optMap[q.id] = getDisplayOptions(q.options, q.randomize_options === true);
+          // Fetch assigned questionnaire numbers for this TPD
+          try {
+            const assignedRes = await api.get(`/responses/assigned-numbers/${id}`);
+            if (!cancelled) {
+              setAssignedNumbers(assignedRes.data.assigned_numbers || null);
+              setUsedNumbers(assignedRes.data.used_numbers || []);
+            }
+          } catch {
+            // Non-critical — TPD will use free input if this fails
+          }
+        }
+      } catch (err) {
+        // API gagal — coba offline fallback dari cache
+        if (!err.response) {
+          // Network error — coba cache
+          try {
+            const cached = await getCachedSurvey(id);
+            if (!cancelled) {
+              if (cached) {
+                setSurvey(cached);
+                const qs = cached.questions || [];
+                setQuestions(qs);
+                setAnswers(buildEmptyAnswers(qs));
+                const optMap = {};
+                for (const q of qs) {
+                  if ((q.type === 'single_choice' || q.type === 'multiple_choice') && Array.isArray(q.options)) {
+                    optMap[q.id] = getDisplayOptions(q.options, q.randomize_options === true);
+                  }
+                }
+                setDisplayOptionsMap(optMap);
+              } else {
+                setLoadingError('Data survei belum tersedia offline. Hubungkan ke internet untuk mengunduh data survei terlebih dahulu.');
               }
             }
-            setDisplayOptionsMap(optMap);
-
-            // Cache survey data for offline use
-            await cacheSurvey(surveyData);
+          } catch {
+            if (!cancelled) setLoadingError('Gagal memuat data survei dari cache.');
           }
-        } catch (err) {
+        } else {
+          // Server error (4xx/5xx)
           if (!cancelled) {
             setLoadingError(err.response?.data?.error || err.response?.data?.message || 'Gagal memuat survei.');
           }
-        } finally {
-          if (!cancelled) setLoading(false);
         }
-      } else {
-        // ─── Offline mode: load from IndexedDB cache ────────────────────
-        try {
-          const cached = await getCachedSurvey(id);
-          if (!cancelled) {
-            if (cached) {
-              setSurvey(cached);
-
-              const qs = cached.questions || [];
-              setQuestions(qs);
-              setAnswers(buildEmptyAnswers(qs));
-
-              // Compute stable randomised display options for choice questions
-              const optMap = {};
-              for (const q of qs) {
-                if (
-                  (q.type === 'single_choice' || q.type === 'multiple_choice') &&
-                  Array.isArray(q.options)
-                ) {
-                  optMap[q.id] = getDisplayOptions(q.options, q.randomize_options === true);
-                }
-              }
-              setDisplayOptionsMap(optMap);
-            } else {
-              setLoadingError('Data survei belum tersedia offline. Hubungkan ke internet untuk mengunduh data survei terlebih dahulu.');
-            }
-          }
-        } catch (err) {
-          if (!cancelled) {
-            setLoadingError('Gagal memuat data survei dari cache.');
-          }
-        } finally {
-          if (!cancelled) setLoading(false);
-        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
@@ -1475,6 +1571,8 @@ function SurveyForm() {
                       displayOptions={displayOptions}
                       surveyId={id}
                       isOnline={isOnline}
+                      assignedNumbers={assignedNumbers}
+                      usedNumbers={usedNumbers}
                     />
                   )}
 
@@ -1661,6 +1759,8 @@ function SurveyForm() {
                       displayOptions={displayOptions}
                       surveyId={id}
                       isOnline={isOnline}
+                      assignedNumbers={assignedNumbers}
+                      usedNumbers={usedNumbers}
                     />
                   )}
 

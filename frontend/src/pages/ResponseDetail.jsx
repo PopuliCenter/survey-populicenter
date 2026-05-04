@@ -54,21 +54,30 @@ function MetaRow({ label, value }) {
  * @param {{ answer: object, index: number }} props
  */
 function AnswerCard({ answer, index }) {
-  const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  // Resolve media URL — gunakan server URL dari localStorage (Capacitor) atau relative path (web)
+  function resolveMediaUrl(path) {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    // Di Capacitor native, perlu absolute URL
+    const serverUrl = localStorage.getItem('api_server_url');
+    if (serverUrl) return `${serverUrl}/${path.replace(/^\//, '')}`;
+    // Di web, relative path via nginx
+    return `/${path.replace(/^\//, '')}`;
+  }
 
   function renderValue() {
     if (answer.question_type === 'photo') {
       if (!answer.photo_path) return <span className="text-gray-400 italic">Tidak ada foto</span>;
-      const src = answer.photo_path.startsWith('http')
-        ? answer.photo_path
-        : `${BASE_URL}/${answer.photo_path.replace(/^\//, '')}`;
+      const src = resolveMediaUrl(answer.photo_path);
       return (
-        <img
-          src={src}
-          alt={`Foto jawaban pertanyaan ${index + 1}`}
-          style={{ maxWidth: '200px' }}
-          className="rounded-lg border border-gray-200 mt-1"
-        />
+        <a href={src} target="_blank" rel="noopener noreferrer">
+          <img
+            src={src}
+            alt={`Foto jawaban pertanyaan ${index + 1}`}
+            className="max-w-[200px] rounded-lg border border-gray-200 mt-1 hover:border-blue-400 transition-colors"
+            loading="lazy"
+          />
+        </a>
       );
     }
 
@@ -240,7 +249,7 @@ function AnswerCard({ answer, index }) {
  * Route: /responses/:id
  *
  * Displays:
- * - Metadata: questionnaire number, surveyor, survey title, timestamps,
+ * - Metadata: questionnaire number, TPD, survey title, timestamps,
  *             duration, geo status, lat/lng
  * - All answers: question text, type, value (photo thumbnail for photo type)
  *
@@ -386,7 +395,7 @@ function ResponseDetail() {
                     </span>
                   }
                 />
-                <MetaRow label="Nama Surveyor" value={response.surveyor_name} />
+                <MetaRow label="Nama TPD" value={response.surveyor_name} />
                 <MetaRow label="Judul Survei" value={response.survey_title} />
                 <MetaRow
                   label="Waktu Mulai"
@@ -450,7 +459,62 @@ function ResponseDetail() {
               </dl>
             </div>
 
-            {/* Review panel — visible for admin, supervisor, viewer; hidden for surveyor */}
+            {/* ── Media Attachments (Audio, Signature, Photos) ── */}
+            {(response.audio_path || response.signature_path || (response.photo_paths && response.photo_paths.length > 0)) && (() => {
+              // Helper untuk resolve URL media
+              function mediaUrl(path) {
+                if (!path) return null;
+                if (path.startsWith('http')) return path;
+                const serverUrl = localStorage.getItem('api_server_url');
+                if (serverUrl) return `${serverUrl}/${path.replace(/^\//, '')}`;
+                return `/${path.replace(/^\//, '')}`;
+              }
+
+              return (
+                <div className="bg-white rounded-xl shadow p-6 space-y-5">
+                  <h2 className="text-base font-semibold text-gray-700">Lampiran Media</h2>
+
+                  {/* Audio Recording */}
+                  {response.audio_path && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-2">🎙️ Rekaman Audio</p>
+                      <audio controls preload="metadata" className="w-full max-w-md" src={mediaUrl(response.audio_path)}>
+                        Browser Anda tidak mendukung pemutar audio.
+                      </audio>
+                      <p className="text-xs text-gray-400 mt-1">Klik play untuk mendengarkan rekaman wawancara</p>
+                    </div>
+                  )}
+
+                  {/* Signature Image */}
+                  {response.signature_path && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-2">✍️ Tanda Tangan</p>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 inline-block">
+                        <img src={mediaUrl(response.signature_path)} alt="Tanda tangan responden"
+                          className="max-w-xs max-h-32 object-contain" loading="lazy" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Photos */}
+                  {response.photo_paths && response.photo_paths.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-2">📷 Foto Dokumentasi ({response.photo_paths.length})</p>
+                      <div className="flex flex-wrap gap-3">
+                        {response.photo_paths.map((path, idx) => (
+                          <a key={idx} href={mediaUrl(path)} target="_blank" rel="noopener noreferrer" className="block">
+                            <img src={mediaUrl(path)} alt={`Foto dokumentasi ${idx + 1}`}
+                              className="w-32 h-32 object-cover rounded-lg border border-gray-200 hover:border-blue-400 transition-colors" loading="lazy" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Review panel — visible for admin, supervisor, viewer; hidden for TPD */}
             {canViewReview && (
               <div className="bg-white rounded-xl shadow p-6">
                 <h2 className="text-base font-semibold text-gray-700 mb-4">

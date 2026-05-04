@@ -77,6 +77,7 @@ function Cleanup() {
       setSuccessMsg(res.data.message);
       setPreviewCount(null);
       fetchStats();
+      fetchSurveys(); // Refresh daftar survei setelah aksi
     } catch (err) {
       setErrorMsg(err.response?.data?.error || err.message || 'Terjadi kesalahan');
     } finally {
@@ -148,11 +149,13 @@ function Cleanup() {
 
         {/* Stats overview */}
         {stats && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <StatCard title="Respons Pending" count={stats.pending_responses} description="Lebih dari 24 jam" color="yellow" />
             <StatCard title="Job Ekspor Lama" count={stats.old_export_jobs} description="Lebih dari 7 hari" color="red" />
             <StatCard title="Total Log Audit" count={stats.total_audit_logs} description="Semua waktu" color="blue" />
             <StatCard title="Total Respons" count={stats.total_committed_responses} description="Ter-commit" color="gray" />
+            <StatCard title="Survei Nonaktif" count={stats.inactive_surveys} description="Bisa dihapus" color="red" />
+            <StatCard title="TPD Nonaktif" count={stats.inactive_tpd} description="Bisa dihapus" color="yellow" />
           </div>
         )}
 
@@ -434,6 +437,99 @@ function Cleanup() {
               className="px-4 py-2 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Hapus Log Audit
+            </button>
+          )}
+        </div>
+
+        {/* Hapus Survei Nonaktif */}
+        <div className="bg-white rounded-xl shadow p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            Hapus Survei Nonaktif
+          </h2>
+          <p className="text-xs text-gray-500">
+            Hapus survei yang sudah dinonaktifkan beserta <strong>semua data terkait</strong> (pertanyaan, respons, jawaban, kuota, job ekspor).
+            <strong className="text-red-500"> Pastikan data sudah di-export sebelum menghapus.</strong>
+          </p>
+
+          {surveys.filter((s) => s.status === 'inactive').length === 0 ? (
+            <p className="text-xs text-gray-400 italic">Tidak ada survei nonaktif.</p>
+          ) : (
+            <div className="space-y-3">
+              {surveys.filter((s) => s.status === 'inactive').map((survey) => (
+                <div key={survey.id} className="border border-gray-200 rounded-lg p-4 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{survey.title}</p>
+                    <p className="text-xs text-gray-400">Status: Nonaktif</p>
+                  </div>
+                  {confirmAction === `survey-${survey.id}` ? (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-red-600">Hapus permanen?</span>
+                      <button
+                        onClick={() => handleAction(`/cleanup/survey/${survey.id}`)}
+                        disabled={actionLoading === `/cleanup/survey/${survey.id}`}
+                        className="px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md disabled:opacity-50"
+                      >
+                        {actionLoading === `/cleanup/survey/${survey.id}` ? 'Menghapus…' : 'Ya, Hapus'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmAction(null)}
+                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmAction(`survey-${survey.id}`)}
+                      className="px-4 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors shrink-0"
+                    >
+                      Hapus Survei
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Hapus TPD Nonaktif */}
+        <div className="bg-white rounded-xl shadow p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+            Hapus TPD Nonaktif
+          </h2>
+          <p className="text-xs text-gray-500">
+            Hapus akun TPD yang sudah dinonaktifkan. TPD yang masih memiliki data respons akan <strong>dilewati</strong> (tidak dihapus).
+            Nonaktifkan TPD terlebih dahulu dari halaman Manajemen TPD sebelum menghapus.
+          </p>
+
+          {confirmAction === 'tpd' ? (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <span className="text-xs text-red-700">
+                ⚠ Yakin hapus {stats?.inactive_tpd || 0} TPD nonaktif? TPD dengan data respons akan dilewati.
+              </span>
+              <button
+                onClick={() => handleAction('/cleanup/inactive-tpd')}
+                disabled={actionLoading === '/cleanup/inactive-tpd'}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md disabled:opacity-50"
+              >
+                {actionLoading === '/cleanup/inactive-tpd' ? 'Menghapus…' : 'Ya, Hapus'}
+              </button>
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+              >
+                Batal
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmAction('tpd')}
+              disabled={!stats?.inactive_tpd}
+              className="px-4 py-2 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Hapus TPD Nonaktif ({stats?.inactive_tpd || 0})
             </button>
           )}
         </div>

@@ -20,7 +20,7 @@ Implement per-survey field tools configuration (signature, audio, photo, GPS) wi
 
 - [x] 2. Field tools validation utility and route updates
   - [x] 2.1 Create `backend/src/utils/fieldToolsValidator.js`
-    - Implement `validateFieldToolsSettings(settings)` — validates the settings object structure and mode values
+    - Implement `validateFieldToolsSettings(settings)` — validates the settings object structure and mode valuese
     - Implement `validateFieldToolsSubmission(submissionData, settings)` — validates submission data against survey settings
     - Implement `getDefaultFieldToolsSettings()` — returns the default settings object
     - Export all three functions

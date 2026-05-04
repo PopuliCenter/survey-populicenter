@@ -39,8 +39,8 @@ function GeoStatusBadge({ status }) {
  *
  * Features:
  * - Survey selector dropdown
- * - Filter controls: date range, surveyor, status (geo_status)
- * - Table: Questionnaire Number, Surveyor Name, Survey Title, Start Time,
+ * - Filter controls: date range, TPD, status (geo_status)
+ * - Table: Questionnaire Number, TPD Name, Survey Title, Start Time,
  *          End Time, Duration, Geo Status, Actions
  * - "Lihat Detail" button per row → /responses/:id
  * - Timestamps in local timezone (id-ID)
@@ -55,10 +55,11 @@ function Responses() {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
   })();
   const isSurveyor = currentUser.role === 'surveyor';
+  const isViewer = currentUser.role === 'viewer';
 
   // ── Dropdown data ───────────────────────────────────────────────────────────
   const [surveys, setSurveys] = useState([]);
-  const [surveyors, setSurveyors] = useState([]);
+  const [tpdList, setTpdList] = useState([]);
 
   // ── Filter state ────────────────────────────────────────────────────────────
   const [selectedSurveyId, setSelectedSurveyId] = useState('');
@@ -77,37 +78,47 @@ function Responses() {
   useEffect(() => {
     async function loadDropdowns() {
       try {
-        const [surveysRes, surveyorsRes] = await Promise.all([
-          api.get('/surveys'),
-          api.get('/surveyors'),
-        ]);
-        setSurveys(surveysRes.data || []);
-        setSurveyors(surveyorsRes.data || []);
+        const surveysRes = await api.get('/surveys');
+        let allSurveys = surveysRes.data || [];
+        // Bug #4: viewer hanya bisa melihat survei yang aktif
+        if (isViewer) {
+          allSurveys = allSurveys.filter((s) => s.status === 'active');
+        }
+        setSurveys(allSurveys);
+
+        // Viewer tidak perlu dropdown TPD
+        if (!isViewer) {
+          const tpdRes = await api.get('/surveyors');
+          setTpdList(tpdRes.data || []);
+        }
       } catch {
         // Non-critical; filters will just be empty
       }
     }
     loadDropdowns();
-  }, []);
+  }, [isViewer]);
 
   // ── Fetch responses ─────────────────────────────────────────────────────────
-  const fetchResponses = useCallback(async () => {
+  // Bug #5: gunakan applied filter state terpisah agar fetch hanya terjadi saat tombol diklik
+  const [appliedFilters, setAppliedFilters] = useState(null); // null = belum pernah filter
+
+  const fetchResponses = useCallback(async (filters) => {
     setLoading(true);
     setFetchError(null);
     try {
       const params = {};
-      if (selectedSurveyId) params.survey_id = selectedSurveyId;
-      if (selectedSurveyorId) params.surveyor_id = selectedSurveyorId;
-      if (startDate) params.start_date = startDate;
-      if (endDate) params.end_date = endDate;
-      if (reviewStatusFilter && !isSurveyor) params.review_status = reviewStatusFilter;
+      if (filters.survey_id) params.survey_id = filters.survey_id;
+      if (filters.surveyor_id) params.surveyor_id = filters.surveyor_id;
+      if (filters.start_date) params.start_date = filters.start_date;
+      if (filters.end_date) params.end_date = filters.end_date;
+      if (filters.review_status && !isSurveyor) params.review_status = filters.review_status;
 
       const res = await api.get('/responses', { params });
       let data = res.data || [];
 
-      // Client-side geo_status filter (if backend doesn't support it)
-      if (geoStatusFilter) {
-        data = data.filter((r) => r.geo_status === geoStatusFilter);
+      // Client-side geo_status filter
+      if (filters.geo_status) {
+        data = data.filter((r) => r.geo_status === filters.geo_status);
       }
 
       setResponses(data);
@@ -120,12 +131,15 @@ function Responses() {
     } finally {
       setLoading(false);
     }
-  }, [selectedSurveyId, selectedSurveyorId, startDate, endDate, geoStatusFilter, reviewStatusFilter, isSurveyor]);
+  }, [isSurveyor]);
 
-  // Fetch on mount
+  // Bug #5: jangan fetch otomatis saat mount, tunggu user klik filter
+  // useEffect hanya dijalankan ketika appliedFilters berubah (bukan null)
   useEffect(() => {
-    fetchResponses();
-  }, [fetchResponses]);
+    if (appliedFilters !== null) {
+      fetchResponses(appliedFilters);
+    }
+  }, [appliedFilters, fetchResponses]);
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   function formatTimestamp(isoStr) {
@@ -140,7 +154,14 @@ function Responses() {
 
   function handleApplyFilter(e) {
     e.preventDefault();
-    fetchResponses();
+    setAppliedFilters({
+      survey_id: selectedSurveyId,
+      surveyor_id: selectedSurveyorId,
+      start_date: startDate,
+      end_date: endDate,
+      geo_status: geoStatusFilter,
+      review_status: reviewStatusFilter,
+    });
   }
 
   function handleResetFilter() {
@@ -150,6 +171,8 @@ function Responses() {
     setEndDate('');
     setGeoStatusFilter('');
     setReviewStatusFilter('');
+    setAppliedFilters(null);
+    setResponses([]);
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -191,13 +214,14 @@ function Responses() {
               </select>
             </div>
 
-            {/* Surveyor selector */}
+            {/* TPD selector — disembunyikan untuk viewer */}
+            {!isViewer && (
             <div>
               <label
                 htmlFor="filter-surveyor"
                 className="block text-xs font-medium text-gray-600 mb-1"
               >
-                Surveyor
+                TPD
               </label>
               <select
                 id="filter-surveyor"
@@ -205,14 +229,15 @@ function Responses() {
                 onChange={(e) => setSelectedSurveyorId(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
-                <option value="">Semua Surveyor</option>
-                {surveyors.map((sv) => (
+                <option value="">Semua TPD</option>
+                {tpdList.map((sv) => (
                   <option key={sv.id} value={sv.id}>
                     {sv.name}
                   </option>
                 ))}
               </select>
             </div>
+            )}
 
             {/* Geo status filter */}
             <div>
@@ -236,7 +261,7 @@ function Responses() {
               </select>
             </div>
 
-            {/* Review status filter — hidden for surveyor */}
+            {/* Review status filter — hidden for TPD */}
             {!isSurveyor && (
               <div>
                 <label
@@ -314,7 +339,12 @@ function Responses() {
 
         {/* Table card */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
-          {loading ? (
+          {appliedFilters === null ? (
+            <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-sm gap-2">
+              <span className="text-3xl" aria-hidden="true">🔍</span>
+              <p>Pilih filter dan klik <strong className="text-gray-600">Terapkan Filter</strong> untuk melihat data.</p>
+            </div>
+          ) : loading ? (
             <div
               className="flex items-center justify-center h-48 text-gray-400 text-sm"
               role="status"
@@ -329,7 +359,7 @@ function Responses() {
             >
               <p className="text-red-600 text-sm">{fetchError}</p>
               <button
-                onClick={fetchResponses}
+                onClick={() => appliedFilters && fetchResponses(appliedFilters)}
                 className="text-sm text-blue-600 underline hover:text-blue-800"
               >
                 Coba lagi
@@ -348,7 +378,7 @@ function Responses() {
                       No. Kuesioner
                     </th>
                     <th className="px-5 py-3 font-medium text-gray-500 whitespace-nowrap">
-                      Surveyor
+                      TPD
                     </th>
                     <th className="px-5 py-3 font-medium text-gray-500 whitespace-nowrap">
                       Judul Survei
@@ -386,7 +416,7 @@ function Responses() {
                         {response.questionnaire_number || '—'}
                       </td>
 
-                      {/* Surveyor Name */}
+                      {/* TPD Name */}
                       <td className="px-5 py-3 text-gray-700 whitespace-nowrap">
                         {response.surveyor_name || '—'}
                       </td>
@@ -421,7 +451,7 @@ function Responses() {
                         <GeoStatusBadge status={response.geo_status} />
                       </td>
 
-                      {/* Review Status — hidden for surveyor */}
+                      {/* Review Status — hidden for TPD */}
                       {!isSurveyor && (
                         <td className="px-5 py-3">
                           <ReviewStatusBadge status={response.review_status} />

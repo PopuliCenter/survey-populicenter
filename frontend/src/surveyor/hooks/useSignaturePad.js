@@ -1,26 +1,16 @@
 /**
  * useSignaturePad.js
  *
- * React hook that manages a canvas-based signature pad.
- * Stores strokes as arrays of points for undo support.
- * Uses Pointer Events API for cross-device compatibility.
- *
- * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
+ * React hook for canvas-based signature pad.
+ * Uses Pointer Events with proper coordinate scaling.
  */
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 
-/**
- * Render all strokes onto the canvas context.
- * @param {CanvasRenderingContext2D} ctx
- * @param {Array<Array<{x: number, y: number}>>} strokes
- * @param {number} width
- * @param {number} height
- */
 function renderStrokes(ctx, strokes, width, height) {
   ctx.clearRect(0, 0, width, height);
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
@@ -36,32 +26,19 @@ function renderStrokes(ctx, strokes, width, height) {
 }
 
 /**
- * Get pointer coordinates relative to the canvas element.
- * @param {PointerEvent} e
- * @param {HTMLCanvasElement} canvas
- * @returns {{ x: number, y: number }}
+ * Get pointer position relative to canvas, accounting for CSS scaling.
+ * Canvas internal resolution may differ from CSS display size.
  */
 function getPointerPos(e, canvas) {
   const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
   return {
-    x: e.clientX - rect.left,
-    y: e.clientY - rect.top,
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY,
   };
 }
 
-/**
- * useSignaturePad
- *
- * @returns {{
- *   canvasRef: React.RefObject<HTMLCanvasElement>,
- *   isEmpty: boolean,
- *   strokeCount: number,
- *   clear: () => void,
- *   undo: () => void,
- *   toBlob: () => Promise<Blob | null>,
- *   toPngDataUrl: () => string | null,
- * }}
- */
 function useSignaturePad() {
   const canvasRef = useRef(null);
   const strokesRef = useRef([]);
@@ -85,33 +62,59 @@ function useSignaturePad() {
     renderStrokes(ctx, strokesRef.current, canvas.width, canvas.height);
   }, []);
 
+  // Set canvas internal resolution once on mount
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    function setSize() {
+      const rect = canvas.getBoundingClientRect();
+      // Use device pixel ratio for sharp rendering
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.scale(dpr, dpr);
+      // Redraw existing strokes after resize
+      // Scale strokes to new dimensions — for simplicity, clear on resize
+      if (strokesRef.current.length > 0) {
+        renderStrokes(ctx, strokesRef.current, canvas.width, canvas.height);
+      }
+    }
+
+    // Small delay to ensure layout is settled
+    const timer = setTimeout(setSize, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Attach pointer event listeners
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const handlePointerDown = (e) => {
+    function handlePointerDown(e) {
+      e.preventDefault(); // Prevent scroll on touch
       isDrawingRef.current = true;
       const pos = getPointerPos(e, canvas);
       currentStrokeRef.current = [pos];
       canvas.setPointerCapture(e.pointerId);
-    };
+    }
 
-    const handlePointerMove = (e) => {
+    function handlePointerMove(e) {
       if (!isDrawingRef.current || !currentStrokeRef.current) return;
+      e.preventDefault();
       const pos = getPointerPos(e, canvas);
       currentStrokeRef.current.push(pos);
 
-      // Draw the current stroke in progress
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      renderStrokes(ctx, strokesRef.current, canvas.width, canvas.height);
 
-      // Draw the in-progress stroke
+      // Redraw all committed strokes + current in-progress stroke
+      renderStrokes(ctx, strokesRef.current, canvas.width, canvas.height);
       const stroke = currentStrokeRef.current;
       if (stroke.length >= 2) {
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.beginPath();
@@ -121,32 +124,36 @@ function useSignaturePad() {
         }
         ctx.stroke();
       }
-    };
+    }
 
-    const handlePointerUp = () => {
+    function handlePointerUp(e) {
       if (!isDrawingRef.current) return;
+      e.preventDefault();
       isDrawingRef.current = false;
       if (currentStrokeRef.current && currentStrokeRef.current.length >= 2) {
         strokesRef.current = [...strokesRef.current, currentStrokeRef.current];
       }
       currentStrokeRef.current = null;
-      // Use a microtask to batch state updates after the event
-      Promise.resolve().then(() => {
-        syncState();
-        redraw();
-      });
-    };
+      syncState();
+      redraw();
+    }
 
-    canvas.addEventListener('pointerdown', handlePointerDown);
-    canvas.addEventListener('pointermove', handlePointerMove);
-    canvas.addEventListener('pointerup', handlePointerUp);
-    canvas.addEventListener('pointercancel', handlePointerUp);
+    // Use { passive: false } to allow preventDefault on touch
+    canvas.addEventListener('pointerdown', handlePointerDown, { passive: false });
+    canvas.addEventListener('pointermove', handlePointerMove, { passive: false });
+    canvas.addEventListener('pointerup', handlePointerUp, { passive: false });
+    canvas.addEventListener('pointercancel', handlePointerUp, { passive: false });
+
+    // Also prevent touchmove scroll on the canvas
+    function preventScroll(e) { e.preventDefault(); }
+    canvas.addEventListener('touchmove', preventScroll, { passive: false });
 
     return () => {
       canvas.removeEventListener('pointerdown', handlePointerDown);
       canvas.removeEventListener('pointermove', handlePointerMove);
       canvas.removeEventListener('pointerup', handlePointerUp);
       canvas.removeEventListener('pointercancel', handlePointerUp);
+      canvas.removeEventListener('touchmove', preventScroll);
     };
   }, [syncState, redraw]);
 
@@ -168,10 +175,7 @@ function useSignaturePad() {
   const toBlob = useCallback(() => {
     return new Promise((resolve) => {
       const canvas = canvasRef.current;
-      if (!canvas || strokesRef.current.length === 0) {
-        resolve(null);
-        return;
-      }
+      if (!canvas || strokesRef.current.length === 0) { resolve(null); return; }
       canvas.toBlob((blob) => resolve(blob), 'image/png');
     });
   }, []);
@@ -182,15 +186,7 @@ function useSignaturePad() {
     return canvas.toDataURL('image/png');
   }, []);
 
-  return {
-    canvasRef,
-    isEmpty,
-    strokeCount,
-    clear,
-    undo,
-    toBlob,
-    toPngDataUrl,
-  };
+  return { canvasRef, isEmpty, strokeCount, clear, undo, toBlob, toPngDataUrl };
 }
 
 export default useSignaturePad;

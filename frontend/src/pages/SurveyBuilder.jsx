@@ -708,11 +708,8 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
     initial?.randomize_options ?? false
   );
   const [allowOther, setAllowOther] = useState(
-    initial?.options && !Array.isArray(initial.options) && initial.options.allow_other
-      ? true
-      : Array.isArray(initial?.options) && initial.options.some?.((o) => o.value === '__other__')
-        ? true
-        : false
+    // Bug #2: allow_other adalah field langsung di question, bukan di dalam options
+    initial?.allow_other === true ? true : false
   );
   const [skipLogic, setSkipLogic] = useState(
     initial?.skip_logic ? [...initial.skip_logic] : []
@@ -1272,6 +1269,31 @@ function SurveyBuilder() {
     }
   }
 
+  // ── Duplicate question (#3) ─────────────────────────────────────────────────
+  async function handleDuplicateQuestion(question) {
+    setActionError(null);
+    try {
+      const payload = {
+        text: `${question.text} (Salinan)`,
+        type: question.type,
+        is_required: question.is_required,
+        randomize_options: question.randomize_options,
+        allow_other: question.allow_other,
+        options: question.options,
+        skip_logic: null, // skip logic tidak disalin untuk menghindari referensi rusak
+      };
+      await api.post(`/surveys/${id}/questions`, payload);
+      setSuccessMsg('Pertanyaan berhasil diduplikat.');
+      fetchSurvey();
+    } catch (err) {
+      setActionError(
+        err.response?.data?.message ||
+          err.message ||
+          'Gagal menduplikat pertanyaan.'
+      );
+    }
+  }
+
   // ── Reorder question ────────────────────────────────────────────────────────
   async function handleReorder(questionId, direction) {
     setActionError(null);
@@ -1414,7 +1436,7 @@ function SurveyBuilder() {
 
             {/* Form Mode Toggle */}
             <div className="bg-white rounded-xl shadow px-6 py-4 space-y-3">
-              <p className="text-sm font-medium text-gray-700">Mode Tampilan Formulir Surveyor</p>
+              <p className="text-sm font-medium text-gray-700">Mode Tampilan Formulir TPD</p>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -1443,8 +1465,8 @@ function SurveyBuilder() {
               </div>
               <p className="text-xs text-gray-400">
                 {formMode === 'wizard'
-                  ? 'Surveyor melihat satu pertanyaan per halaman dengan navigasi Selanjutnya/Kembali.'
-                  : 'Surveyor melihat semua pertanyaan dalam satu halaman (scroll ke bawah).'}
+                  ? 'TPD melihat satu pertanyaan per halaman dengan navigasi Selanjutnya/Kembali.'
+                  : 'TPD melihat semua pertanyaan dalam satu halaman (scroll ke bawah).'}
               </p>
             </div>
 
@@ -1581,6 +1603,16 @@ function SurveyBuilder() {
                               aria-label={`Edit pertanyaan ${index + 1}`}
                             >
                               Edit
+                            </button>
+
+                            {/* Duplicate (#3) */}
+                            <button
+                              onClick={() => handleDuplicateQuestion(question)}
+                              className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
+                              aria-label={`Duplikat pertanyaan ${index + 1}`}
+                              title="Duplikat pertanyaan"
+                            >
+                              Duplikat
                             </button>
 
                             {/* Delete with confirmation */}

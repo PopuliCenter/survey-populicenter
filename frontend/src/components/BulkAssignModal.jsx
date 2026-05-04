@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import api from '../services/api';
 
 /**
- * Generate and download a CSV template for bulk surveyor assignment.
+ * Generate and download a CSV template for bulk TPD assignment.
  * Columns: email_surveyor, kuota
  */
 function downloadTemplate() {
@@ -13,13 +13,13 @@ function downloadTemplate() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'template_penugasan_surveyor.csv';
+  link.download = 'template_penugasan_tpd.csv';
   link.click();
   URL.revokeObjectURL(url);
 }
 
 /**
- * Modal dialog for bulk assigning surveyors to a survey with quotas via CSV/Excel file.
+ * Modal dialog for bulk assigning TPD to a survey with quotas via CSV/Excel file.
  *
  * @param {{
  *   open: boolean,
@@ -114,7 +114,7 @@ function BulkAssignModal({ open, surveyId: propSurveyId, surveyTitle, surveys, o
           id="bulk-assign-modal-title"
           className="text-lg font-semibold text-gray-800 mb-4"
         >
-          Upload Penugasan Surveyor
+          Upload Penugasan TPD
         </h2>
 
         {/* Success state */}
@@ -127,7 +127,7 @@ function BulkAssignModal({ open, surveyId: propSurveyId, surveyTitle, surveys, o
             >
               <p className="font-medium">Penugasan berhasil!</p>
               <p className="mt-1">
-                {result.assigned_count} surveyor berhasil ditugaskan.
+                {result.assigned_count} TPD berhasil ditugaskan.
               </p>
             </div>
             <div className="flex justify-end">
@@ -146,7 +146,7 @@ function BulkAssignModal({ open, surveyId: propSurveyId, surveyTitle, surveys, o
         {!result && (
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Upload file CSV (.csv) atau Excel (.xlsx) berisi penugasan surveyor beserta kuota.
+              Upload file CSV (.csv) atau Excel (.xlsx) berisi penugasan TPD beserta kuota.
             </p>
 
             {/* Survey selector — only shown when surveyId is not provided via prop */}

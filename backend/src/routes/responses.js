@@ -52,7 +52,7 @@ router.post('/start', authMiddleware, requireRole('surveyor'), async (req, res, 
       where: { survey_id, surveyor_id },
     });
     if (!quotaRecord) {
-      return res.status(403).json({ error: 'Anda tidak memiliki kuota untuk survei ini' });
+      return res.status(403).json({ error: 'Anda tidak memiliki akses untuk survei ini' });
     }
 
     // Count committed responses (exclude PENDING-* records)
@@ -379,6 +379,16 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
         }
       }
 
+      // Validate unique_id against assigned_numbers if admin has assigned specific numbers
+      if (uniqueIdValue && quotaRecord && quotaRecord.assigned_numbers && Array.isArray(quotaRecord.assigned_numbers) && quotaRecord.assigned_numbers.length > 0) {
+        if (!quotaRecord.assigned_numbers.includes(uniqueIdValue)) {
+          await transaction.rollback();
+          return res.status(422).json({
+            error: `Nomor kuesioner "${uniqueIdValue}" tidak ada dalam daftar nomor yang ditugaskan. Gunakan nomor yang sudah ditentukan oleh admin.`,
+          });
+        }
+      }
+
       // Format: {SURVEY_PREFIX}-{YYYYMMDD}-{UNIQUE_ID or SEQUENCE_NUMBER:04d}
       questionnaire_number = formatQuestionnaireNumber(survey.title, end_time, uniqueIdValue || Number(nextval));
       end_time_iso = end_time.toISOString();
@@ -425,6 +435,54 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
       questionnaire_number,
       end_time: end_time_iso,
       duration_seconds,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /responses/assigned-numbers/:surveyId
+ * Get assigned questionnaire numbers for the current TPD on a specific survey.
+ * Returns: { assigned_numbers: string[] | null, used_numbers: string[] }
+ * - assigned_numbers: nomor yang ditugaskan admin, null jika tidak ada penugasan
+ * - used_numbers: nomor yang sudah dipakai oleh TPD ini
+ * Requires: authMiddleware + requireRole('surveyor')
+ */
+router.get('/assigned-numbers/:surveyId', authMiddleware, requireRole('surveyor'), async (req, res, next) => {
+  try {
+    const { surveyId } = req.params;
+    const surveyorId = req.user.id;
+
+    // Get quota record with assigned_numbers
+    const quotaRecord = await SurveyorQuota.findOne({
+      where: { survey_id: surveyId, surveyor_id: surveyorId },
+    });
+
+    const assignedNumbers = quotaRecord?.assigned_numbers || null;
+
+    // Get already used questionnaire numbers by this TPD for this survey
+    const usedResponses = await Response.findAll({
+      where: {
+        survey_id: surveyId,
+        surveyor_id: surveyorId,
+        questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+      },
+      attributes: ['questionnaire_number'],
+      raw: true,
+    });
+
+    // Extract the suffix (the unique_id part) from questionnaire numbers
+    // Format: PREFIX-YYYYMMDD-SUFFIX
+    const usedNumbers = usedResponses.map((r) => {
+      const parts = r.questionnaire_number.split('-');
+      // The suffix is everything after the second dash (could contain dashes)
+      return parts.length >= 3 ? parts.slice(2).join('-') : r.questionnaire_number;
+    });
+
+    res.json({
+      assigned_numbers: assignedNumbers,
+      used_numbers: usedNumbers,
     });
   } catch (error) {
     next(error);

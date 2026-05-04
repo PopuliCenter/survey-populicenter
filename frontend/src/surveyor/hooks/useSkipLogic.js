@@ -1,10 +1,11 @@
 /**
  * useSkipLogic.js
  *
- * React hook for evaluating skip logic rules locally in the Surveyor Interface.
+ * React hook for evaluating skip logic rules locally in the TPD Interface.
  * Determines which questions should be visible based on current answers.
  *
  * Supports operators: equals, not_equals, contains, greater_than, less_than
+ * Supports multi-condition rules (AND logic via `conditions` array)
  * Supports chained skip logic (a skip triggered by one question can cascade
  * to hide further questions whose own skip logic is also satisfied).
  *
@@ -67,6 +68,26 @@ function evaluateCondition(condition, answers) {
 }
 
 /**
+ * Evaluate all conditions for a rule (AND logic).
+ * Supports both legacy single `condition` and new `conditions` array.
+ *
+ * @param {object} rule
+ * @param {Object} answers
+ * @returns {boolean}
+ */
+function evaluateRule(rule, answers) {
+  // New format: conditions array (AND logic)
+  if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
+    return rule.conditions.every((cond) => evaluateCondition(cond, answers));
+  }
+  // Legacy format: single condition
+  if (rule.condition) {
+    return evaluateCondition(rule.condition, answers);
+  }
+  return false;
+}
+
+/**
  * Compute the set of question IDs that should be HIDDEN given the current answers.
  *
  * Algorithm:
@@ -100,9 +121,9 @@ function computeHiddenQuestions(questions, answers) {
       if (!rules || !Array.isArray(rules) || rules.length === 0) continue;
 
       for (const rule of rules) {
-        if (!rule.condition || !rule.target_question_id) continue;
+        if (!rule.target_question_id) continue;
 
-        const conditionMet = evaluateCondition(rule.condition, answers);
+        const conditionMet = evaluateRule(rule, answers);
         if (!conditionMet) continue;
 
         const sourceIndex = indexMap[question.id];
@@ -120,6 +141,9 @@ function computeHiddenQuestions(questions, answers) {
             changed = true;
           }
         }
+
+        // Once a rule fires for this question, stop checking other rules for it
+        break;
       }
     }
   }
@@ -162,4 +186,4 @@ function useSkipLogic(questions, answers) {
 }
 
 export default useSkipLogic;
-export { evaluateCondition, computeHiddenQuestions };
+export { evaluateCondition, evaluateRule, computeHiddenQuestions };

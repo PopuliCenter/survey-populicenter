@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Tabel breakdown progress per surveyor dalam satu survei.
+ * Tabel breakdown progress per TPD dalam satu survei.
  * Menerima data melalui props, tidak melakukan fetch API.
  *
  * @param {{ surveyors: Array<{
@@ -17,7 +17,7 @@ function SurveyorProgressTable({ surveyors = [] }) {
   if (surveyors.length === 0) {
     return (
       <p className="text-sm text-gray-400 text-center py-8">
-        Belum ada surveyor yang ditugaskan untuk survei ini.
+        Belum ada TPD yang ditugaskan untuk survei ini.
       </p>
     );
   }
@@ -28,7 +28,7 @@ function SurveyorProgressTable({ surveyors = [] }) {
         <thead>
           <tr className="border-b border-gray-100">
             <th scope="col" className="pb-2 pr-4 font-medium text-gray-500 w-8">No</th>
-            <th scope="col" className="pb-2 pr-4 font-medium text-gray-500">Nama Surveyor</th>
+            <th scope="col" className="pb-2 pr-4 font-medium text-gray-500">Nama TPD</th>
             <th scope="col" className="pb-2 pr-4 font-medium text-gray-500 text-right">Kuota</th>
             <th scope="col" className="pb-2 pr-4 font-medium text-gray-500 text-right">Terkumpul</th>
             <th scope="col" className="pb-2 pr-4 font-medium text-gray-500 text-right">Persentase</th>

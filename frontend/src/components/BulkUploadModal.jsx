@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import api from '../services/api';
 
 /**
- * Generate and download a CSV template for bulk surveyor upload.
+ * Generate and download a CSV template for bulk TPD upload.
  * Columns: nama, email, password
  */
 function downloadTemplate() {
@@ -13,13 +13,13 @@ function downloadTemplate() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'template_upload_surveyor.csv';
+  link.download = 'template_upload_tpd.csv';
   link.click();
   URL.revokeObjectURL(url);
 }
 
 /**
- * Modal dialog for bulk uploading surveyors via CSV/Excel file.
+ * Modal dialog for bulk uploading TPD via CSV/Excel file.
  *
  * @param {{
  *   open: boolean,
@@ -104,7 +104,7 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
           id="bulk-upload-modal-title"
           className="text-lg font-semibold text-gray-800 mb-4"
         >
-          Upload Surveyor Massal
+          Upload TPD Massal
         </h2>
 
         {/* Success state */}
@@ -117,7 +117,7 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
             >
               <p className="font-medium">Upload berhasil!</p>
               <p className="mt-1">
-                {result.created_count} surveyor berhasil dibuat.
+                {result.created_count} TPD berhasil dibuat.
               </p>
             </div>
             <div className="flex justify-end">
@@ -136,7 +136,7 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
         {!result && (
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Upload file CSV (.csv) atau Excel (.xlsx) berisi data surveyor.
+              Upload file CSV (.csv) atau Excel (.xlsx) berisi data TPD.
               Maksimal 500 baris per file.
             </p>
 

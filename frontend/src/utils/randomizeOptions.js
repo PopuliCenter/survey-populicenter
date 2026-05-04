@@ -1,7 +1,7 @@
 /**
  * randomizeOptions.js
  *
- * Utility for randomising question option order in the Surveyor Interface.
+ * Utility for randomising question option order in the TPD Interface.
  *
  * Key guarantee (Requirement 5.4):
  *   Answers are always stored by OPTION VALUE, never by display position.

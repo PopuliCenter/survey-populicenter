@@ -52,6 +52,8 @@ services:
       MAX_FILE_SIZE_MB: 5
     volumes:
       - uploads:/app/uploads
+    ports:
+      - "3000:3000"
     expose:
       - "3000"
 

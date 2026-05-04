@@ -11,10 +11,10 @@ const ACTION_OPTIONS = [
   { value: 'CREATE_ADMIN', label: 'Buat Admin' },
   { value: 'UPDATE_ADMIN', label: 'Update Admin' },
   { value: 'DEACTIVATE_ADMIN', label: 'Nonaktifkan Admin' },
-  { value: 'CREATE_SURVEYOR', label: 'Buat Surveyor' },
-  { value: 'UPDATE_SURVEYOR', label: 'Update Surveyor' },
-  { value: 'DEACTIVATE_SURVEYOR', label: 'Nonaktifkan Surveyor' },
-  { value: 'ACTIVATE_SURVEYOR', label: 'Aktifkan Surveyor' },
+  { value: 'CREATE_SURVEYOR', label: 'Buat TPD' },
+  { value: 'UPDATE_SURVEYOR', label: 'Update TPD' },
+  { value: 'DEACTIVATE_SURVEYOR', label: 'Nonaktifkan TPD' },
+  { value: 'ACTIVATE_SURVEYOR', label: 'Aktifkan TPD' },
   { value: 'CREATE_SURVEY', label: 'Buat Survei' },
   { value: 'UPDATE_SURVEY', label: 'Update Survei' },
   { value: 'ACTIVATE_SURVEY', label: 'Aktifkan Survei' },
@@ -26,7 +26,7 @@ const ENTITY_TYPE_OPTIONS = [
   { value: '', label: 'Semua Tipe' },
   { value: 'user', label: 'User' },
   { value: 'admin', label: 'Admin' },
-  { value: 'surveyor', label: 'Surveyor' },
+  { value: 'surveyor', label: 'TPD' },
   { value: 'survey', label: 'Survei' },
 ];
 
