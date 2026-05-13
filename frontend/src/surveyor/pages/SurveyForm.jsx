@@ -550,7 +550,7 @@ function MatrixField({ question, answer, onChange, hasError }) {
  */
 function QuestionField({ question, answer, onChange, hasError, displayOptions, surveyId, isOnline, assignedNumbers, usedNumbers }) {
   const baseInputClass =
-    'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors';
+    'w-full border rounded-lg px-3 py-2 text-base leading-6 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors';
   const errorBorder = hasError ? 'border-red-400 bg-red-50' : 'border-gray-300';
 
   switch (question.type) {
@@ -558,7 +558,10 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
       return (
         <div className={`space-y-2 ${hasError ? 'p-2 rounded-lg border border-red-400 bg-red-50' : ''}`}>
           {displayOptions.map((opt) => (
-            <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+            <label
+              key={opt.value}
+              className="flex items-center gap-2 cursor-pointer rounded-xl px-3 py-2 transition-colors hover:bg-gray-50"
+            >
               <input
                 type="radio"
                 name={`q_${question.id}`}
@@ -567,7 +570,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                 onChange={() => onChange(opt.value)}
                 className="accent-blue-600"
               />
-              <span className="text-sm text-gray-700">{opt.label}</span>
+              <span className="text-sm text-gray-800">{opt.label}</span>
             </label>
           ))}
           {question.allow_other && (
@@ -604,7 +607,10 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
           {displayOptions.map((opt) => {
             const checked = Array.isArray(answer) && answer.includes(opt.value);
             return (
-              <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+              <label
+                key={opt.value}
+                className="flex items-center gap-2 cursor-pointer rounded-xl px-3 py-2 transition-colors hover:bg-gray-50"
+              >
                 <input
                   type="checkbox"
                   value={opt.value}
@@ -619,7 +625,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                   }}
                   className="accent-blue-600"
                 />
-                <span className="text-sm text-gray-700">{opt.label}</span>
+                <span className="text-sm text-gray-800">{opt.label}</span>
               </label>
             );
           })}
@@ -670,9 +676,10 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
         <input
           type="text"
           value={answer || ''}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value.toUpperCase())}
           className={`${baseInputClass} ${errorBorder}`}
           placeholder="Ketik jawaban di sini…"
+          style={{ textTransform: 'uppercase' }}
         />
       );
 
@@ -680,10 +687,11 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
       return (
         <textarea
           value={answer || ''}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value.toUpperCase())}
           rows={4}
           className={`${baseInputClass} ${errorBorder} resize-y`}
           placeholder="Ketik jawaban di sini…"
+          style={{ textTransform: 'uppercase' }}
         />
       );
 
@@ -843,6 +851,7 @@ function SurveyForm() {
   // ─── Submit state ───────────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [mediaUploadMessage, setMediaUploadMessage] = useState('');
 
   // ─── Randomised display options (stable per mount) ──────────────────────────
   // We compute shuffled options once when questions load and keep them stable
@@ -1206,6 +1215,15 @@ function SurveyForm() {
     }
     setSignatureError(false);
 
+    const hasMediaUpload =
+      (fieldToolsSettings.audio_mode !== 'disabled' && audioRecorder.audioBlob) ||
+      (fieldToolsSettings.photo_mode !== 'disabled' && photoCapture.photos.length > 0) ||
+      (fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty);
+
+    if (hasMediaUpload) {
+      setMediaUploadMessage('Mengunggah file media...');
+    }
+
     setSubmitting(true);
 
     if (!navigator.onLine) {
@@ -1242,36 +1260,44 @@ function SurveyForm() {
           photo_count: fieldToolsSettings.photo_mode !== 'disabled' ? photoCapture.photos.length : 0,
         });
 
-        // Save media files to IndexedDB media_files store
+        // Save media files to IndexedDB media_files store in parallel
+        const offlineMediaSaves = [];
         if (fieldToolsSettings.audio_mode !== 'disabled' && audioRecorder.audioBlob) {
-          await saveMediaFile({
-            localId,
-            type: 'audio',
-            blob: audioRecorder.audioBlob,
-            filename: 'recording.webm',
-          });
+          offlineMediaSaves.push(
+            saveMediaFile({
+              localId,
+              type: 'audio',
+              blob: audioRecorder.audioBlob,
+              filename: 'recording.webm',
+            })
+          );
         }
         if (fieldToolsSettings.photo_mode !== 'disabled') {
           for (const photo of photoCapture.photos) {
-            await saveMediaFile({
-              localId,
-              type: 'photo',
-              blob: photo.blob,
-              filename: photo.blob.name || 'photo.jpg',
-            });
+            offlineMediaSaves.push(
+              saveMediaFile({
+                localId,
+                type: 'photo',
+                blob: photo.blob,
+                filename: photo.blob.name || 'photo.jpg',
+              })
+            );
           }
         }
         if (fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty) {
           const sigBlob = await signaturePad.toBlob();
           if (sigBlob) {
-            await saveMediaFile({
-              localId,
-              type: 'signature',
-              blob: sigBlob,
-              filename: 'signature.png',
-            });
+            offlineMediaSaves.push(
+              saveMediaFile({
+                localId,
+                type: 'signature',
+                blob: sigBlob,
+                filename: 'signature.png',
+              })
+            );
           }
         }
+        await Promise.all(offlineMediaSaves);
 
         // Navigate to success page with offline flag
         navigate(`/surveyor/survey/${id}/success`, {
@@ -1295,37 +1321,49 @@ function SurveyForm() {
       let signature_path = null;
       const media_photo_paths = [];
 
+      const uploadPromises = [];
       if (fieldToolsSettings.audio_mode !== 'disabled' && audioRecorder.audioBlob) {
-        const formData = new FormData();
-        formData.append('audio', audioRecorder.audioBlob, 'recording.webm');
-        const uploadRes = await api.post('/upload/audio', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        audio_path = uploadRes.data.path;
+        const audioFormData = new FormData();
+        audioFormData.append('audio', audioRecorder.audioBlob, 'recording.webm');
+        uploadPromises.push(
+          api.post('/upload/audio', audioFormData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          }).then((uploadRes) => {
+            audio_path = uploadRes.data.path;
+          })
+        );
       }
 
       if (fieldToolsSettings.photo_mode !== 'disabled') {
         for (const photo of photoCapture.photos) {
-          const formData = new FormData();
-          formData.append('photo', photo.blob, photo.blob.name || 'photo.jpg');
-          const uploadRes = await api.post('/upload/photo', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          media_photo_paths.push(uploadRes.data.path);
+          const photoFormData = new FormData();
+          photoFormData.append('photo', photo.blob, photo.blob.name || 'photo.jpg');
+          uploadPromises.push(
+            api.post('/upload/photo', photoFormData, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            }).then((uploadRes) => {
+              media_photo_paths.push(uploadRes.data.path);
+            })
+          );
         }
       }
 
       if (fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty) {
         const sigBlob = await signaturePad.toBlob();
         if (sigBlob) {
-          const formData = new FormData();
-          formData.append('signature', sigBlob, 'signature.png');
-          const uploadRes = await api.post('/upload/signature', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          signature_path = uploadRes.data.path;
+          const signatureFormData = new FormData();
+          signatureFormData.append('signature', sigBlob, 'signature.png');
+          uploadPromises.push(
+            api.post('/upload/signature', signatureFormData, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            }).then((uploadRes) => {
+              signature_path = uploadRes.data.path;
+            })
+          );
         }
       }
+
+      await Promise.all(uploadPromises);
 
       // 5. Build answers payload — only include visible questions
       const visibleQs = questions.filter((q) => visibleIds.has(q.id));
@@ -1388,6 +1426,7 @@ function SurveyForm() {
       }
     } finally {
       setSubmitting(false);
+      setMediaUploadMessage('');
     }
   }, [
     validateRequiredQuestions,
@@ -1516,27 +1555,52 @@ function SurveyForm() {
             {visibleQuestions.map((question, index) => {
               const hasError = errorQuestionIds.has(question.id);
               const displayOptions = displayOptionsMap[question.id] || question.options || [];
+              const questionTypeLabel = {
+                single_choice: 'Pilihan tunggal',
+                multiple_choice: 'Pilihan ganda',
+                short_text: 'Teks singkat',
+                long_text: 'Teks panjang',
+                numeric_scale: 'Skala angka',
+                date: 'Tanggal',
+                time: 'Waktu',
+                photo: 'Foto',
+                rating_scale: 'Rating',
+                phone_number: 'Telepon',
+                unique_id: 'ID unik',
+                matrix: 'Matrix',
+              }[question.type] || question.type;
 
               return (
                 <div
                   key={question.id}
                   id={`question-${question.id}`}
-                  className={`bg-white rounded-xl border p-5 shadow-sm transition-colors ${
-                    hasError ? 'border-red-400' : 'border-gray-200'
+                  className={`bg-white rounded-xl border border-gray-200 border-l-4 border-l-blue-400 p-5 shadow-sm hover:shadow-md transition-all duration-150 ${
+                    hasError ? 'border-red-400 border-l-red-500' : ''
                   }`}
                 >
-                  <div className="mb-3">
-                    <p className="text-sm font-medium text-gray-800">
-                      <span className="text-gray-400 mr-1">{index + 1}.</span>
+                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                    <p className="text-base font-semibold text-gray-900 leading-relaxed">
+                      <span className="text-gray-400 mr-2">{index + 1}.</span>
                       {question.text}
                       {question.is_required && (
                         <span className="text-red-500 ml-1" aria-label="wajib diisi">*</span>
                       )}
                     </p>
-                    {hasError && (
-                      <p className="text-xs text-red-500 mt-1">Pertanyaan ini wajib diisi</p>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        {questionTypeLabel}
+                      </span>
+                      {question.is_required && (
+                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                          Wajib
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  {hasError && (
+                    <p className="text-sm text-red-500 mt-2">Pertanyaan ini wajib diisi</p>
+                  )}
+                  
 
                   {question.type === 'photo' ? (
                     !isOnline ? (
@@ -1823,6 +1887,12 @@ function SurveyForm() {
                 {submitError && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
                     {submitError}
+                  </div>
+                )}
+                {mediaUploadMessage && (
+                  <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                    <span className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-700" />
+                    <span>{mediaUploadMessage}</span>
                   </div>
                 )}
               </div>

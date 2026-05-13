@@ -138,13 +138,15 @@ function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    async function fetchAll() {
+    async function fetchOverview() {
       setLoading(true);
+      setError(null);
       try {
+        const params = selectedSurvey ? { survey_id: selectedSurvey } : {};
         const [statsRes, trendRes, topRes] = await Promise.all([
-          api.get('/dashboard/stats'),
-          api.get('/dashboard/trend'),
-          api.get('/dashboard/top-surveyors'),
+          api.get('/dashboard/stats', { params }),
+          api.get('/dashboard/trend', { params }),
+          api.get('/dashboard/top-surveyors', { params }),
         ]);
         if (!cancelled) {
           setStats(statsRes.data);
@@ -157,9 +159,9 @@ function Dashboard() {
         if (!cancelled) setLoading(false);
       }
     }
-    fetchAll();
+    fetchOverview();
     return () => { cancelled = true; };
-  }, []);
+  }, [selectedSurvey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,6 +234,11 @@ function Dashboard() {
   }));
   const trendTotal = trend.reduce((sum, t) => sum + (t.count || 0), 0);
 
+  const currentSurveyTitle = selectedSurvey ? activeSurveys.find((s) => s.id === selectedSurvey)?.title : null;
+  const dataScopeLabel = selectedSurvey
+    ? `Dari survei terpilih: ${currentSurveyTitle || selectedSurvey}`
+    : 'Dari semua survei aktif';
+
   // Overall progress
   const totalQuotaAll = Object.values(progressMap).reduce((s, p) => s + (p.totalQuota || 0), 0);
   const totalCollectedAll = Object.values(progressMap).reduce((s, p) => s + (p.totalCollected || 0), 0);
@@ -240,7 +247,15 @@ function Dashboard() {
   return (
     <Layout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <p className="text-sm text-gray-500">{dataScopeLabel}</p>
+            <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+              {selectedSurvey ? 'Survei terpilih' : 'Semua survei aktif'}
+            </span>
+          </div>
+        </div>
 
         {/* ── Summary stat cards ── */}
         <section aria-label="Statistik ringkasan">

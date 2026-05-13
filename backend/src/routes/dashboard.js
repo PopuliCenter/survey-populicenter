@@ -50,6 +50,31 @@ function resolveSurveyorStatus(totalCollected, totalQuota) {
 }
 
 /**
+ * Resolve survey filter IDs for dashboard queries.
+ * If `survey_id` is provided, validate and use that survey.
+ * Otherwise, use all currently active surveys.
+ */
+async function resolveDashboardSurveyIds(surveyId) {
+  if (surveyId) {
+    if (!isValidUUID(surveyId)) {
+      const error = new Error('Format survey_id tidak valid');
+      error.status = 422;
+      throw error;
+    }
+    const survey = await Survey.findOne({ where: { id: surveyId }, attributes: ['id'] });
+    if (!survey) {
+      const error = new Error('Survei tidak ditemukan');
+      error.status = 404;
+      throw error;
+    }
+    return [survey.id];
+  }
+
+  const activeSurveys = await Survey.findAll({ where: { status: 'active' }, attributes: ['id'], raw: true });
+  return activeSurveys.map((s) => s.id);
+}
+
+/**
  * GET /dashboard/stats
  * Returns summary statistics for the admin dashboard:
  *   - activeSurveys: count of surveys with status = 'active'
@@ -59,6 +84,8 @@ function resolveSurveyorStatus(totalCollected, totalQuota) {
  */
 router.get('/stats', authMiddleware, requireRole(['admin', 'supervisor', 'viewer']), async (req, res, next) => {
   try {
+    const { survey_id: surveyId } = req.query;
+
     // Start of today in UTC
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
@@ -67,21 +94,35 @@ router.get('/stats', authMiddleware, requireRole(['admin', 'supervisor', 'viewer
     const todayEnd = new Date();
     todayEnd.setUTCHours(23, 59, 59, 999);
 
-    const [activeSurveys, activeSurveyors, todayResponses, totalResponses] = await Promise.all([
+    const surveyIds = await resolveDashboardSurveyIds(surveyId);
+
+    const responseWhereToday = {
+      created_at: {
+        [Op.between]: [todayStart, todayEnd],
+      },
+      questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+    };
+    const responseWhereTotal = {
+      questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+    };
+    if (surveyIds.length > 0) {
+      responseWhereToday.survey_id = surveyIds;
+      responseWhereTotal.survey_id = surveyIds;
+    }
+
+    const [activeSurveys, activeSurveyors] = await Promise.all([
       Survey.count({ where: { status: 'active' } }),
       User.count({ where: { role: 'surveyor', is_active: true } }),
-      Response.count({
-        where: {
-          created_at: {
-            [Op.between]: [todayStart, todayEnd],
-          },
-          questionnaire_number: { [Op.notLike]: 'PENDING-%' },
-        },
-      }),
-      Response.count({
-        where: { questionnaire_number: { [Op.notLike]: 'PENDING-%' } },
-      }),
     ]);
+
+    let todayResponses = 0;
+    let totalResponses = 0;
+    if (surveyIds.length > 0) {
+      [todayResponses, totalResponses] = await Promise.all([
+        Response.count({ where: responseWhereToday }),
+        Response.count({ where: responseWhereTotal }),
+      ]);
+    }
 
     res.json({
       activeSurveys,
@@ -103,6 +144,8 @@ router.get('/stats', authMiddleware, requireRole(['admin', 'supervisor', 'viewer
  */
 router.get('/trend', authMiddleware, requireRole(['admin', 'supervisor', 'viewer']), async (req, res, next) => {
   try {
+    const { survey_id: surveyId } = req.query;
+
     // Build the 7-day date range (today and 6 days before), all in UTC
     const days = [];
     for (let i = 6; i >= 0; i--) {
@@ -116,21 +159,29 @@ router.get('/trend', authMiddleware, requireRole(['admin', 'supervisor', 'viewer
     const rangeEnd = new Date(days[days.length - 1]);
     rangeEnd.setUTCHours(23, 59, 59, 999);
 
-    // Aggregate response counts grouped by UTC date (exclude PENDING)
-    const rows = await Response.findAll({
-      attributes: [
-        [fn('DATE', col('created_at')), 'date'],
-        [fn('COUNT', col('id')), 'count'],
-      ],
-      where: {
+    const surveyIds = await resolveDashboardSurveyIds(surveyId);
+
+    let rows = [];
+    if (surveyIds.length > 0) {
+      const responseWhere = {
         created_at: {
           [Op.between]: [rangeStart, rangeEnd],
         },
         questionnaire_number: { [Op.notLike]: 'PENDING-%' },
-      },
-      group: [fn('DATE', col('created_at'))],
-      raw: true,
-    });
+        survey_id: surveyIds,
+      };
+
+      // Aggregate response counts grouped by UTC date (exclude PENDING)
+      rows = await Response.findAll({
+        attributes: [
+          [fn('DATE', col('created_at')), 'date'],
+          [fn('COUNT', col('id')), 'count'],
+        ],
+        where: responseWhere,
+        group: [fn('DATE', col('created_at'))],
+        raw: true,
+      });
+    }
 
     // Build a lookup map: 'YYYY-MM-DD' -> count
     const countMap = {};
@@ -164,12 +215,24 @@ router.get('/trend', authMiddleware, requireRole(['admin', 'supervisor', 'viewer
  */
 router.get('/top-surveyors', authMiddleware, requireRole(['admin', 'supervisor', 'viewer']), async (req, res, next) => {
   try {
+    const { survey_id: surveyId } = req.query;
+    const surveyIds = await resolveDashboardSurveyIds(surveyId);
+
+    if (surveyIds.length === 0) {
+      return res.json([]);
+    }
+
+    const responseWhere = {
+      questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+      survey_id: surveyIds,
+    };
+
     const rows = await Response.findAll({
       attributes: [
         'surveyor_id',
         [fn('COUNT', col('Response.id')), 'responseCount'],
       ],
-      where: { questionnaire_number: { [Op.notLike]: 'PENDING-%' } },
+      where: responseWhere,
       include: [
         {
           model: User,
