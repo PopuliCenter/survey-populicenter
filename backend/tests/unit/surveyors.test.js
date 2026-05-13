@@ -33,9 +33,10 @@ jest.mock('../../src/models', () => {
       sequelize: mockSequelize,
     },
     Survey: {
+      findAll: jest.fn(),
       findOne: jest.fn(),
     },
-    Sequelize: { Op: { ne: Symbol('ne'), like: Symbol('like'), notLike: Symbol('notLike') } },
+    Sequelize: { Op: { ne: Symbol('ne'), like: Symbol('like'), notLike: Symbol('notLike'), in: Symbol('in') } },
   };
 });
 
@@ -49,7 +50,7 @@ jest.mock('../../src/config/redis', () => ({
 }));
 
 const app = require('../../src/app');
-const { User, AuditLog, SurveyorQuota, Response } = require('../../src/models');
+const { User, AuditLog, SurveyorQuota, Response, Survey, Sequelize } = require('../../src/models');
 const redis = require('../../src/config/redis');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -111,6 +112,7 @@ describe('Surveyor Management Module - GET /surveyors', () => {
       { id: 'surveyor-uuid-001', name: 'Surveyor One', email: 's1@example.com', is_active: true, created_at: new Date().toISOString() },
       { id: 'surveyor-uuid-002', name: 'Surveyor Two', email: 's2@example.com', is_active: false, created_at: new Date().toISOString() },
     ]);
+    Survey.findAll.mockResolvedValue([{ id: 'survey-active-001' }]);
     Response.findAll.mockResolvedValue([
       { surveyor_id: 'surveyor-uuid-001', count: '5' },
     ]);
@@ -124,6 +126,30 @@ describe('Surveyor Management Module - GET /surveyors', () => {
     expect(res.body).toHaveLength(2);
     expect(res.body[0]).toHaveProperty('response_count');
     expect(res.body[1]).toHaveProperty('response_count', 0);
+  });
+
+  test('hanya menghitung respons dari survei aktif', async () => {
+    const token = createAdminToken();
+    User.findAll.mockResolvedValue([
+      { id: 'surveyor-uuid-001', name: 'Surveyor Active', email: 'active@example.com', is_active: true, created_at: new Date().toISOString() },
+    ]);
+    Survey.findAll.mockResolvedValue([{ id: 'survey-active-001' }]);
+    Response.findAll.mockImplementation(({ where }) => {
+      expect(where).toEqual({
+        surveyor_id: { [Sequelize.Op.in]: ['surveyor-uuid-001'] },
+        end_time: { [Sequelize.Op.ne]: null },
+        questionnaire_number: { [Sequelize.Op.notLike]: 'PENDING-%' },
+        survey_id: { [Sequelize.Op.in]: ['survey-active-001'] },
+      });
+      return Promise.resolve([{ surveyor_id: 'surveyor-uuid-001', count: '3' }]);
+    });
+
+    const res = await request(app)
+      .get('/surveyors')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toHaveProperty('response_count', 3);
   });
 
   test('tanpa token - mengembalikan 401', async () => {
@@ -150,6 +176,7 @@ describe('Surveyor Management Module - GET /surveyors', () => {
     User.findAll.mockResolvedValue([
       { id: 'surveyor-uuid-001', name: 'Surveyor One', email: 's1@example.com', is_active: true, created_at: new Date().toISOString() },
     ]);
+    Survey.findAll.mockResolvedValue([{ id: 'survey-active-001' }]);
     Response.findAll.mockResolvedValue([]);
 
     const res = await request(app)
@@ -158,6 +185,11 @@ describe('Surveyor Management Module - GET /surveyors', () => {
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
+    expect(Survey.findAll).toHaveBeenCalledWith({
+      where: { status: 'active' },
+      attributes: ['id'],
+      raw: true,
+    });
   });
 
   test('viewer tidak bisa mengakses daftar surveyor - mengembalikan 403', async () => {

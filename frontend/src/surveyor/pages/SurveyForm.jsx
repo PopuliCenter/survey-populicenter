@@ -675,6 +675,9 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
       return (
         <input
           type="text"
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck="false"
           value={answer || ''}
           onChange={(e) => onChange(e.target.value.toUpperCase())}
           className={`${baseInputClass} ${errorBorder}`}
@@ -686,6 +689,9 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
     case 'long_text':
       return (
         <textarea
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck="false"
           value={answer || ''}
           onChange={(e) => onChange(e.target.value.toUpperCase())}
           rows={4}

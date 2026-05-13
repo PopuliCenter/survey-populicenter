@@ -195,6 +195,14 @@ router.get('/', async (req, res, next) => {
     // Bug #6: hanya hitung response yang sudah selesai (bukan PENDING/sesi belum selesai)
     const surveyorIds = surveyors.map((s) => s.id);
 
+    // Only count responses from active surveys for the surveyor management list.
+    const activeSurveys = await Survey.findAll({
+      where: { status: 'active' },
+      attributes: ['id'],
+      raw: true,
+    });
+    const activeSurveyIds = activeSurveys.map((survey) => survey.id);
+
     let responseCounts = {};
     if (surveyorIds.length > 0) {
       const counts = await Response.findAll({
@@ -204,6 +212,9 @@ router.get('/', async (req, res, next) => {
           end_time: { [Op.ne]: null },
           // Exclude sesi PENDING yang belum selesai
           questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+          ...(activeSurveyIds.length > 0
+            ? { survey_id: { [Op.in]: activeSurveyIds } }
+            : { survey_id: null }),
         },
         attributes: [
           'surveyor_id',
