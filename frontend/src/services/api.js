@@ -4,7 +4,7 @@ import axios from 'axios';
  * URL server production — ganti dengan domain/IP VPS Anda.
  * Digunakan oleh Android app. Web app tetap pakai relative URL via nginx.
  */
-const PRODUCTION_SERVER = 'http://187.127.114.159:3000';
+const PRODUCTION_SERVER = 'https://risetcenter.com';
 
 function getBaseURL() {
   if (import.meta.env.VITE_API_URL) {
