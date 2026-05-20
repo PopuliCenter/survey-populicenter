@@ -7,6 +7,7 @@ const { createAuditLog } = require('../middleware/auditLog');
 const { validateAllAnswers } = require('../utils/answerValidator');
 const { validateDateFormat, validateTimeFormat, validateDateAnswer, validateMatrixAnswer } = require('../utils/validators');
 const { validateFieldToolsSubmission } = require('../utils/fieldToolsValidator');
+const { incrementResponseStats } = require('../utils/statisticsUpdater');
 
 const { Op } = Sequelize;
 
@@ -320,6 +321,19 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
           return res.status(422).json({ error: matrixResult.error });
         }
       }
+
+      if (q.type === 'indonesia_region' && q.is_required) {
+        const val = ans.answer_json;
+        const config = q.options || {};
+        const depth = config.depth || 'village';
+        let invalid = !val || typeof val !== 'object' || !val.province_id;
+        if (!invalid && depth === 'regency') invalid = !val.regency_id;
+        if (!invalid && depth === 'district') invalid = !val.regency_id || !val.district_id;
+        if (!invalid && depth === 'village') invalid = !val.regency_id || !val.district_id || !val.village_id;
+        if (invalid) {
+          return res.status(422).json({ error: 'Jawaban wilayah Indonesia tidak lengkap sesuai konfigurasi pertanyaan' });
+        }
+      }
     }
 
     const end_time = new Date();
@@ -430,6 +444,11 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
       // If sequence doesn't exist or other DB error
       return res.status(500).json({ error: 'Gagal menyimpan data. Silakan coba kembali' });
     }
+
+    // Update aggregated statistics (non-blocking, fire-and-forget)
+    incrementResponseStats(survey_id, surveyor_id).catch((err) => {
+      console.error('[Stats] Failed to update statistics:', err.message);
+    });
 
     res.status(201).json({
       questionnaire_number,

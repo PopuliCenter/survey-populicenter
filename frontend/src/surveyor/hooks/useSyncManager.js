@@ -8,7 +8,7 @@ import {
   getPendingCount,
   getMediaFilesByLocalId,
   deleteMediaFilesByLocalId,
-} from '../../utils/offlineDB';
+} from '../../utils/storage';
 
 /**
  * Hook untuk mengelola sinkronisasi Offline Queue ke backend.

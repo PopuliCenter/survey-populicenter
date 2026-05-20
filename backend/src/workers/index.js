@@ -2,42 +2,70 @@
 'use strict';
 
 /**
- * Export Worker Process
- * 
- * This worker process handles async export jobs from the Bull queue.
+ * Export Worker Process (BullMQ)
+ *
+ * This worker process handles async export jobs from the BullMQ queue.
  * It should be run as a separate process from the main API server.
- * 
+ *
  * Usage:
  *   node src/workers/index.js
- * 
+ *
  * Or with PM2:
  *   pm2 start src/workers/index.js --name export-worker
  */
 
 require('dotenv').config();
 
-const exportQueue = require('../config/queue');
+const { Worker } = require('bullmq');
+const { connection } = require('../config/queue');
 const { processExportJob } = require('./exportWorker');
+const { captureException } = require('../config/sentry');
 
-console.log('[Worker] Starting export worker...');
+// Initialize Sentry for worker process (no Express, just error capture)
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    release: `populi-survey-worker@1.0.0`,
+  });
+}
 
-// Register the job processor
-exportQueue.process(async (job) => {
-  console.log(`[Worker] Processing job ${job.id}...`);
-  return processExportJob(job);
+console.log('[Worker] Starting export worker (BullMQ)...');
+
+const worker = new Worker(
+  'export-jobs',
+  async (job) => {
+    console.log(`[Worker] Processing job ${job.id} (attempt ${job.attemptsMade + 1})...`);
+    return processExportJob(job);
+  },
+  {
+    connection,
+    concurrency: 2, // Process up to 2 export jobs simultaneously
+  }
+);
+
+worker.on('completed', (job) => {
+  console.log(`[Worker] Job ${job.id} completed successfully`);
+});
+
+worker.on('failed', (job, err) => {
+  console.error(`[Worker] Job ${job.id} failed (attempt ${job.attemptsMade}):`, err.message);
+  captureException(err, { jobId: job.id, data: job.data });
+});
+
+worker.on('error', (err) => {
+  console.error('[Worker] Worker error:', err.message);
 });
 
 // Handle graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('[Worker] SIGTERM received, closing queue...');
-  await exportQueue.close();
+async function shutdown(signal) {
+  console.log(`[Worker] ${signal} received, closing worker...`);
+  await worker.close();
   process.exit(0);
-});
+}
 
-process.on('SIGINT', async () => {
-  console.log('[Worker] SIGINT received, closing queue...');
-  await exportQueue.close();
-  process.exit(0);
-});
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 console.log('[Worker] Export worker is ready and waiting for jobs');

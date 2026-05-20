@@ -15,6 +15,7 @@ const QUESTION_TYPES = [
   'unique_id',
   'time',
   'matrix',
+  'indonesia_region',
 ];
 
 module.exports = (sequelize) => {

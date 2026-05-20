@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Web Survey Platform adalah aplikasi survei berbasis web yang memungkinkan admin mengelola survei, pertanyaan, dan surveyor; serta memungkinkan surveyor login untuk mengisi data responden secara online. Platform ini terinspirasi dari Populi Center dan dirancang untuk mendukung pengumpulan data lapangan secara terstruktur dengan fitur skip logic, randomisasi jawaban, upload foto, dan ekspor laporan.
+Web Survey Platform adalah aplikasi survei berbasis web yang memungkinkan admin mengelola survei, pertanyaan, dan surveyor; serta memungkinkan surveyor login untuk mengisi data responden secara online. Platform ini dirancang untuk mendukung pengumpulan data lapangan secara terstruktur dengan fitur skip logic, randomisasi jawaban, upload foto, dan ekspor laporan.
 
 ## Glossary
 

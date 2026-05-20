@@ -50,6 +50,7 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       UPLOAD_DIR: uploads/photos
       MAX_FILE_SIZE_MB: 5
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - uploads:/app/uploads
     ports:
@@ -74,13 +75,17 @@ services:
       DB_USER: surveyapp
       DB_PASSWORD: ${DB_PASSWORD:-Populi13!}
       REDIS_URL: redis://redis:6379
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - uploads:/app/uploads
     command: ["node", "src/workers/index.js"]
 
   # ── Nginx (reverse proxy + frontend) ──────────────────────
   nginx:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     restart: unless-stopped
     depends_on:
       - backend
