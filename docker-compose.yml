@@ -95,8 +95,21 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - uploads:/app/uploads:ro
+      - certbot-conf:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+
+  # ── Certbot (SSL certificate management) ──────────────────
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot-conf:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    # Renew certificates every 12 hours (only renews if expiring within 30 days)
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done;'"
 
 volumes:
   pgdata:
   redisdata:
   uploads:
+  certbot-conf:
+  certbot-www:
