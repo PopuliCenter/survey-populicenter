@@ -20,6 +20,7 @@ const QUESTION_TYPES = [
   { value: 'unique_id', label: 'Nomor Kuesioner (Unik)' },
   { value: 'time', label: 'Waktu' },
   { value: 'matrix', label: 'Matrix/Grid' },
+  { value: 'indonesia_region', label: 'Wilayah Indonesia (Dropdown)' },
 ];
 
 const CHOICE_TYPES = ['single_choice', 'multiple_choice'];
@@ -580,6 +581,84 @@ function MatrixConfigEditor({ config, onChange }) {
   );
 }
 
+// ─── Region Config Editor ─────────────────────────────────────────────────────
+/**
+ * Editor konfigurasi untuk tipe pertanyaan indonesia_region.
+ * Admin/supervisor dapat memilih kedalaman wilayah yang ditampilkan:
+ * - 'province'  → hanya Provinsi
+ * - 'regency'   → Provinsi + Kabupaten/Kota
+ * - 'district'  → Provinsi + Kabupaten/Kota + Kecamatan
+ * - 'village'   → Provinsi + Kabupaten/Kota + Kecamatan + Desa/Kelurahan
+ *
+ * @param {{
+ *   config: { depth: string },
+ *   onChange: (config: object) => void,
+ * }} props
+ */
+function RegionConfigEditor({ config, onChange }) {
+  const depth = config?.depth || 'village';
+
+  const DEPTH_OPTIONS = [
+    {
+      value: 'province',
+      label: 'Provinsi saja',
+      description: 'Hanya menampilkan dropdown Provinsi',
+    },
+    {
+      value: 'regency',
+      label: 'Provinsi + Kabupaten/Kota',
+      description: 'Menampilkan dropdown Provinsi dan Kabupaten/Kota',
+    },
+    {
+      value: 'district',
+      label: 'Provinsi + Kabupaten/Kota + Kecamatan',
+      description: 'Menampilkan dropdown hingga tingkat Kecamatan',
+    },
+    {
+      value: 'village',
+      label: 'Lengkap (hingga Desa/Kelurahan)',
+      description: 'Menampilkan semua dropdown: Provinsi → Kab/Kota → Kecamatan → Desa/Kelurahan',
+    },
+  ];
+
+  return (
+    <div className="space-y-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+      <p className="text-sm font-medium text-emerald-800">Konfigurasi Wilayah Indonesia</p>
+      <p className="text-xs text-emerald-700">
+        Pilih kedalaman wilayah yang perlu diisi oleh surveyor:
+      </p>
+      <div className="space-y-2">
+        {DEPTH_OPTIONS.map((opt) => (
+          <label
+            key={opt.value}
+            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+              depth === opt.value
+                ? 'border-emerald-400 bg-emerald-100'
+                : 'border-gray-200 bg-white hover:bg-emerald-50'
+            }`}
+          >
+            <input
+              type="radio"
+              name="region-depth"
+              value={opt.value}
+              checked={depth === opt.value}
+              onChange={() => onChange({ depth: opt.value })}
+              className="mt-0.5 accent-emerald-600 shrink-0"
+            />
+            <div>
+              <p className="text-sm font-medium text-gray-800">{opt.label}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>
+            </div>
+          </label>
+        ))}
+      </div>
+      <p className="text-xs text-gray-500">
+        Data wilayah dimuat dari file lokal — tidak memerlukan koneksi internet.
+      </p>
+    </div>
+  );
+}
+
 // ─── Field Tools Settings Section ────────────────────────────────────────────
 /**
  * Section for configuring field tools modes per survey.
@@ -739,6 +818,11 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
       ? initial.options
       : { rows: [], columns: [] }
   );
+  const [regionConfig, setRegionConfig] = useState(
+    initial?.type === 'indonesia_region' && initial?.options && !Array.isArray(initial.options)
+      ? initial.options
+      : { depth: 'village' }
+  );
   const [validationConfig, setValidationConfig] = useState(() => {
     if (initial?.options && !Array.isArray(initial.options) && initial.options.validation) {
       return initial.options.validation;
@@ -765,6 +849,7 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
     if (newType !== 'unique_id') setUniqueIdConfig({ min_length: 1, max_length: 20 });
     if (newType !== 'date') setDateConfig({ min_date: '', max_date: '' });
     if (newType !== 'matrix') setMatrixConfig({ rows: [], columns: [] });
+    if (newType !== 'indonesia_region') setRegionConfig({ depth: 'village' });
     setValidationConfig(null);
   }
 
@@ -796,7 +881,8 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
       ...(type === 'unique_id' ? { options: { ...uniqueIdConfig, ...validationPayload } } : {}),
       ...(type === 'date' ? { options: { ...dateConfig, ...validationPayload } } : {}),
       ...(type === 'matrix' ? { options: { ...matrixConfig, ...validationPayload } } : {}),
-      ...(!isChoiceType && type !== 'rating_scale' && type !== 'phone_number' && type !== 'unique_id' && type !== 'date' && type !== 'matrix' && validationConfig
+      ...(type === 'indonesia_region' ? { options: { ...regionConfig } } : {}),
+      ...(!isChoiceType && type !== 'rating_scale' && type !== 'phone_number' && type !== 'unique_id' && type !== 'date' && type !== 'matrix' && type !== 'indonesia_region' && validationConfig
         ? { options: validationPayload }
         : {}),
       skip_logic: skipLogic,
@@ -922,6 +1008,11 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
           {/* Matrix Config */}
           {type === 'matrix' && (
             <MatrixConfigEditor config={matrixConfig} onChange={setMatrixConfig} />
+          )}
+
+          {/* Indonesia Region Config */}
+          {type === 'indonesia_region' && (
+            <RegionConfigEditor config={regionConfig} onChange={setRegionConfig} />
           )}
 
           {/* Is Required toggle */}

@@ -1,5 +1,27 @@
 require('dotenv').config();
 
+// Sentry MUST be initialized before importing any other module
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    release: `populi-survey-backend@1.0.0`,
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.2 : 1.0,
+    ignoreErrors: ['ECONNREFUSED', 'ECONNRESET', 'EPIPE'],
+    beforeSend(event) {
+      if (event.request && event.request.headers) {
+        delete event.request.headers.authorization;
+        delete event.request.headers.cookie;
+      }
+      return event;
+    },
+  });
+  console.log('[Sentry] Error tracking initialized');
+} else {
+  console.log('[Sentry] SENTRY_DSN not configured — error tracking disabled');
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -8,6 +30,11 @@ const morgan = require('morgan');
 const path = require('path');
 
 const app = express();
+
+// ─── Sentry Express error handler ────────────────────────────────────────────
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 // ─── Security Middleware ───────────────────────────────────────────────────────
 app.use(helmet());
@@ -74,6 +101,8 @@ app.use((err, req, res, next) => {
 
   if (status >= 500) {
     console.error('[ERROR]', err);
+    // Sentry captures 5xx errors automatically via setupExpressErrorHandler,
+    // but we also log for local visibility.
   }
 
   res.status(status).json({ error: message });

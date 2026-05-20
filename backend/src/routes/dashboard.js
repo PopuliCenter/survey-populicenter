@@ -2,6 +2,7 @@ const express = require('express');
 const { Op, fn, col } = require('sequelize');
 const { Survey, User, Response, SurveyorQuota } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
+const { getDashboardStats, getSurveyorResponseCounts } = require('../utils/statisticsUpdater');
 
 const router = express.Router();
 
@@ -86,43 +87,15 @@ router.get('/stats', authMiddleware, requireRole(['admin', 'supervisor', 'viewer
   try {
     const { survey_id: surveyId } = req.query;
 
-    // Start of today in UTC
-    const todayStart = new Date();
-    todayStart.setUTCHours(0, 0, 0, 0);
-
-    // End of today in UTC
-    const todayEnd = new Date();
-    todayEnd.setUTCHours(23, 59, 59, 999);
-
     const surveyIds = await resolveDashboardSurveyIds(surveyId);
-
-    const responseWhereToday = {
-      created_at: {
-        [Op.between]: [todayStart, todayEnd],
-      },
-      questionnaire_number: { [Op.notLike]: 'PENDING-%' },
-    };
-    const responseWhereTotal = {
-      questionnaire_number: { [Op.notLike]: 'PENDING-%' },
-    };
-    if (surveyIds.length > 0) {
-      responseWhereToday.survey_id = surveyIds;
-      responseWhereTotal.survey_id = surveyIds;
-    }
 
     const [activeSurveys, activeSurveyors] = await Promise.all([
       Survey.count({ where: { status: 'active' } }),
       User.count({ where: { role: 'surveyor', is_active: true } }),
     ]);
 
-    let todayResponses = 0;
-    let totalResponses = 0;
-    if (surveyIds.length > 0) {
-      [todayResponses, totalResponses] = await Promise.all([
-        Response.count({ where: responseWhereToday }),
-        Response.count({ where: responseWhereTotal }),
-      ]);
-    }
+    // Use pre-computed statistics (fast, no COUNT(*) on responses table)
+    const { totalResponses, todayResponses } = await getDashboardStats(surveyIds);
 
     res.json({
       activeSurveys,
@@ -291,27 +264,9 @@ router.get('/survey-progress/:surveyId', authMiddleware, requireRole(['admin', '
     // Calculate total quota
     const totalQuota = quotas.reduce((sum, q) => sum + q.quota, 0);
 
-    // Count total responses for this survey (exclude PENDING)
-    const totalCollected = await Response.count({
-      where: {
-        survey_id: surveyId,
-        questionnaire_number: { [Op.notLike]: 'PENDING-%' },
-      },
-    });
-
-    // Count responses per surveyor (exclude PENDING)
-    const responseCounts = await Response.findAll({
-      attributes: ['surveyor_id', [fn('COUNT', col('id')), 'count']],
-      where: {
-        survey_id: surveyId,
-        questionnaire_number: { [Op.notLike]: 'PENDING-%' },
-      },
-      group: ['surveyor_id'],
-      raw: true,
-    });
-
-    const responseMap = {};
-    responseCounts.forEach((r) => { responseMap[r.surveyor_id] = parseInt(r.count, 10); });
+    // Count total responses for this survey (from pre-computed stats)
+    const responseMap = await getSurveyorResponseCounts(surveyId);
+    const totalCollected = Object.values(responseMap).reduce((sum, c) => sum + c, 0);
 
     // Build breakdown per surveyor
     const surveyors = quotas.map((q) => {

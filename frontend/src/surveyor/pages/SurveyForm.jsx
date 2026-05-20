@@ -22,7 +22,8 @@ import usePhotoCapture from '../hooks/usePhotoCapture';
 import useSignaturePad from '../hooks/useSignaturePad';
 import { getDisplayOptions } from '../../utils/randomizeOptions';
 import { validateAnswer } from '../../utils/answerValidation';
-import { cacheSurvey, getCachedSurvey, enqueueResponse, saveMediaFile } from '../../utils/offlineDB';
+import { cacheSurvey, getCachedSurvey, enqueueResponse, saveMediaFile } from '../../utils/storage';
+import { compressIfNeeded } from '../../utils/imageCompressor';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import AudioRecorderPanel from '../components/AudioRecorderPanel';
 import PhotoCapturePanel from '../components/PhotoCapturePanel';
@@ -40,6 +41,195 @@ const DEFAULT_FIELD_TOOLS = {
   photo_mode: 'required',
   gps_mode: 'required',
 };
+
+// ─── Wilayah Indonesia ────────────────────────────────────────────────────────
+
+let cachedRegionData = null;
+/**
+ * Lazy-load data wilayah Indonesia dari file JSON publik via fetch.
+ * Di-cache setelah pertama kali dimuat agar tidak membebani memori.
+ * File disimpan di /public/wilayahIndonesia.json (tidak di-bundle ke JS).
+ */
+async function loadRegionData() {
+  if (cachedRegionData) return cachedRegionData;
+  const res = await fetch('/wilayahIndonesia.json');
+  if (!res.ok) throw new Error('Gagal memuat data wilayah');
+  cachedRegionData = await res.json();
+  return cachedRegionData;
+}
+
+/**
+ * Komponen input untuk pertanyaan indonesia_region.
+ * Menampilkan dropdown wilayah berjenjang sesuai konfigurasi depth:
+ *   - 'province'  → hanya Provinsi
+ *   - 'regency'   → Provinsi + Kabupaten/Kota
+ *   - 'district'  → Provinsi + Kabupaten/Kota + Kecamatan
+ *   - 'village'   → Provinsi + Kabupaten/Kota + Kecamatan + Desa/Kelurahan (default)
+ *
+ * Data dimuat dari file JSON lokal (tidak memerlukan API call).
+ * Jawaban disimpan sebagai objek: { province_id, province_name, regency_id, ... }
+ *
+ * @param {{ question: object, answer: object, onChange: function, hasError: boolean }} props
+ */
+function IndonesiaRegionField({ question, answer = {}, onChange, hasError }) {
+  const [regionData, setRegionData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Ambil konfigurasi depth dari options pertanyaan (default: 'village' = lengkap)
+  const config = question.options && !Array.isArray(question.options) ? question.options : {};
+  const depth = config.depth || 'village';
+
+  const showRegency = depth === 'regency' || depth === 'district' || depth === 'village';
+  const showDistrict = depth === 'district' || depth === 'village';
+  const showVillage = depth === 'village';
+
+  useEffect(() => {
+    let active = true;
+    loadRegionData()
+      .then((data) => {
+        if (!active) return;
+        setRegionData(data);
+      })
+      .catch(() => {
+        if (!active) return;
+        setRegionData({ provinces: [], regenciesByProvince: {}, districtsByRegency: {}, villagesByDistrict: {} });
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
+  const provinceOptions = regionData?.provinces || [];
+  const regencyOptions = regionData?.regenciesByProvince?.[answer.province_id] || [];
+  const districtOptions = regionData?.districtsByRegency?.[answer.regency_id] || [];
+  const villageOptions = regionData?.villagesByDistrict?.[answer.district_id] || [];
+
+  function handleSelect(field, value, label) {
+    const nextAnswer = {
+      ...answer,
+      [field]: value,
+      [field.replace('_id', '_name')]: label,
+    };
+    // Reset downstream fields when parent changes
+    if (field === 'province_id') {
+      nextAnswer.regency_id = '';
+      nextAnswer.regency_name = '';
+      nextAnswer.district_id = '';
+      nextAnswer.district_name = '';
+      nextAnswer.village_id = '';
+      nextAnswer.village_name = '';
+    }
+    if (field === 'regency_id') {
+      nextAnswer.district_id = '';
+      nextAnswer.district_name = '';
+      nextAnswer.village_id = '';
+      nextAnswer.village_name = '';
+    }
+    if (field === 'district_id') {
+      nextAnswer.village_id = '';
+      nextAnswer.village_name = '';
+    }
+    onChange(nextAnswer);
+  }
+
+  if (loading) {
+    return <p className="text-sm text-gray-500">Memuat data wilayah Indonesia…</p>;
+  }
+
+  const selectClass = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed';
+
+  return (
+    <div className={`${hasError ? 'p-2 rounded-lg border border-red-400 bg-red-50' : ''}`}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* Provinsi — selalu tampil */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Provinsi</label>
+          <select
+            value={answer.province_id || ''}
+            onChange={(e) => {
+              const sel = provinceOptions.find((o) => o.id === e.target.value);
+              handleSelect('province_id', e.target.value, sel?.name || '');
+            }}
+            className={selectClass}
+            aria-label="Pilih provinsi"
+          >
+            <option value="">— Pilih provinsi —</option>
+            {provinceOptions.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Kabupaten/Kota */}
+        {showRegency && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Kabupaten/Kota</label>
+            <select
+              value={answer.regency_id || ''}
+              onChange={(e) => {
+                const sel = regencyOptions.find((o) => o.id === e.target.value);
+                handleSelect('regency_id', e.target.value, sel?.name || '');
+              }}
+              disabled={!answer.province_id}
+              className={selectClass}
+              aria-label="Pilih kabupaten/kota"
+            >
+              <option value="">— Pilih kabupaten/kota —</option>
+              {regencyOptions.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Kecamatan */}
+        {showDistrict && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Kecamatan</label>
+            <select
+              value={answer.district_id || ''}
+              onChange={(e) => {
+                const sel = districtOptions.find((o) => o.id === e.target.value);
+                handleSelect('district_id', e.target.value, sel?.name || '');
+              }}
+              disabled={!answer.regency_id}
+              className={selectClass}
+              aria-label="Pilih kecamatan"
+            >
+              <option value="">— Pilih kecamatan —</option>
+              {districtOptions.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Desa/Kelurahan */}
+        {showVillage && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Desa/Kelurahan</label>
+            <select
+              value={answer.village_id || ''}
+              onChange={(e) => {
+                const sel = villageOptions.find((o) => o.id === e.target.value);
+                handleSelect('village_id', e.target.value, sel?.name || '');
+              }}
+              disabled={!answer.district_id}
+              className={selectClass}
+              aria-label="Pilih desa/kelurahan"
+            >
+              <option value="">— Pilih desa/kelurahan —</option>
+              {villageOptions.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Renders a small mode label for a field tool.
@@ -65,7 +255,7 @@ function buildEmptyAnswers(questions) {
   for (const q of questions) {
     if (q.type === 'multiple_choice') {
       map[q.id] = [];
-    } else if (q.type === 'matrix') {
+    } else if (q.type === 'matrix' || q.type === 'indonesia_region') {
       map[q.id] = {};
     } else {
       map[q.id] = '';
@@ -89,7 +279,7 @@ function buildAnswersPayload(questions, answers, photoPaths) {
     if (q.type === 'multiple_choice') {
       return { question_id: q.id, answer_json: answers[q.id] || [] };
     }
-    if (q.type === 'matrix') {
+    if (q.type === 'matrix' || q.type === 'indonesia_region') {
       return { question_id: q.id, answer_json: answers[q.id] || {} };
     }
     return { question_id: q.id, answer_value: answers[q.id] ?? '' };
@@ -589,10 +779,14 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
               {answer && answer.startsWith && answer.startsWith('__other__:') && (
                 <input
                   type="text"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck="false"
                   value={answer.replace('__other__:', '')}
-                  onChange={(e) => onChange(`__other__:${e.target.value}`)}
+                  onChange={(e) => onChange(`__other__:${e.target.value.toUpperCase()}`)}
                   placeholder="Ketik jawaban lainnya…"
                   className="ml-6 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  style={{ textTransform: 'uppercase' }}
                   autoFocus
                 />
               )}
@@ -653,15 +847,19 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                 {otherChecked && (
                   <input
                     type="text"
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck="false"
                     value={(otherEntry || '').replace('__other__:', '')}
                     onChange={(e) => {
                       const updated = currentArr.map((v) =>
-                        v.startsWith('__other__:') ? `__other__:${e.target.value}` : v
+                        v.startsWith('__other__:') ? `__other__:${e.target.value.toUpperCase()}` : v
                       );
                       onChange(updated);
                     }}
                     placeholder="Ketik jawaban lainnya…"
                     className="ml-6 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    style={{ textTransform: 'uppercase' }}
                     autoFocus
                   />
                 )}
@@ -786,6 +984,16 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
         <MatrixField
           question={question}
           answer={answer}
+          onChange={onChange}
+          hasError={hasError}
+        />
+      );
+
+    case 'indonesia_region':
+      return (
+        <IndonesiaRegionField
+          question={question}
+          answer={answer && typeof answer === 'object' ? answer : {}}
           onChange={onChange}
           hasError={hasError}
         />
@@ -1076,6 +1284,20 @@ function SurveyForm() {
           const allAnswered = rows.every((row) => val[row] && val[row] !== '');
           if (!allAnswered) missing.add(q.id);
         }
+      } else if (q.type === 'indonesia_region') {
+        const val = answers[q.id];
+        const config = q.options && !Array.isArray(q.options) ? q.options : {};
+        const depth = config.depth || 'village';
+        // Minimal: provinsi harus diisi
+        if (!val || typeof val !== 'object' || !val.province_id) {
+          missing.add(q.id);
+        } else if (depth === 'regency' && !val.regency_id) {
+          missing.add(q.id);
+        } else if (depth === 'district' && (!val.regency_id || !val.district_id)) {
+          missing.add(q.id);
+        } else if (depth === 'village' && (!val.regency_id || !val.district_id || !val.village_id)) {
+          missing.add(q.id);
+        }
       } else {
         const val = answers[q.id];
         if (val === undefined || val === null || val === '') missing.add(q.id);
@@ -1098,6 +1320,10 @@ function SurveyForm() {
     if (questionType === 'matrix') {
       const val = answers[questionId];
       return val && typeof val === 'object' && Object.keys(val).length > 0;
+    }
+    if (questionType === 'indonesia_region') {
+      const val = answers[questionId];
+      return val && typeof val === 'object' && !!val.province_id;
     }
     const val = answers[questionId];
     return val !== undefined && val !== null && val !== '';
@@ -1138,6 +1364,18 @@ function SurveyForm() {
         }
         const allAnswered = rows.every((row) => val[row] && val[row] !== '');
         if (!allAnswered) {
+          setErrorQuestionIds(new Set([question.id]));
+          return false;
+        }
+      } else if (question.type === 'indonesia_region') {
+        const val = answers[question.id];
+        const config = question.options && !Array.isArray(question.options) ? question.options : {};
+        const depth = config.depth || 'village';
+        let invalid = !val || typeof val !== 'object' || !val.province_id;
+        if (!invalid && depth === 'regency') invalid = !val.regency_id;
+        if (!invalid && depth === 'district') invalid = !val.regency_id || !val.district_id;
+        if (!invalid && depth === 'village') invalid = !val.regency_id || !val.district_id || !val.village_id;
+        if (invalid) {
           setErrorQuestionIds(new Set([question.id]));
           return false;
         }
@@ -1342,8 +1580,9 @@ function SurveyForm() {
 
       if (fieldToolsSettings.photo_mode !== 'disabled') {
         for (const photo of photoCapture.photos) {
+          const compressed = await compressIfNeeded(photo.blob);
           const photoFormData = new FormData();
-          photoFormData.append('photo', photo.blob, photo.blob.name || 'photo.jpg');
+          photoFormData.append('photo', compressed, photo.blob.name || 'photo.jpg');
           uploadPromises.push(
             api.post('/upload/photo', photoFormData, {
               headers: { 'Content-Type': 'multipart/form-data' },

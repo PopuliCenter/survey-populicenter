@@ -8,7 +8,10 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 
 function renderStrokes(ctx, strokes, width, height) {
-  ctx.clearRect(0, 0, width, height);
+  // width/height di sini adalah canvas.width/height (DPR-scaled).
+  // Karena ctx sudah di-scale(dpr, dpr), clearRect perlu pakai CSS dimensions.
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  ctx.clearRect(0, 0, width / dpr, height / dpr);
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
@@ -26,16 +29,14 @@ function renderStrokes(ctx, strokes, width, height) {
 }
 
 /**
- * Get pointer position relative to canvas, accounting for CSS scaling.
- * Canvas internal resolution may differ from CSS display size.
+ * Get pointer position relative to canvas in CSS pixels.
+ * Setelah ctx.scale(dpr, dpr), kita hanya perlu koordinat CSS — bukan canvas pixel.
  */
 function getPointerPos(e, canvas) {
   const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
   return {
-    x: (e.clientX - rect.left) * scaleX,
-    y: (e.clientY - rect.top) * scaleY,
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top,
   };
 }
 
@@ -69,22 +70,30 @@ function useSignaturePad() {
 
     function setSize() {
       const rect = canvas.getBoundingClientRect();
-      // Use device pixel ratio for sharp rendering
+      if (rect.width === 0 || rect.height === 0) return; // Not visible yet
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
       const ctx = canvas.getContext('2d');
-      if (ctx) ctx.scale(dpr, dpr);
-      // Redraw existing strokes after resize
-      // Scale strokes to new dimensions — for simplicity, clear on resize
-      if (strokesRef.current.length > 0) {
-        renderStrokes(ctx, strokesRef.current, canvas.width, canvas.height);
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+        // Redraw existing strokes after resize
+        if (strokesRef.current.length > 0) {
+          renderStrokes(ctx, strokesRef.current, canvas.width, canvas.height);
+        }
       }
     }
 
-    // Small delay to ensure layout is settled
-    const timer = setTimeout(setSize, 100);
-    return () => clearTimeout(timer);
+    // Initial sizing with small delay for layout to settle
+    const timer = setTimeout(setSize, 50);
+
+    // Re-size when window resizes or orientation changes
+    window.addEventListener('resize', setSize);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', setSize);
+    };
   }, []);
 
   // Attach pointer event listeners

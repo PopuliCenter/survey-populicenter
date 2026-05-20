@@ -89,7 +89,7 @@ function AnswerCard({ answer, index }) {
             : JSON.parse(answer.answer_json);
           return (
             <span className="text-gray-800">
-              {Array.isArray(parsed) ? parsed.join(', ') : String(parsed)}
+              {Array.isArray(parsed) ? parsed.map((v) => v.startsWith('__other__:') ? v.replace('__other__:', '') : v).join(', ') : String(parsed)}
             </span>
           );
         } catch {
@@ -208,7 +208,30 @@ function AnswerCard({ answer, index }) {
       );
     }
 
-    return <span className="text-gray-800">{answer.answer_value ?? '—'}</span>;
+    if (answer.question_type === 'indonesia_region') {
+      const v = answer.answer_json;
+      if (!v || typeof v !== 'object' || !v.province_id) {
+        return <span className="text-gray-400 italic">Tidak ada jawaban</span>;
+      }
+      const parts = [
+        v.province_name && { label: 'Provinsi', value: v.province_name },
+        v.regency_name && { label: 'Kabupaten/Kota', value: v.regency_name },
+        v.district_name && { label: 'Kecamatan', value: v.district_name },
+        v.village_name && { label: 'Desa/Kelurahan', value: v.village_name },
+      ].filter(Boolean);
+      return (
+        <div className="space-y-1 mt-1">
+          {parts.map((p) => (
+            <div key={p.label} className="flex items-center gap-2 text-sm">
+              <span className="text-gray-500 w-32 shrink-0">{p.label}:</span>
+              <span className="text-gray-800 font-medium">{p.value}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return <span className="text-gray-800">{answer.answer_value && answer.answer_value.startsWith('__other__:') ? answer.answer_value.replace('__other__:', '') : (answer.answer_value ?? '—')}</span>;
   }
 
   const typeLabel = {
@@ -224,6 +247,7 @@ function AnswerCard({ answer, index }) {
     unique_id: 'Nomor Kuesioner (Unik)',
     time: 'Waktu',
     matrix: 'Matrix/Grid',
+    indonesia_region: 'Wilayah Indonesia',
   };
 
   return (

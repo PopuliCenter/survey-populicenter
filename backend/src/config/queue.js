@@ -1,50 +1,48 @@
 'use strict';
 
 /**
- * Bull queue for asynchronous export jobs
- * Uses the same Redis instance as rate limiting
+ * BullMQ queue for asynchronous export jobs.
+ * Uses the same Redis instance as rate limiting.
  *
  * In test environment, returns a mock object to avoid Redis connection attempts.
  */
 
 if (process.env.NODE_ENV === 'test') {
   module.exports = {
-    add: () => Promise.resolve({}),
-    process: () => {},
-    empty: () => Promise.resolve(),
-    close: () => Promise.resolve(),
-    on: () => {},
+    queue: {
+      add: () => Promise.resolve({}),
+      close: () => Promise.resolve(),
+      obliterate: () => Promise.resolve(),
+    },
+    worker: null,
+    connection: null,
   };
 } else {
-  const Queue = require('bull');
+  const { Queue } = require('bullmq');
+
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  const parsed = new URL(redisUrl);
+
+  const connection = {
+    host: parsed.hostname,
+    port: parseInt(parsed.port, 10) || 6379,
+  };
 
   const exportQueue = new Queue('export-jobs', {
-    redis: {
-      host: process.env.REDIS_URL ? new URL(process.env.REDIS_URL).hostname : 'localhost',
-      port: process.env.REDIS_URL ? new URL(process.env.REDIS_URL).port : 6379,
-    },
+    connection,
     defaultJobOptions: {
       attempts: 3,
       backoff: {
         type: 'exponential',
         delay: 2000,
       },
-      removeOnComplete: false,
-      removeOnFail: false,
+      removeOnComplete: { count: 100 },  // Keep last 100 completed jobs
+      removeOnFail: { count: 200 },      // Keep last 200 failed jobs
     },
   });
 
-  exportQueue.on('error', (error) => {
-    console.error('[Queue] Error:', error);
-  });
-
-  exportQueue.on('failed', (job, err) => {
-    console.error(`[Queue] Job ${job.id} failed:`, err.message);
-  });
-
-  exportQueue.on('completed', (job) => {
-    console.log(`[Queue] Job ${job.id} completed`);
-  });
-
-  module.exports = exportQueue;
+  module.exports = {
+    queue: exportQueue,
+    connection,
+  };
 }

@@ -1,0 +1,10 @@
+const d = require('../frontend/public/wilayahIndonesia.json');
+console.log('Provinsi pertama :', JSON.stringify(d.provinces[0]));
+console.log('Provinsi terakhir:', JSON.stringify(d.provinces[d.provinces.length - 1]));
+console.log('Kab pertama Aceh :', JSON.stringify(d.regenciesByProvince['11'][0]));
+console.log('Kec pertama      :', JSON.stringify(d.districtsByRegency['1101'][0]));
+console.log('Desa pertama     :', JSON.stringify(d.villagesByDistrict['110101'][0]));
+console.log('Total provinsi   :', d.provinces.length);
+console.log('Total kab/kota   :', Object.values(d.regenciesByProvince).flat().length);
+console.log('Total kecamatan  :', Object.values(d.districtsByRegency).flat().length);
+console.log('Total desa/kel   :', Object.values(d.villagesByDistrict).flat().length);

@@ -102,11 +102,24 @@ function buildExportData(responses, questions) {
 
   // Dynamic question headers
   // For matrix questions: one column per row with header "{question.text} - {rowName}"
+  // For indonesia_region: one column per level (Provinsi, Kab/Kota, Kecamatan, Desa/Kelurahan)
   const questionHeaders = [];
   for (const q of questions) {
     if (q.type === 'matrix' && q.options && Array.isArray(q.options.rows)) {
       for (const row of q.options.rows) {
         questionHeaders.push(`${q.text} - ${row}`);
+      }
+    } else if (q.type === 'indonesia_region') {
+      const depth = (q.options && q.options.depth) || 'village';
+      questionHeaders.push(`${q.text} - Provinsi`);
+      if (depth === 'regency' || depth === 'district' || depth === 'village') {
+        questionHeaders.push(`${q.text} - Kabupaten/Kota`);
+      }
+      if (depth === 'district' || depth === 'village') {
+        questionHeaders.push(`${q.text} - Kecamatan`);
+      }
+      if (depth === 'village') {
+        questionHeaders.push(`${q.text} - Desa/Kelurahan`);
       }
     } else {
       questionHeaders.push(q.text);
@@ -146,6 +159,20 @@ function buildExportData(responses, questions) {
         for (const row of q.options.rows) {
           questionValues.push(json[row] || '');
         }
+      } else if (q.type === 'indonesia_region') {
+        // Wilayah Indonesia: satu kolom per tingkat wilayah sesuai depth
+        const depth = (q.options && q.options.depth) || 'village';
+        const v = (answer && answer.answer_json) ? answer.answer_json : {};
+        questionValues.push(v.province_name || '');
+        if (depth === 'regency' || depth === 'district' || depth === 'village') {
+          questionValues.push(v.regency_name || '');
+        }
+        if (depth === 'district' || depth === 'village') {
+          questionValues.push(v.district_name || '');
+        }
+        if (depth === 'village') {
+          questionValues.push(v.village_name || '');
+        }
       } else if (!answer) {
         questionValues.push('');
       } else if (q.type === 'photo') {
@@ -153,13 +180,15 @@ function buildExportData(responses, questions) {
       } else if (answer.answer_json !== null && answer.answer_json !== undefined) {
         questionValues.push(
           Array.isArray(answer.answer_json)
-            ? answer.answer_json.join(', ')
+            ? answer.answer_json.map((v) => v.startsWith('__other__:') ? v.replace('__other__:', '') : v).join(', ')
             : JSON.stringify(answer.answer_json)
         );
       } else {
         questionValues.push(
           answer.answer_value !== null && answer.answer_value !== undefined
-            ? answer.answer_value
+            ? (answer.answer_value.startsWith && answer.answer_value.startsWith('__other__:')
+                ? answer.answer_value.replace('__other__:', '')
+                : answer.answer_value)
             : ''
         );
       }
