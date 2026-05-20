@@ -1,15 +1,11 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────────
-# init-ssl.sh
+# init-ssl.sh — Fully non-interactive SSL setup
 #
-# Script untuk inisialisasi SSL Let's Encrypt pertama kali di VPS.
-# Jalankan SEKALI saja setelah deploy pertama kali.
-#
-# Prasyarat:
-#   - Domain risetcenter.com sudah pointing ke IP VPS (A record di Hostinger DNS)
-#   - Port 80 dan 443 terbuka di firewall VPS
-#   - Docker dan docker compose sudah terinstall
-#   - Semua container sudah running (docker compose up -d)
+# Jalankan di VPS setelah:
+#   - Domain risetcenter.com pointing ke IP VPS (A record)
+#   - Port 80 terbuka
+#   - docker compose up -d sudah jalan dengan nginx-http-only.conf
 #
 # Usage:
 #   chmod +x scripts/init-ssl.sh
@@ -19,68 +15,60 @@
 set -e
 
 DOMAIN="risetcenter.com"
-EMAIL="admin@risetcenter.com"  # Ganti dengan email Anda yang valid
+EMAIL="info@populicenter.org"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════"
 echo "  🔒 SSL Setup untuk $DOMAIN"
+echo "  📧 Email: $EMAIL"
 echo "═══════════════════════════════════════════════════════════"
 echo ""
 
-# Step 1: Gunakan nginx config HTTP-only dulu
+# Step 1: Pastikan pakai nginx HTTP-only config
 echo "[1/5] Switching ke nginx HTTP-only config..."
-cp nginx.conf nginx.conf.ssl-backup
-cp nginx-http-only.conf nginx.conf
-
-# Step 2: Restart nginx dengan config HTTP-only
-echo "[2/5] Restarting nginx (HTTP only)..."
-docker compose up -d --force-recreate nginx
-sleep 5
-
-# Step 3: Test apakah domain bisa diakses
-echo "[3/5] Testing domain accessibility..."
-if curl -s -o /dev/null -w "%{http_code}" "http://$DOMAIN/.well-known/acme-challenge/test" | grep -q "404\|200"; then
-    echo "  ✓ Domain $DOMAIN accessible"
-else
-    echo "  ✗ ERROR: Domain $DOMAIN tidak bisa diakses dari internet."
-    echo "    Pastikan:"
-    echo "    - A record di Hostinger DNS sudah pointing ke IP VPS"
-    echo "    - Port 80 terbuka di firewall"
-    echo "    - Tunggu propagasi DNS (bisa sampai 24 jam)"
-    cp nginx.conf.ssl-backup nginx.conf
-    rm nginx.conf.ssl-backup
-    exit 1
+if [ -f nginx-http-only.conf ]; then
+    cp nginx.conf nginx.conf.ssl-backup 2>/dev/null || true
+    cp nginx-http-only.conf nginx.conf
 fi
 
-# Step 4: Request sertifikat dari Let's Encrypt
-echo "[4/5] Requesting SSL certificate..."
+# Step 2: Restart nginx
+echo "[2/5] Restarting nginx..."
+docker compose up -d --force-recreate nginx
+echo "  Waiting 5s for nginx to start..."
+sleep 5
+
+# Step 3: Request sertifikat (fully non-interactive)
+echo "[3/5] Requesting SSL certificate from Let's Encrypt..."
 docker compose run --rm certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
     --email "$EMAIL" \
     --agree-tos \
     --no-eff-email \
+    --non-interactive \
     --force-renewal \
     -d "$DOMAIN" \
     -d "www.$DOMAIN"
 
-# Step 5: Restore nginx.conf HTTPS dan reload
-echo "[5/5] Activating HTTPS config..."
-cp nginx.conf.ssl-backup nginx.conf
-rm nginx.conf.ssl-backup
+# Step 4: Restore HTTPS nginx config
+echo "[4/5] Activating HTTPS config..."
+if [ -f nginx.conf.ssl-backup ]; then
+    cp nginx.conf.ssl-backup nginx.conf
+    rm nginx.conf.ssl-backup
+fi
 
+# Step 5: Restart nginx dengan HTTPS
+echo "[5/5] Restarting nginx with HTTPS..."
 docker compose up -d --force-recreate nginx
 sleep 3
 
-# Verify
 echo ""
 echo "═══════════════════════════════════════════════════════════"
-echo "  ✅ SSL berhasil diaktifkan!"
+echo "  ✅ SSL aktif!"
 echo ""
 echo "  🌐 https://$DOMAIN"
 echo "  🌐 https://www.$DOMAIN"
 echo ""
-echo "  Sertifikat berlaku 90 hari dan otomatis di-renew"
-echo "  oleh certbot container setiap 12 jam."
+echo "  Auto-renew aktif via certbot container."
 echo "═══════════════════════════════════════════════════════════"
 echo ""
