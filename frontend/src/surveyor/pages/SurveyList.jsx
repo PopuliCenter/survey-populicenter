@@ -5,6 +5,7 @@ import QuotaProgress from '../../components/QuotaProgress';
 import useSyncManager from '../hooks/useSyncManager';
 import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey } from '../../utils/storage';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
+import { addBackButtonListener } from '../../utils/capacitorBridge';
 
 /**
  * Hitung selisih hari antara dua tanggal (dibulatkan ke bawah).
@@ -140,17 +141,34 @@ function SurveyList() {
         const cached = await getCachedSurveyList();
         if (cached && cached.length > 0) {
           setSurveys(cached);
+
+          // Cek mana yang sudah punya questions (fully cached)
+          const cachedSet = new Set();
+          for (const s of cached) {
+            const full = await getCachedSurvey(s.id);
+            if (full && full.questions && full.questions.length > 0) {
+              cachedSet.add(s.id);
+            }
+          }
+          setDownloadedSurveys(cachedSet);
+
           // Load quota dari cache offline
           try {
             const cachedQuota = localStorage.getItem('offline_quota_map');
             if (cachedQuota) {
               setQuotaMap(JSON.parse(cachedQuota));
             } else {
-              // Fallback: ambil dari _offlineQuota yang disimpan per survey
               const map = {};
               for (const s of cached) {
                 if (s._offlineQuota) {
                   map[s.id] = s._offlineQuota;
+                }
+              }
+              // Juga cek dari full cached survey
+              for (const sid of cachedSet) {
+                const full = await getCachedSurvey(sid);
+                if (full && full._offlineQuota && !map[sid]) {
+                  map[sid] = full._offlineQuota;
                 }
               }
               setQuotaMap(map);
@@ -159,7 +177,7 @@ function SurveyList() {
             setQuotaMap({});
           }
         } else {
-          throw apiErr; // re-throw agar ditangkap catch luar
+          throw apiErr;
         }
       }
     } catch (err) {
@@ -200,11 +218,22 @@ function SurveyList() {
       setDownloadProgress({ current: i + 1, total: surveys.length });
       try {
         const res = await api.get(`/surveys/${s.id}`);
-        // Simpan survey + quota info bersama agar offline lengkap
         const surveyData = { ...res.data };
+
+        // Simpan quota info
         if (quotaMap[s.id]) {
           surveyData._offlineQuota = quotaMap[s.id];
         }
+
+        // Fetch dan simpan assigned numbers untuk offline
+        try {
+          const assignedRes = await api.get(`/responses/assigned-numbers/${s.id}`);
+          surveyData._assignedNumbers = assignedRes.data.assigned_numbers || null;
+          surveyData._usedNumbers = assignedRes.data.used_numbers || [];
+        } catch {
+          // Non-critical — skip jika gagal
+        }
+
         await cacheSurvey(surveyData);
         newCached.add(s.id);
       } catch {
@@ -242,13 +271,20 @@ function SurveyList() {
   // ─── Logout with confirmation ────────────────────────────────────────────────
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const handleLogoutClick = () => {
-    // Jika ada data pending, tampilkan konfirmasi
-    if (pendingCount > 0 || failedItems.length > 0) {
+  // ─── Android back button handler ───────────────────────────────────────────
+  useEffect(() => {
+    let cleanup = () => {};
+    addBackButtonListener(() => {
+      // Di halaman daftar survei, back = konfirmasi logout ke login
       setShowLogoutConfirm(true);
-    } else {
-      handleLogout();
-    }
+      return true; // Prevent default back behavior
+    }).then((fn) => { cleanup = fn; });
+    return () => cleanup();
+  }, []);
+
+  const handleLogoutClick = () => {
+    // Selalu tampilkan konfirmasi sebelum logout
+    setShowLogoutConfirm(true);
   };
 
   const handleLogout = async () => {
@@ -349,12 +385,16 @@ function SurveyList() {
 
               {/* Download status summary */}
               {surveys.length > 0 && (
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                <span className={`text-xs font-medium px-2.5 py-1.5 rounded-lg ${
                   downloadedSurveys.size === surveys.length
                     ? 'bg-green-50 text-green-700 border border-green-200'
-                    : 'bg-gray-100 text-gray-500'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
                 }`}>
-                  {downloadedSurveys.size === surveys.length ? '✓' : '○'} {downloadedSurveys.size}/{surveys.length} survei tersimpan offline
+                  {downloadedSurveys.size === surveys.length ? (
+                    <>✓ Semua survei tersimpan di HP — siap offline</>
+                  ) : (
+                    <>{downloadedSurveys.size}/{surveys.length} survei tersimpan — unduh semua agar bisa offline</>
+                  )}
                 </span>
               )}
 
@@ -471,51 +511,89 @@ function SurveyList() {
                   {assignedNumbers && assignedNumbers.length > 0 && (() => {
                     const doneCount = assignedNumbers.filter((n) => submittedSet.has(n)).length;
                     const allDone = doneCount === assignedNumbers.length;
+                    const isOfflineReady = downloadedSurveys.has(survey.id);
                     return (
                       <div className="mb-4">
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-xs text-gray-600 font-medium">
                             Daftar Kuesioner ({doneCount}/{assignedNumbers.length})
                           </p>
-                          {allDone && (
-                            <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-                              ✓ Semua selesai
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {isOfflineReady && (
+                              <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                                Tersimpan di HP
+                              </span>
+                            )}
+                            {allDone && (
+                              <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                                ✓ Semua selesai
+                              </span>
+                            )}
+                          </div>
                         </div>
 
+                        {/* Status offline info */}
+                        {!isOfflineReady && (
+                          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5 mb-2 flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                            Belum diunduh — tekan "Unduh Semua untuk Offline" agar bisa diisi tanpa internet
+                          </p>
+                        )}
+
                         {/* Progress bar mini */}
-                        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
                           <div
                             className={`h-1.5 rounded-full transition-all ${allDone ? 'bg-green-500' : 'bg-blue-500'}`}
                             style={{ width: `${(doneCount / assignedNumbers.length) * 100}%` }}
                           />
                         </div>
 
+                        {/* Daftar nomor kuesioner dengan status lengkap */}
                         <div className="flex flex-wrap gap-1.5">
                           {assignedNumbers.map((num) => {
                             const isDone = submittedSet.has(num);
+                            // Determine status: synced > filled > downloaded > pending
+                            let statusLabel, statusClass, icon;
+                            if (isDone) {
+                              statusLabel = 'Sudah diisi & sinkron';
+                              statusClass = 'bg-green-100 text-green-800 border-green-300';
+                              icon = <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>;
+                            } else if (isOfflineReady) {
+                              statusLabel = 'Siap diisi (offline ready)';
+                              statusClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                              icon = <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>;
+                            } else {
+                              statusLabel = 'Belum diunduh';
+                              statusClass = 'bg-white text-gray-500 border-gray-300';
+                              icon = <span className="w-3.5 h-3.5 rounded-full border-2 border-gray-300 inline-block" />;
+                            }
                             return (
                               <span
                                 key={num}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
-                                  isDone
-                                    ? 'bg-green-100 text-green-800 border-green-300'
-                                    : 'bg-white text-gray-600 border-gray-300'
-                                }`}
-                                title={isDone ? `Kuesioner ${num} sudah diisi` : `Kuesioner ${num} belum diisi`}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${statusClass}`}
+                                title={`Kuesioner ${num}: ${statusLabel}`}
                               >
-                                {isDone ? (
-                                  <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                ) : (
-                                  <span className="w-3.5 h-3.5 rounded-full border-2 border-gray-300 inline-block" />
-                                )}
+                                {icon}
                                 {num}
                               </span>
                             );
                           })}
+                        </div>
+
+                        {/* Legend */}
+                        <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Selesai
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> Siap offline
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block" /> Belum diunduh
+                          </span>
                         </div>
                       </div>
                     );
@@ -616,7 +694,7 @@ function SurveyList() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-800">Keluar dari Aplikasi?</h3>
+                <h3 className="text-base font-semibold text-gray-800">Keluar ke Halaman Login?</h3>
               </div>
             </div>
 
@@ -631,9 +709,9 @@ function SurveyList() {
                   ❌ Ada <strong>{failedItems.length} data gagal</strong> yang perlu ditinjau sebelum keluar.
                 </p>
               )}
-              {pendingCount === 0 && failedItems.length > 0 && (
+              {pendingCount === 0 && failedItems.length === 0 && (
                 <p className="text-sm text-gray-600">
-                  Pastikan semua data sudah ditangani sebelum keluar.
+                  Anda akan keluar dan kembali ke halaman login.
                 </p>
               )}
             </div>
@@ -649,7 +727,7 @@ function SurveyList() {
                 onClick={handleLogout}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
               >
-                Tetap Keluar
+                Keluar
               </button>
             </div>
           </div>

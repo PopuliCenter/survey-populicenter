@@ -45,10 +45,18 @@ export async function getCachedSurvey(surveyId) {
 export async function cacheSurveyList(surveys) {
   const db = await getDB();
   const tx = db.transaction('surveys', 'readwrite');
-  await Promise.all([
-    ...surveys.map((s) => tx.store.put({ ...s, cachedAt: Date.now() })),
-    tx.done,
-  ]);
+  // Merge: jangan overwrite data lengkap (questions, _assignedNumbers) yang sudah ada
+  for (const s of surveys) {
+    const existing = await tx.store.get(s.id);
+    if (existing && existing.questions && existing.questions.length > 0) {
+      // Sudah ada data lengkap — update metadata saja, jangan hapus questions
+      await tx.store.put({ ...existing, ...s, questions: existing.questions, _assignedNumbers: existing._assignedNumbers, _usedNumbers: existing._usedNumbers, _offlineQuota: existing._offlineQuota, cachedAt: Date.now() });
+    } else {
+      // Belum ada data lengkap — simpan apa adanya
+      await tx.store.put({ ...s, cachedAt: Date.now() });
+    }
+  }
+  await tx.done;
 }
 
 export async function getCachedSurveyList() {

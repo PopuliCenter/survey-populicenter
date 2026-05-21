@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { addBackButtonListener } from '../utils/capacitorBridge';
 
 /**
  * Login page with email + password form.
@@ -13,6 +14,17 @@ function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // ─── Android back button: exit app dari halaman login ───────────────────────
+  useEffect(() => {
+    let cleanup = () => {};
+    addBackButtonListener(() => {
+      setShowExitConfirm(true);
+      return true; // Prevent default
+    }).then((fn) => { cleanup = fn; });
+    return () => cleanup();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -128,6 +140,44 @@ function Login() {
           </button>
         </form>
       </div>
+
+      {/* Modal Konfirmasi Keluar App */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </div>
+              <h3 className="text-base font-semibold text-gray-800">Keluar Aplikasi?</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">Apakah Anda yakin ingin menutup aplikasi?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const { App } = await import('@capacitor/app');
+                    App.exitApp();
+                  } catch {
+                    setShowExitConfirm(false);
+                  }
+                }}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+              >
+                Keluar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

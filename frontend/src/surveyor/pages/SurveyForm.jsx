@@ -441,63 +441,70 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
     const availableNumbers = assignedNumbers.filter((num) => !usedSet.has(num));
 
     return (
-      <div className="space-y-2">
-        <select
-          value={answer || ''}
-          onChange={(e) => onChange(e.target.value)}
-          className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors bg-white ${
-            hasError ? 'border-red-400 bg-red-50' : 'border-gray-300'
-          }`}
-          aria-label={`Pilih nomor kuesioner untuk: ${question.text}`}
-        >
-          <option value="">— Pilih nomor kuesioner —</option>
-          {assignedNumbers.map((num) => {
-            const isUsed = usedSet.has(num);
-            return (
-              <option key={num} value={num} disabled={isUsed}>
-                {num} {isUsed ? '(sudah diisi)' : ''}
-              </option>
-            );
-          })}
-        </select>
-
-        {/* Info jumlah tersedia */}
+      <div className="space-y-3">
+        {/* Info status */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-500">
+          <span className="text-xs font-medium text-gray-600">
             {availableNumbers.length} dari {assignedNumbers.length} nomor tersedia
           </span>
+          {!isOnline && (
+            <span className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+              📱 Data offline
+            </span>
+          )}
         </div>
 
-        {/* Daftar visual nomor */}
-        <div className="flex flex-wrap gap-1.5">
+        {/* Daftar visual nomor — klik untuk memilih */}
+        <div className="flex flex-wrap gap-2">
           {assignedNumbers.map((num) => {
             const isUsed = usedSet.has(num);
             const isSelected = answer === num;
+            let badgeClass, icon, label;
+            if (isSelected) {
+              badgeClass = 'bg-blue-100 text-blue-800 border-blue-400 ring-2 ring-blue-400 shadow-sm';
+              icon = '●';
+              label = 'Terpilih';
+            } else if (isUsed) {
+              badgeClass = 'bg-green-50 text-green-700 border-green-300 cursor-not-allowed';
+              icon = '✓';
+              label = 'Sudah diisi';
+            } else {
+              badgeClass = 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-300 cursor-pointer';
+              icon = '○';
+              label = 'Belum diisi — ketuk untuk memilih';
+            }
             return (
-              <span
+              <button
                 key={num}
-                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
-                  isSelected
-                    ? 'bg-blue-100 text-blue-800 border-blue-300 ring-2 ring-blue-400'
-                    : isUsed
-                      ? 'bg-gray-100 text-gray-400 border-gray-200 line-through cursor-not-allowed'
-                      : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                }`}
+                type="button"
+                disabled={isUsed}
                 onClick={() => !isUsed && onChange(num)}
-                title={isUsed ? 'Sudah diisi' : isSelected ? 'Terpilih' : 'Klik untuk memilih'}
-                role="button"
-                tabIndex={isUsed ? -1 : 0}
-                onKeyDown={(e) => e.key === 'Enter' && !isUsed && onChange(num)}
-                aria-label={`Nomor ${num}${isUsed ? ' (sudah diisi)' : isSelected ? ' (terpilih)' : ''}`}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border transition-all min-w-[48px] min-h-[44px] ${badgeClass}`}
+                title={`Nomor ${num}: ${label}`}
+                aria-label={`Nomor ${num}: ${label}`}
               >
-                {isUsed ? '✓' : isSelected ? '●' : '○'} {num}
-              </span>
+                <span className="text-base">{icon}</span>
+                {num}
+              </button>
             );
           })}
         </div>
 
+        {/* Legend */}
+        <div className="flex flex-wrap gap-3 text-xs text-gray-500 pt-1 border-t border-gray-100">
+          <span className="flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Sudah diisi
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> Terpilih
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block" /> Tersedia
+          </span>
+        </div>
+
         {availableNumbers.length === 0 && (
-          <p className="text-xs text-red-600 font-medium">
+          <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-lg px-3 py-2">
             Semua nomor kuesioner sudah diisi.
           </p>
         )}
@@ -1130,18 +1137,34 @@ function SurveyForm() {
           }
           setDisplayOptionsMap(optMap);
 
-          // Cache survey data for offline use
+          // Cache survey data for offline use (termasuk assigned numbers)
           await cacheSurvey(surveyData);
 
           // Fetch assigned questionnaire numbers for this TPD
           try {
             const assignedRes = await api.get(`/responses/assigned-numbers/${id}`);
             if (!cancelled) {
-              setAssignedNumbers(assignedRes.data.assigned_numbers || null);
-              setUsedNumbers(assignedRes.data.used_numbers || []);
+              const an = assignedRes.data.assigned_numbers || null;
+              const un = assignedRes.data.used_numbers || [];
+              setAssignedNumbers(an);
+              setUsedNumbers(un);
+              // Simpan ke cache agar tersedia offline
+              try {
+                const cachedSurvey = await getCachedSurvey(id);
+                if (cachedSurvey) {
+                  await cacheSurvey({ ...cachedSurvey, _assignedNumbers: an, _usedNumbers: un });
+                }
+              } catch { /* non-critical */ }
             }
           } catch {
-            // Non-critical — TPD will use free input if this fails
+            // Non-critical — coba ambil dari cache
+            try {
+              const cachedSurvey = await getCachedSurvey(id);
+              if (!cancelled && cachedSurvey && cachedSurvey._assignedNumbers) {
+                setAssignedNumbers(cachedSurvey._assignedNumbers);
+                setUsedNumbers(cachedSurvey._usedNumbers || []);
+              }
+            } catch { /* ignore */ }
           }
         }
       } catch (err) {
@@ -1163,6 +1186,11 @@ function SurveyForm() {
                   }
                 }
                 setDisplayOptionsMap(optMap);
+                // Load assigned numbers dari cache
+                if (cached._assignedNumbers) {
+                  setAssignedNumbers(cached._assignedNumbers);
+                  setUsedNumbers(cached._usedNumbers || []);
+                }
               } else {
                 setLoadingError('Data survei belum tersedia offline. Hubungkan ke internet untuk mengunduh data survei terlebih dahulu.');
               }

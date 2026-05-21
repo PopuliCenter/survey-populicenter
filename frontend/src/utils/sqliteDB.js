@@ -109,6 +109,20 @@ export async function getCachedSurveySQLite(surveyId) {
 export async function cacheSurveyListSQLite(surveys) {
   const conn = await initSQLiteDB();
   for (const s of surveys) {
+    // Merge: jangan overwrite data lengkap yang sudah ada
+    const existing = await conn.query(`SELECT data FROM surveys WHERE id = ?`, [s.id]);
+    if (existing.values && existing.values.length > 0) {
+      const existingData = JSON.parse(existing.values[0].data);
+      if (existingData.questions && existingData.questions.length > 0) {
+        // Sudah ada data lengkap — update metadata saja
+        const merged = { ...existingData, ...s, questions: existingData.questions, _assignedNumbers: existingData._assignedNumbers, _usedNumbers: existingData._usedNumbers, _offlineQuota: existingData._offlineQuota };
+        await conn.run(
+          `INSERT OR REPLACE INTO surveys (id, data, cached_at) VALUES (?, ?, ?)`,
+          [s.id, JSON.stringify(merged), Date.now()]
+        );
+        continue;
+      }
+    }
     await conn.run(
       `INSERT OR REPLACE INTO surveys (id, data, cached_at) VALUES (?, ?, ?)`,
       [s.id, JSON.stringify(s), Date.now()]
