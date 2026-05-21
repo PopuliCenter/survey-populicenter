@@ -140,7 +140,24 @@ function SurveyList() {
         const cached = await getCachedSurveyList();
         if (cached && cached.length > 0) {
           setSurveys(cached);
-          setQuotaMap({});
+          // Load quota dari cache offline
+          try {
+            const cachedQuota = localStorage.getItem('offline_quota_map');
+            if (cachedQuota) {
+              setQuotaMap(JSON.parse(cachedQuota));
+            } else {
+              // Fallback: ambil dari _offlineQuota yang disimpan per survey
+              const map = {};
+              for (const s of cached) {
+                if (s._offlineQuota) {
+                  map[s.id] = s._offlineQuota;
+                }
+              }
+              setQuotaMap(map);
+            }
+          } catch {
+            setQuotaMap({});
+          }
         } else {
           throw apiErr; // re-throw agar ditangkap catch luar
         }
@@ -172,7 +189,7 @@ function SurveyList() {
     if (surveys.length > 0) checkCached();
   }, [surveys]);
 
-  // ─── Download all surveys (questions + data) for offline use ────────────────
+  // ─── Download all surveys (questions + quota + assigned numbers) for offline ─
   async function handleDownloadAll() {
     setDownloading(true);
     setDownloadProgress({ current: 0, total: surveys.length });
@@ -183,12 +200,22 @@ function SurveyList() {
       setDownloadProgress({ current: i + 1, total: surveys.length });
       try {
         const res = await api.get(`/surveys/${s.id}`);
-        await cacheSurvey(res.data);
+        // Simpan survey + quota info bersama agar offline lengkap
+        const surveyData = { ...res.data };
+        if (quotaMap[s.id]) {
+          surveyData._offlineQuota = quotaMap[s.id];
+        }
+        await cacheSurvey(surveyData);
         newCached.add(s.id);
       } catch {
         // Skip failed — will retry next time
       }
     }
+
+    // Simpan quotaMap ke localStorage agar bisa diakses offline
+    try {
+      localStorage.setItem('offline_quota_map', JSON.stringify(quotaMap));
+    } catch { /* ignore */ }
 
     setDownloadedSurveys(newCached);
     setDownloading(false);
@@ -212,7 +239,18 @@ function SurveyList() {
     }
   }, [location.state, fetchData, navigate, location.pathname]);
 
-  // ─── Logout ─────────────────────────────────────────────────────────────────
+  // ─── Logout with confirmation ────────────────────────────────────────────────
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const handleLogoutClick = () => {
+    // Jika ada data pending, tampilkan konfirmasi
+    if (pendingCount > 0 || failedItems.length > 0) {
+      setShowLogoutConfirm(true);
+    } else {
+      handleLogout();
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
@@ -225,6 +263,19 @@ function SurveyList() {
       navigate('/login', { replace: true });
     }
   };
+
+  // ─── Prevent accidental page close/back when data pending ───────────────────
+  useEffect(() => {
+    function handleBeforeUnload(e) {
+      if (pendingCount > 0) {
+        e.preventDefault();
+        e.returnValue = 'Ada data yang belum tersinkron. Yakin ingin keluar?';
+        return e.returnValue;
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [pendingCount]);
 
   // ─── Navigate to survey form ─────────────────────────────────────────────────
   const handleStartSurvey = (surveyId) => {
@@ -248,7 +299,7 @@ function SurveyList() {
             </div>
             <div className="flex items-center gap-2">
               <OfflineStatusBar isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
-              <button onClick={handleLogout} className="text-xs text-red-600 hover:text-red-800 border border-red-200 rounded-lg px-2.5 py-1.5">
+              <button onClick={handleLogoutClick} className="text-xs text-red-600 hover:text-red-800 border border-red-200 rounded-lg px-2.5 py-1.5">
                 Keluar
               </button>
             </div>
@@ -553,6 +604,57 @@ function SurveyList() {
           </div>
         )}
       </main>
+
+      {/* ── Modal Konfirmasi Logout ──────────────────────────────────────────── */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-800">Keluar dari Aplikasi?</h3>
+              </div>
+            </div>
+
+            <div className="space-y-2 mb-5">
+              {pendingCount > 0 && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  ⚠️ Ada <strong>{pendingCount} data</strong> yang belum tersinkron ke server. Data akan tetap tersimpan di perangkat dan otomatis diunggah saat Anda login kembali.
+                </p>
+              )}
+              {failedItems.length > 0 && (
+                <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  ❌ Ada <strong>{failedItems.length} data gagal</strong> yang perlu ditinjau sebelum keluar.
+                </p>
+              )}
+              {pendingCount === 0 && failedItems.length > 0 && (
+                <p className="text-sm text-gray-600">
+                  Pastikan semua data sudah ditangani sebelum keluar.
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+              >
+                Tetap Keluar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1473,6 +1473,8 @@ function SurveyForm() {
     if (!navigator.onLine) {
       // ─── Offline submit: enqueue to IndexedDB ───────────────────────
       try {
+        setMediaUploadMessage('Menyimpan data ke perangkat...');
+
         // Build answers payload — only include visible questions, skip photo questions
         const visibleQs = questions.filter((q) => visibleIds.has(q.id));
         const answersPayload = buildAnswersPayload(visibleQs, answers, {});
@@ -1504,9 +1506,10 @@ function SurveyForm() {
           photo_count: fieldToolsSettings.photo_mode !== 'disabled' ? photoCapture.photos.length : 0,
         });
 
-        // Save media files to IndexedDB media_files store in parallel
+        // Save media files to offline storage in parallel (with compression)
         const offlineMediaSaves = [];
         if (fieldToolsSettings.audio_mode !== 'disabled' && audioRecorder.audioBlob) {
+          setMediaUploadMessage('Menyimpan rekaman audio...');
           offlineMediaSaves.push(
             saveMediaFile({
               localId,
@@ -1518,17 +1521,21 @@ function SurveyForm() {
         }
         if (fieldToolsSettings.photo_mode !== 'disabled') {
           for (const photo of photoCapture.photos) {
+            setMediaUploadMessage('Mengompresi dan menyimpan foto...');
+            // Kompresi foto sebelum simpan offline (hemat storage + lebih cepat)
+            const compressed = await compressIfNeeded(photo.blob);
             offlineMediaSaves.push(
               saveMediaFile({
                 localId,
                 type: 'photo',
-                blob: photo.blob,
+                blob: compressed,
                 filename: photo.blob.name || 'photo.jpg',
               })
             );
           }
         }
         if (fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty) {
+          setMediaUploadMessage('Menyimpan tanda tangan...');
           const sigBlob = await signaturePad.toBlob();
           if (sigBlob) {
             offlineMediaSaves.push(
@@ -1541,6 +1548,9 @@ function SurveyForm() {
             );
           }
         }
+        if (offlineMediaSaves.length > 0) {
+          setMediaUploadMessage('Menyimpan file media ke perangkat...');
+        }
         await Promise.all(offlineMediaSaves);
 
         // Navigate to success page with offline flag
@@ -1551,6 +1561,7 @@ function SurveyForm() {
         setSubmitError('Gagal menyimpan data secara lokal. Silakan coba kembali.');
       } finally {
         setSubmitting(false);
+        setMediaUploadMessage('');
       }
       return;
     }

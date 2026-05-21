@@ -58,12 +58,16 @@ function useAudioRecorder() {
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
   const streamRef = useRef(null);
+  const autoStopRef = useRef(null);
 
   // Clean up on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+      }
+      if (autoStopRef.current) {
+        clearTimeout(autoStopRef.current);
       }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -118,16 +122,26 @@ function useAudioRecorder() {
       };
 
       mediaRecorderRef.current = recorder;
-      recorder.start();
+      // Collect data every 1 second for smaller chunks
+      recorder.start(1000);
       setStatus('recording');
       setDuration(0);
       setAudioBlob(null);
       startTimer();
+
+      // Auto-stop after 5 minutes to prevent oversized files
+      autoStopRef.current = setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+          setStatus('stopped');
+          stopTimer();
+        }
+      }, 5 * 60 * 1000);
     } catch {
       // Permission denied or other error
       setPermissionDenied(true);
     }
-  }, [status, isSupported, startTimer]);
+  }, [status, isSupported, startTimer, stopTimer]);
 
   const pauseRecording = useCallback(() => {
     if (status !== 'recording') return;
@@ -157,12 +171,20 @@ function useAudioRecorder() {
       setStatus('stopped');
       stopTimer();
     }
+    if (autoStopRef.current) {
+      clearTimeout(autoStopRef.current);
+      autoStopRef.current = null;
+    }
   }, [status, stopTimer]);
 
   const resetRecording = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+    if (autoStopRef.current) {
+      clearTimeout(autoStopRef.current);
+      autoStopRef.current = null;
     }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
