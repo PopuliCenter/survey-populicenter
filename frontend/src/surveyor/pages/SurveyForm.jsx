@@ -289,6 +289,65 @@ function buildAnswersPayload(questions, answers, photoPaths) {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 /**
+ * Panel status GPS lokasi awal wawancara.
+ * Menampilkan: terkunci (akurasi), sedang mencari, atau belum didapat + tombol
+ * ambil ulang. GPS dipantau otomatis sejak form dibuka (lihat efek di SurveyForm).
+ *
+ * @param {{ mode: string, startGeo: object|null, searching: boolean, onRefresh: () => void }} props
+ */
+function GpsStatusPanel({ mode, startGeo, searching, onRefresh }) {
+  if (mode === 'disabled') return null;
+
+  const available = !!(startGeo && startGeo.status === 'available' && startGeo.lat != null && startGeo.lng != null);
+  const required = mode === 'required';
+  const accuracyText = available && startGeo.accuracy != null ? ` (akurasi ±${Math.round(startGeo.accuracy)} m)` : '';
+
+  let tone, icon, message;
+  if (available) {
+    tone = 'bg-green-50 border-green-200 text-green-700';
+    icon = (
+      <svg className="w-5 h-5 text-green-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+    );
+    message = `Lokasi terkunci${accuracyText}`;
+  } else if (searching) {
+    tone = 'bg-blue-50 border-blue-200 text-blue-700';
+    icon = (
+      <svg className="animate-spin w-5 h-5 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
+    );
+    message = 'Mencari sinyal GPS… boleh lanjut mengisi, lokasi diambil otomatis. Pastikan di luar ruangan.';
+  } else {
+    tone = 'bg-amber-50 border-amber-200 text-amber-700';
+    icon = (
+      <svg className="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" /></svg>
+    );
+    message = 'Lokasi GPS belum didapat. Pastikan di luar ruangan, lalu ambil lokasi.';
+  }
+
+  return (
+    <div id="gps-status-section" className={`rounded-xl border p-3 ${tone}`}>
+      <div className="flex items-center gap-1 mb-1.5">
+        <span className="text-xs font-semibold text-gray-700">Lokasi GPS</span>
+        {required && <span className="text-red-500 text-xs">*</span>}
+      </div>
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-sm flex-1">{message}</span>
+        {!available && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={searching}
+            className="shrink-0 min-h-[40px] px-3 text-sm font-semibold rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {searching ? 'Mencari…' : 'Coba Ambil Lokasi'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Komponen input untuk pertanyaan rating_scale.
  * Mendukung mode tampilan "stars" dan "numbers".
  *
@@ -1024,7 +1083,7 @@ function SurveyForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { getLocation } = useGeolocation();
+  const { getLocation, watchLocation } = useGeolocation();
 
   // Nomor kuesioner yang dipilih dari Daftar Survei (jika ada). Disimpan di ref
   // agar stabil sepanjang masa hidup form (tidak ikut berubah saat re-render).
@@ -1055,6 +1114,7 @@ function SurveyForm() {
 
   // ─── Start geolocation ──────────────────────────────────────────────────────
   const [startGeo, setStartGeo] = useState(null);
+  const [gpsSearching, setGpsSearching] = useState(false);
 
   // ─── Signature validation ───────────────────────────────────────────────────
   const [signatureError, setSignatureError] = useState(false);
@@ -1256,19 +1316,50 @@ function SurveyForm() {
   }, [id]);
 
   // ─── Capture start geolocation on form load (Requirement 2.1) ──────────────
+  // Pantau GPS sejak form dibuka. Fix valid PERTAMA disimpan sebagai lokasi awal
+  // wawancara lalu pantauan dihentikan (hemat baterai). Pendekatan ini memberi
+  // GPS waktu menit-an untuk mengunci satelit — penting saat OFFLINE (fix lambat),
+  // sehingga lokasi hampir selalu tersedia saat submit tanpa perlu internet.
   useEffect(() => {
+    if (fieldToolsSettings.gps_mode === 'disabled') return undefined;
+
     let cancelled = false;
-    async function captureStartGeo() {
-      try {
-        const geo = await getLocation();
-        if (!cancelled) setStartGeo(geo);
-      } catch {
-        if (!cancelled) setStartGeo({ status: 'lokasi_tidak_tersedia', lat: null, lng: null });
-      }
+    let stopped = false;
+    let cleanup = () => {};
+    setGpsSearching(true);
+
+    watchLocation((pos) => {
+      if (cancelled || stopped || pos.lat == null || pos.lng == null) return;
+      stopped = true;
+      setStartGeo({ status: 'available', lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy });
+      setGpsSearching(false);
+      cleanup(); // hentikan pantauan setelah dapat fix pertama
+    }).then((fn) => {
+      cleanup = fn;
+      if (cancelled || stopped) fn();
+    });
+
+    return () => {
+      cancelled = true;
+      setGpsSearching(false);
+      cleanup();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldToolsSettings.gps_mode]);
+
+  // Ambil lokasi GPS secara manual (tombol "Coba Ambil Lokasi").
+  const refreshStartGeo = useCallback(async () => {
+    setGpsSearching(true);
+    try {
+      const geo = await getLocation();
+      setStartGeo(geo);
+    } catch {
+      setStartGeo({ status: 'lokasi_tidak_tersedia', lat: null, lng: null });
+    } finally {
+      setGpsSearching(false);
     }
-    captureStartGeo();
-    return () => { cancelled = true; };
-  }, [getLocation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── Answer change handler ───────────────────────────────────────────────────
   const handleAnswerChange = useCallback((questionId, value, question) => {
@@ -1526,6 +1617,25 @@ function SurveyForm() {
       return;
     }
     setSignatureError(false);
+
+    // 2c. Validate required GPS — pastikan lokasi awal sudah didapat sebelum submit.
+    // Mencegah data tertahan / gagal sinkron karena lokasi wajib belum terkunci
+    // (khususnya saat offline). GPS dipantau sejak form dibuka (lihat efek di atas).
+    if (
+      fieldToolsSettings.gps_mode === 'required' &&
+      (!startGeo || startGeo.status !== 'available' || startGeo.lat == null || startGeo.lng == null)
+    ) {
+      setSubmitError(
+        gpsSearching
+          ? 'Lokasi GPS wajib dan masih dicari. Tunggu sebentar lalu coba lagi — pastikan berada di luar ruangan.'
+          : 'Lokasi GPS wajib tapi belum didapat. Tekan "Coba Ambil Lokasi" dan pastikan berada di luar ruangan.'
+      );
+      const el = document.getElementById('gps-status-section');
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
 
     const hasMediaUpload =
       (fieldToolsSettings.audio_mode !== 'disabled' && audioRecorder.audioBlob) ||
@@ -2001,6 +2111,13 @@ function SurveyForm() {
               </div>
             )}
 
+            <GpsStatusPanel
+              mode={fieldToolsSettings.gps_mode}
+              startGeo={startGeo}
+              searching={gpsSearching}
+              onRefresh={refreshStartGeo}
+            />
+
             {submitError && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
                 {submitError}
@@ -2211,6 +2328,13 @@ function SurveyForm() {
                     />
                   </div>
                 )}
+
+                <GpsStatusPanel
+                  mode={fieldToolsSettings.gps_mode}
+                  startGeo={startGeo}
+                  searching={gpsSearching}
+                  onRefresh={refreshStartGeo}
+                />
 
                 {/* Submit error */}
                 {submitError && (

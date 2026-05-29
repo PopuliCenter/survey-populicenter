@@ -61,7 +61,7 @@ describe('useGeolocation', () => {
 
   // ─── Requirement 16.5: timeout after 10 seconds ──────────────────────────────
 
-  test('mengembalikan status timeout ketika tidak ada respons dalam 10 detik', async () => {
+  test('mengembalikan status timeout ketika tidak ada respons dalam batas waktu', async () => {
     Object.defineProperty(global.navigator, 'geolocation', {
       value: {
         // Never calls success or error callback — simulates no response
@@ -78,8 +78,8 @@ describe('useGeolocation', () => {
     // Start the promise but don't await yet
     const promise = getLocation();
 
-    // Advance timers by 10 seconds to trigger the timeout
-    vi.advanceTimersByTime(10_000);
+    // Advance timers past the timeout window to trigger the timeout
+    vi.advanceTimersByTime(25_000);
 
     const result = await promise;
 

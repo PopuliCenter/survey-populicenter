@@ -77,9 +77,12 @@ export async function getCurrentPosition(options = {}) {
 
   try {
     const { Geolocation } = await import('@capacitor/geolocation');
+    try { await Geolocation.requestPermissions(); } catch { /* lanjut — getCurrentPosition akan gagal jika ditolak */ }
     const position = await Geolocation.getCurrentPosition({
       enableHighAccuracy: true,
-      timeout: options.timeout || 15000,
+      // Timeout lebih panjang untuk kondisi offline (fix satelit bisa lambat).
+      timeout: options.timeout || 30000,
+      maximumAge: options.maximumAge != null ? options.maximumAge : 0,
     });
 
     return {
@@ -90,6 +93,54 @@ export async function getCurrentPosition(options = {}) {
   } catch (err) {
     console.warn('Geolocation failed:', err);
     return null;
+  }
+}
+
+/**
+ * Pantau posisi terus-menerus (watchPosition). Berguna untuk mendapatkan fix
+ * GPS offline yang lambat: pantau di latar belakang selama wawancara berlangsung.
+ *
+ * @param {(pos: { lat: number, lng: number, accuracy: number }) => void} onUpdate
+ * @param {{ timeout?: number }} options
+ * @returns {Promise<() => void>} fungsi untuk menghentikan pantauan
+ */
+export async function watchPosition(onUpdate, options = {}) {
+  // Web / non-native → navigator.geolocation.watchPosition
+  if (!isNativePlatform()) {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return () => {};
+    const id = navigator.geolocation.watchPosition(
+      (pos) => onUpdate({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+      }),
+      () => { /* abaikan error; tetap memantau */ },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: options.timeout || 30000 }
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }
+
+  // Native → plugin Capacitor Geolocation
+  try {
+    const { Geolocation } = await import('@capacitor/geolocation');
+    try { await Geolocation.requestPermissions(); } catch { /* lanjut */ }
+    const watchId = await Geolocation.watchPosition(
+      { enableHighAccuracy: true, timeout: options.timeout || 30000 },
+      (position, err) => {
+        if (err || !position) return;
+        onUpdate({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        });
+      }
+    );
+    return () => {
+      try { Geolocation.clearWatch({ id: watchId }); } catch { /* abaikan */ }
+    };
+  } catch (err) {
+    console.warn('Geolocation watch failed:', err);
+    return () => {};
   }
 }
 
