@@ -24,3 +24,5 @@ frontend/android/local.properties
 Thumbs.db
 proxy.cjs
 coverage/
+# Vite temporary config bundles (bocor saat dev/build)
+*.timestamp-*.mjs
