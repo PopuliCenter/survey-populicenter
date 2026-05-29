@@ -33,6 +33,8 @@ jest.mock('../../src/models', () => {
       ne: Symbol('ne'),
       like: Symbol('like'),
       notLike: Symbol('notLike'),
+      gte: Symbol('gte'),
+      lte: Symbol('lte'),
     },
   };
 
@@ -942,6 +944,55 @@ describe('Response Module - GET /responses', () => {
     // Viewer query should not filter by surveyor_id
     const findAllCall = Response.findAll.mock.calls[0][0];
     expect(findAllCall.where).not.toHaveProperty('surveyor_id');
+  });
+
+  test('admin dapat memfilter berdasarkan survey_id', async () => {
+    const token = createAdminToken();
+    Response.findAll.mockResolvedValue(mockResponseList());
+
+    const res = await request(app)
+      .get('/responses')
+      .query({ survey_id: 'survey-uuid-001' })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const findAllCall = Response.findAll.mock.calls[0][0];
+    expect(findAllCall.where).toHaveProperty('survey_id', 'survey-uuid-001');
+  });
+
+  test('admin dapat memfilter berdasarkan surveyor_id (TPD)', async () => {
+    const token = createAdminToken();
+    Response.findAll.mockResolvedValue(mockResponseList('surveyor-uuid-002'));
+
+    const res = await request(app)
+      .get('/responses')
+      .query({ surveyor_id: 'surveyor-uuid-002' })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const findAllCall = Response.findAll.mock.calls[0][0];
+    expect(findAllCall.where).toHaveProperty('surveyor_id', 'surveyor-uuid-002');
+  });
+
+  test('filter rentang tanggal diterapkan ke start_time', async () => {
+    const token = createAdminToken();
+    Response.findAll.mockResolvedValue(mockResponseList());
+
+    const res = await request(app)
+      .get('/responses')
+      .query({ start_date: '2026-01-01', end_date: '2026-01-31' })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    const findAllCall = Response.findAll.mock.calls[0][0];
+    expect(findAllCall.where).toHaveProperty('start_time');
+    // start_time menggunakan operator Op.gte & Op.lte (key berupa Symbol)
+    const startTimeClause = findAllCall.where.start_time;
+    const opSymbols = Object.getOwnPropertySymbols(startTimeClause);
+    expect(opSymbols.length).toBe(2);
+    opSymbols.forEach((sym) => {
+      expect(startTimeClause[sym]).toBeInstanceOf(Date);
+    });
   });
 });
 

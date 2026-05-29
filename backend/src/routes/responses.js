@@ -553,8 +553,27 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
     const { role, id: userId } = req.user;
 
     const whereClause = {};
+
+    // Surveyor hanya boleh melihat respons miliknya sendiri.
+    // Role lain (admin/supervisor/viewer) boleh memfilter berdasarkan TPD tertentu.
     if (role === 'surveyor') {
       whereClause.surveyor_id = userId;
+    } else if (req.query.surveyor_id) {
+      whereClause.surveyor_id = req.query.surveyor_id;
+    }
+
+    // Filter berdasarkan survei
+    if (req.query.survey_id) {
+      whereClause.survey_id = req.query.survey_id;
+    }
+
+    // Filter rentang tanggal berdasarkan waktu mulai survei (inklusif).
+    // Tanggal dikirim sebagai 'YYYY-MM-DD'.
+    const { start_date, end_date } = req.query;
+    if (start_date || end_date) {
+      whereClause.start_time = {};
+      if (start_date) whereClause.start_time[Op.gte] = new Date(`${start_date}T00:00:00.000`);
+      if (end_date) whereClause.start_time[Op.lte] = new Date(`${end_date}T23:59:59.999`);
     }
 
     // Exclude PENDING responses from listing
