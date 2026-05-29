@@ -1399,6 +1399,7 @@ function SurveyForm() {
         formData.append('photo', file);
         const res = await api.post('/upload/photo', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 120000, // unggah media: beri waktu lebih untuk koneksi lambat
         });
         const uploadedPath = res.data.path;
         setPhotoPaths((prev) => ({ ...prev, [questionId]: uploadedPath }));
@@ -1761,6 +1762,7 @@ function SurveyForm() {
         uploadPromises.push(
           api.post('/upload/audio', audioFormData, {
             headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 120000,
           }).then((uploadRes) => {
             audio_path = uploadRes.data.path;
           })
@@ -1775,6 +1777,7 @@ function SurveyForm() {
           uploadPromises.push(
             api.post('/upload/photo', photoFormData, {
               headers: { 'Content-Type': 'multipart/form-data' },
+              timeout: 120000,
             }).then((uploadRes) => {
               media_photo_paths.push(uploadRes.data.path);
             })
@@ -1790,6 +1793,7 @@ function SurveyForm() {
           uploadPromises.push(
             api.post('/upload/signature', signatureFormData, {
               headers: { 'Content-Type': 'multipart/form-data' },
+              timeout: 120000,
             }).then((uploadRes) => {
               signature_path = uploadRes.data.path;
             })

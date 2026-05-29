@@ -73,6 +73,7 @@ function useSyncManager() {
 
             const uploadRes = await api.post(endpoint, formData, {
               headers: { 'Content-Type': 'multipart/form-data' },
+              timeout: 120000, // unggah media: beri waktu lebih untuk koneksi lambat
             });
 
             if (media.type === 'audio') audio_path = uploadRes.data.path;

@@ -93,12 +93,27 @@ function useAudioRecorder() {
     if (!isSupported) return;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Constraint suara: mono + peredam bising → lebih jernih untuk wawancara
+      // sekaligus memperkecil ukuran file.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       streamRef.current = stream;
       setPermissionDenied(false);
 
       const mimeType = getSupportedMimeType();
-      const options = mimeType ? { mimeType } : {};
+      // Kompres di sumbernya: ~32 kbps cukup jelas untuk rekaman suara wawancara,
+      // namun jauh lebih kecil (≈1 MB untuk 5 menit) sehingga unggah cepat dan
+      // tidak membebani bandwidth/penyimpanan server.
+      const options = {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: 32000,
+      };
       const recorder = new MediaRecorder(stream, options);
 
       chunksRef.current = [];
