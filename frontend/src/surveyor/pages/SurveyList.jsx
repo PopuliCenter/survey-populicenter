@@ -5,6 +5,7 @@ import QuotaProgress from '../../components/QuotaProgress';
 import useSyncManager from '../hooks/useSyncManager';
 import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey } from '../../utils/storage';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
+import ConfirmSheet from '../../components/ConfirmSheet';
 import { addBackButtonListener } from '../../utils/capacitorBridge';
 
 /**
@@ -747,56 +748,30 @@ function SurveyList() {
         )}
       </main>
 
-      {/* ── Modal Konfirmasi Logout ──────────────────────────────────────────── */}
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" role="dialog" aria-modal="true">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-800">Keluar ke Halaman Login?</h3>
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-5">
-              {pendingCount > 0 && (
-                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  ⚠️ Ada <strong>{pendingCount} data</strong> yang belum tersinkron ke server. Data akan tetap tersimpan di perangkat dan otomatis diunggah saat Anda login kembali.
-                </p>
-              )}
-              {failedItems.length > 0 && (
-                <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                  ❌ Ada <strong>{failedItems.length} data gagal</strong> yang perlu ditinjau sebelum keluar.
-                </p>
-              )}
-              {pendingCount === 0 && failedItems.length === 0 && (
-                <p className="text-sm text-gray-600">
-                  Anda akan keluar dan kembali ke halaman login.
-                </p>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-              >
-                Keluar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Bottom Sheet Konfirmasi Logout ───────────────────────────────────── */}
+      <ConfirmSheet
+        open={showLogoutConfirm}
+        iconType="warning"
+        title="Keluar ke Halaman Login?"
+        description={pendingCount === 0 && failedItems.length === 0
+          ? 'Anda akan keluar dan kembali ke halaman login.'
+          : undefined}
+        confirmLabel="Keluar"
+        cancelLabel="Batal"
+        onCancel={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+      >
+        {pendingCount > 0 && (
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            ⚠️ Ada <strong>{pendingCount} data</strong> yang belum tersinkron ke server. Data akan tetap tersimpan di perangkat dan otomatis diunggah saat Anda login kembali.
+          </p>
+        )}
+        {failedItems.length > 0 && (
+          <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+            ❌ Ada <strong>{failedItems.length} data gagal</strong> yang perlu ditinjau sebelum keluar.
+          </p>
+        )}
+      </ConfirmSheet>
     </div>
   );
 }
