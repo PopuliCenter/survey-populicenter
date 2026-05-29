@@ -71,13 +71,11 @@ function Login() {
     >
       {/* Brand */}
       <div className="text-center mb-7">
-        <div className="w-24 h-24 rounded-3xl bg-white/15 backdrop-blur flex items-center justify-center mx-auto mb-4 ring-1 ring-white/30 shadow-lg">
-          <img
-            src="/logo-populi-center.png"
-            alt="Populi Center"
-            className="h-16 w-16 object-contain rounded-2xl"
-          />
-        </div>
+        <img
+          src="/logo-populi-center.png"
+          alt="Populi Center"
+          className="h-32 w-auto mx-auto mb-5 object-contain drop-shadow-lg"
+        />
         <h1 className="text-2xl font-bold text-white">Selamat Datang</h1>
         <p className="text-sm text-blue-100 mt-1">Masuk untuk mulai survei</p>
       </div>
@@ -169,7 +167,7 @@ function Login() {
         </form>
       </div>
 
-      <p className="text-center text-[11px] text-blue-100 mt-6">© 2026 Populi Center · Platform Survei</p>
+      <p className="text-center text-[11px] text-blue-100 mt-6">© {new Date().getFullYear()} Populi Center</p>
 
       {/* Bottom sheet — Konfirmasi Keluar Aplikasi */}
       <ConfirmSheet
