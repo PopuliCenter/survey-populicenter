@@ -17,23 +17,41 @@ import SurveyProgressCard from '../components/SurveyProgressCard';
 import SurveyorProgressTable from '../components/SurveyorProgressTable';
 import api from '../services/api';
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-function StatCard({ title, value, subtitle, icon, color }) {
+// ─── Ikon garis (SVG) ───────────────────────────────────────────────────────────
+const DASH_ICON_PATHS = {
+  doc: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.6a1 1 0 01.7.3l5.4 5.4a1 1 0 01.3.7V19a2 2 0 01-2 2z',
+  brief: 'M9 6V5a2 2 0 012-2h2a2 2 0 012 2v1m-9 0h14a1 1 0 011 1v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7a1 1 0 011-1z',
+  clipboard: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-6 4h6',
+  users: 'M17 20h5v-1a4 4 0 00-3-3.87M9 20H4v-1a4 4 0 013-3.87m6-1.13a4 4 0 10-4 0M16 7a3 3 0 11-2 5',
+};
+
+function DIcon({ name, className = 'w-5 h-5' }) {
+  const d = DASH_ICON_PATHS[name];
+  if (!d) return null;
   return (
-    <div className="bg-white rounded-lg shadow p-5 flex items-center gap-4">
-      <div
-        className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${color}`}
-        aria-hidden="true"
-      >
-        {icon}
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={d} />
+    </svg>
+  );
+}
+
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+function StatCard({ title, value, subtitle, iconName, tint, trend }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div className="flex items-center justify-between">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tint}`} aria-hidden="true">
+          <DIcon name={iconName} />
+        </div>
+        {trend && (
+          <span className="text-[11px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">{trend}</span>
+        )}
       </div>
-      <div className="min-w-0">
-        <p className="text-xs text-gray-500 uppercase tracking-wide">{title}</p>
-        <p className="text-2xl font-bold text-gray-800">
-          {value !== null && value !== undefined ? value.toLocaleString('id-ID') : '—'}
-        </p>
-        {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
-      </div>
+      <p className="text-2xl font-bold text-gray-900 mt-3">
+        {value !== null && value !== undefined ? value.toLocaleString('id-ID') : '—'}
+      </p>
+      <p className="text-xs text-gray-400 mt-0.5">{title}</p>
+      {subtitle && <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>}
     </div>
   );
 }
@@ -81,7 +99,7 @@ function SurveyOverviewCard({ title, totalQuota, totalCollected, percentage, onC
 
   return (
     <div
-      className={`bg-white rounded-lg border p-4 cursor-pointer hover:shadow-md transition-shadow ${isComplete ? 'border-green-200' : 'border-gray-200'}`}
+      className={`bg-white rounded-2xl border p-4 cursor-pointer hover:shadow-md transition-shadow ${isComplete ? 'border-green-200' : 'border-gray-200'}`}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -260,37 +278,38 @@ function Dashboard() {
         {/* ── Summary stat cards ── */}
         <section aria-label="Statistik ringkasan">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <StatCard title="Survei Aktif" value={stats?.activeSurveys} icon="📋" color="bg-blue-100" />
-            <StatCard title="TPD Aktif" value={stats?.activeSurveyors} icon="🧑‍💼" color="bg-green-100" />
+            <StatCard title="Survei Aktif" value={stats?.activeSurveys} iconName="doc" tint="bg-blue-50 text-blue-600" />
+            <StatCard title="TPD Aktif" value={stats?.activeSurveyors} iconName="brief" tint="bg-emerald-50 text-emerald-600" />
             <StatCard
               title="Responden Hari Ini"
               value={stats?.todayResponses}
               subtitle={`dari total ${(stats?.totalResponses || 0).toLocaleString('id-ID')} responden`}
-              icon="📝"
-              color="bg-yellow-100"
+              iconName="clipboard"
+              tint="bg-amber-50 text-amber-600"
+              trend={stats?.todayResponses > 0 ? `▲ ${stats.todayResponses.toLocaleString('id-ID')} hari ini` : undefined}
             />
             <StatCard
               title="Total Responden (N)"
               value={stats?.totalResponses}
               subtitle={totalQuotaAll > 0 ? `Target: ${totalQuotaAll.toLocaleString('id-ID')} (${overallPercentage}%)` : undefined}
-              icon="👥"
-              color="bg-purple-100"
+              iconName="users"
+              tint="bg-violet-50 text-violet-600"
             />
           </div>
         </section>
 
         {/* ── Overall Progress Bar ── */}
         {totalQuotaAll > 0 && (
-          <section className="bg-white rounded-lg shadow p-5" aria-label="Progress keseluruhan">
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Progress keseluruhan">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-gray-700">Progress Keseluruhan</h2>
               <span className="text-sm font-bold text-blue-700">
                 N = {totalCollectedAll.toLocaleString('id-ID')} / {totalQuotaAll.toLocaleString('id-ID')}
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-4">
+            <div className="w-full bg-gray-100 rounded-full h-3">
               <div
-                className={`h-4 rounded-full transition-all ${overallPercentage >= 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                className={`h-3 rounded-full transition-all ${overallPercentage >= 100 ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-blue-500 to-indigo-600'}`}
                 style={{ width: `${Math.min(100, overallPercentage)}%` }}
               />
             </div>
@@ -302,7 +321,7 @@ function Dashboard() {
         )}
 
         {/* ── 7-day trend chart ── */}
-        <section className="bg-white rounded-lg shadow p-5" aria-label="Tren 7 hari">
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Tren 7 hari">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-700">Tren Pengisian (7 Hari Terakhir)</h2>
             <span className="text-sm text-gray-500">
@@ -329,7 +348,7 @@ function Dashboard() {
         </section>
 
         {/* ── Progress Survei Aktif ── */}
-        <section className="bg-white rounded-lg shadow p-5" aria-label="Progress survei aktif">
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Progress survei aktif">
           <h2 className="text-base font-semibold text-gray-700 mb-4">Progress Survei Aktif</h2>
 
           <div className="mb-4">
@@ -396,7 +415,7 @@ function Dashboard() {
         </section>
 
         {/* ── Top 5 TPD ── */}
-        <section className="bg-white rounded-lg shadow p-5" aria-label="Top 5 TPD">
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Top 5 TPD">
           <h2 className="text-base font-semibold text-gray-700 mb-4">Top 5 TPD</h2>
           {topTPD.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">Belum ada data TPD.</p>
@@ -412,10 +431,18 @@ function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {topTPD.map((tpd, index) => (
+                  {topTPD.map((tpd, index) => {
+                    const initials = (tpd.name || tpd.email || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+                    const rankTint = index === 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600';
+                    return (
                     <tr key={tpd.email} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                       <td className="py-2.5 pr-4 text-gray-400 font-medium">{index + 1}</td>
-                      <td className="py-2.5 pr-4 text-gray-800 font-medium">{tpd.name}</td>
+                      <td className="py-2.5 pr-4 text-gray-800 font-medium">
+                        <span className="flex items-center gap-2.5">
+                          <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${rankTint}`}>{initials}</span>
+                          {tpd.name}
+                        </span>
+                      </td>
                       <td className="py-2.5 pr-4 text-gray-500">{tpd.email}</td>
                       <td className="py-2.5 text-right">
                         <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
@@ -423,7 +450,8 @@ function Dashboard() {
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
