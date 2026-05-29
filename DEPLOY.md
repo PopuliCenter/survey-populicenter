@@ -92,6 +92,65 @@ cd /opt/survey-populicenter
 bash deploy.sh update
 ```
 
+### Update manual (langkah eksplisit) — direkomendasikan
+
+`git pull` + rebuild image **TIDAK** otomatis menjalankan migrasi database.
+Jika ada commit yang menambah migrasi (mis. tipe pertanyaan baru), Anda **wajib**
+menjalankan migrasi, jika tidak akan muncul error 500 saat menyimpan data baru.
+
+Urutan aman: **pull → build → migrate → restart**
+
+```bash
+cd /opt/survey-populicenter
+
+# 1. Ambil kode terbaru
+git pull
+
+# 2. Build ulang image (backend, worker, nginx/frontend)
+docker compose build
+
+# 3. Jalankan migrasi database yang tertunda  ← LANGKAH YANG SERING TERLEWAT
+docker compose run --rm backend npm run migrate
+
+# 4. Restart semua container dengan image baru
+docker compose up -d
+```
+
+Cek status migrasi (opsional):
+```bash
+docker compose exec backend npx sequelize-cli db:migrate:status
+```
+
+> Catatan: hanya frontend yang berubah? Cukup `docker compose up -d --build nginx`.
+> Ada migrasi baru atau perubahan backend? Wajib lewat langkah 3 di atas.
+
+## Troubleshooting
+
+### Error 500 saat membuat pertanyaan tipe tertentu (mis. "Wilayah Indonesia")
+
+Gejala: **membuat** pertanyaan dengan tipe baru → `Request failed with status code 500`,
+tapi **mengedit** pertanyaan lain berhasil.
+
+Penyebab: migrasi yang memperbarui CHECK constraint kolom `type` pada tabel
+`questions` belum dijalankan, sehingga database menolak nilai tipe baru.
+
+Perbaikan utama — jalankan migrasi:
+```bash
+cd /opt/survey-populicenter
+docker compose run --rm backend npm run migrate
+```
+
+Verifikasi constraint sudah memuat tipe baru:
+```bash
+docker compose exec postgres psql -U surveyapp -d web_survey_platform \
+  -c "\d+ questions" | grep questions_type_check
+```
+
+Fallback (jika status migrasi sudah "up" tapi tetap error — perbaiki constraint langsung):
+```bash
+docker compose exec postgres psql -U surveyapp -d web_survey_platform -c "ALTER TABLE questions DROP CONSTRAINT IF EXISTS questions_type_check; ALTER TABLE questions ADD CONSTRAINT questions_type_check CHECK (type IN ('single_choice','multiple_choice','short_text','long_text','numeric_scale','date','photo','rating_scale','phone_number','unique_id','time','matrix','indonesia_region'));"
+```
+
 ## Default Login
 
 - Email: `admin@populicenter.com`
