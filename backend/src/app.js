@@ -111,10 +111,33 @@ app.use((err, req, res, next) => {
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 
-if (require.main === module) {
+function startServer() {
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+    console.log(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}] pid=${process.pid}`);
   });
+}
+
+// Dijalankan langsung (bukan saat di-import oleh test).
+if (require.main === module) {
+  const cluster = require('cluster');
+  const os = require('os');
+
+  // Jumlah worker: WEB_CONCURRENCY, atau jumlah CPU (dibatasi 2 untuk KVM 2), minimal 1.
+  const desired = parseInt(process.env.WEB_CONCURRENCY, 10)
+    || Math.min((os.cpus() || []).length || 1, 2);
+  const workerCount = Math.max(1, desired);
+
+  // Cluster hanya di produksi & bila worker > 1 — memanfaatkan kedua vCPU.
+  if (process.env.NODE_ENV === 'production' && workerCount > 1 && cluster.isPrimary) {
+    console.log(`[cluster] primary pid=${process.pid} memulai ${workerCount} worker`);
+    for (let i = 0; i < workerCount; i++) cluster.fork();
+    cluster.on('exit', (worker, code, signal) => {
+      console.warn(`[cluster] worker pid=${worker.process.pid} berhenti (${signal || code}) — fork ulang`);
+      cluster.fork();
+    });
+  } else {
+    startServer();
+  }
 }
 
 module.exports = app;

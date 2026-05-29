@@ -39,6 +39,15 @@ module.exports = {
       underscored: true,
       timestamps: true,
     },
+    // Connection pool — penting saat banyak TPD menyinkron bersamaan.
+    // Total koneksi = (jumlah worker cluster) × max. Dengan 2 worker → 2×15=30,
+    // masih aman di bawah Postgres max_connections default (100).
+    pool: {
+      max: parseInt(process.env.DB_POOL_MAX, 10) || 15,
+      min: 2,
+      acquire: 30000,
+      idle: 10000,
+    },
     ...(process.env.DB_SSL === 'true'
       ? {
           dialectOptions: {
