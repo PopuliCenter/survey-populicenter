@@ -1,8 +1,9 @@
 const express = require('express');
 const { Op, fn, col } = require('sequelize');
-const { Survey, User, Response, SurveyorQuota } = require('../models');
+const { Survey, User, Response, SurveyorQuota, sequelize } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { getDashboardStats, getSurveyorResponseCounts } = require('../utils/statisticsUpdater');
+const { wibDateString, wibDayRangeUTC } = require('../utils/time');
 
 const router = express.Router();
 
@@ -119,57 +120,47 @@ router.get('/trend', authMiddleware, requireRole(['admin', 'supervisor', 'viewer
   try {
     const { survey_id: surveyId } = req.query;
 
-    // Build the 7-day date range (today and 6 days before), all in UTC
-    const days = [];
+    // 7 hari WIB terakhir (hari ini & 6 hari sebelumnya), sebagai 'YYYY-MM-DD' WIB
+    const now = new Date();
+    const dayStrings = [];
     for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setUTCHours(0, 0, 0, 0);
-      d.setUTCDate(d.getUTCDate() - i);
-      days.push(d);
+      dayStrings.push(wibDateString(new Date(now.getTime() - i * 86400000)));
     }
-
-    const rangeStart = days[0];
-    const rangeEnd = new Date(days[days.length - 1]);
-    rangeEnd.setUTCHours(23, 59, 59, 999);
+    // Rentang UTC: dari awal hari WIB 6 hari lalu sampai akhir hari WIB ini
+    const rangeStart = wibDayRangeUTC(new Date(now.getTime() - 6 * 86400000)).start;
+    const rangeEnd = wibDayRangeUTC(now).end;
 
     const surveyIds = await resolveDashboardSurveyIds(surveyId);
 
     let rows = [];
     if (surveyIds.length > 0) {
-      const responseWhere = {
-        created_at: {
-          [Op.between]: [rangeStart, rangeEnd],
-        },
-        questionnaire_number: { [Op.notLike]: 'PENDING-%' },
-        survey_id: surveyIds,
-      };
-
-      // Aggregate response counts grouped by UTC date (exclude PENDING)
-      rows = await Response.findAll({
-        attributes: [
-          [fn('DATE', col('created_at')), 'date'],
-          [fn('COUNT', col('id')), 'count'],
-        ],
-        where: responseWhere,
-        group: [fn('DATE', col('created_at'))],
-        raw: true,
-      });
+      // Group berdasarkan TANGGAL WIB (created_at disimpan UTC → konversi ke Asia/Jakarta)
+      rows = await sequelize.query(
+        `SELECT to_char(created_at AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') AS date,
+                COUNT(id)::int AS count
+         FROM responses
+         WHERE created_at BETWEEN :start AND :end
+           AND questionnaire_number NOT LIKE 'PENDING-%'
+           AND survey_id IN (:surveyIds)
+         GROUP BY 1`,
+        {
+          replacements: { start: rangeStart, end: rangeEnd, surveyIds },
+          type: sequelize.QueryTypes.SELECT,
+        }
+      );
     }
 
-    // Build a lookup map: 'YYYY-MM-DD' -> count
+    // Lookup: 'YYYY-MM-DD' (WIB) -> count
     const countMap = {};
     for (const row of rows) {
       countMap[row.date] = parseInt(row.count, 10);
     }
 
-    // Build the result array ensuring all 7 days are present (zeros for missing days)
-    const trend = days.map((d) => {
-      const dateStr = d.toISOString().slice(0, 10);
-      return {
-        date: dateStr,
-        count: countMap[dateStr] || 0,
-      };
-    });
+    // Pastikan semua 7 hari hadir (0 untuk hari tanpa data)
+    const trend = dayStrings.map((dateStr) => ({
+      date: dateStr,
+      count: countMap[dateStr] || 0,
+    }));
 
     res.json(trend);
   } catch (error) {
@@ -306,10 +297,8 @@ router.get('/survey-progress/:surveyId', authMiddleware, requireRole(['admin', '
  */
 router.get('/surveyor-summary', authMiddleware, requireRole(['admin', 'supervisor', 'viewer']), async (req, res, next) => {
   try {
-    const todayStart = new Date();
-    todayStart.setUTCHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setUTCHours(23, 59, 59, 999);
+    // Batas "hari ini" dalam WIB (bukan UTC) agar konsisten dengan dashboard.
+    const { start: todayStart, end: todayEnd } = wibDayRangeUTC();
 
     // Get all active surveyors
     const surveyors = await User.findAll({

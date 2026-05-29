@@ -2,6 +2,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { sequelize, Response, Answer, AuditLog, ExportJob, Survey, Question, SurveyorQuota, User } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
+const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
 
 const router = express.Router();
 
@@ -205,18 +206,23 @@ router.post('/responses', async (req, res, next) => {
       return res.json({ deleted_count: 0, message: 'Tidak ada respons yang cocok dengan filter' });
     }
 
-    // Get IDs for cascading delete
+    // Get IDs + survey_id for cascading delete & rekonsiliasi statistik
     const responseIds = await Response.findAll({
       where,
-      attributes: ['id'],
+      attributes: ['id', 'survey_id'],
       raw: true,
     });
     const ids = responseIds.map((r) => r.id);
+    const affectedSurveyIds = [...new Set(responseIds.map((r) => r.survey_id))];
 
     await sequelize.transaction(async (t) => {
       await Answer.destroy({ where: { response_id: { [Op.in]: ids } }, transaction: t });
       await Response.destroy({ where: { id: { [Op.in]: ids } }, transaction: t });
     });
+
+    // Hitung ulang statistik pra-hitung untuk survei terdampak agar dashboard
+    // tidak "drift" (best-effort; kegagalan tidak membatalkan penghapusan).
+    await Promise.allSettled(affectedSurveyIds.map((sid) => recomputeSurveyStats(sid)));
 
     await AuditLog.create({
       user_id: req.user.id,

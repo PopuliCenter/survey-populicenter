@@ -11,6 +11,7 @@
  */
 
 const { sequelize } = require('../models');
+const { wibDateString } = require('./time');
 
 /**
  * Increment statistik setelah response baru berhasil disimpan.
@@ -19,7 +20,7 @@ const { sequelize } = require('../models');
  * @param {string} surveyorId
  */
 async function incrementResponseStats(surveyId, surveyorId) {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today = wibDateString(); // tanggal WIB (YYYY-MM-DD)
 
   // Update survey_statistics (upsert)
   await sequelize.query(`
@@ -86,6 +87,61 @@ async function decrementResponseStats(surveyId, surveyorId) {
 }
 
 /**
+ * Hitung ulang (reconcile) statistik sebuah survei dari tabel `responses`.
+ * Dipakai setelah penghapusan massal (cleanup) agar statistik pra-hitung tidak
+ * "drift" (membengkak). Idempoten & menyembuhkan drift yang mungkin sudah ada.
+ *
+ * @param {string} surveyId
+ */
+async function recomputeSurveyStats(surveyId) {
+  const today = wibDateString();
+
+  await sequelize.transaction(async (t) => {
+    // survey_statistics: total + today (hari WIB) dari data nyata
+    await sequelize.query(`
+      INSERT INTO survey_statistics (survey_id, total_responses, today_responses, today_date, last_response_at, updated_at)
+      SELECT
+        :surveyId,
+        COUNT(*) FILTER (WHERE questionnaire_number NOT LIKE 'PENDING-%'),
+        COUNT(*) FILTER (
+          WHERE questionnaire_number NOT LIKE 'PENDING-%'
+            AND to_char(created_at AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') = :today
+        ),
+        :today,
+        MAX(created_at) FILTER (WHERE questionnaire_number NOT LIKE 'PENDING-%'),
+        NOW()
+      FROM responses
+      WHERE survey_id = :surveyId
+      ON CONFLICT (survey_id) DO UPDATE SET
+        total_responses = EXCLUDED.total_responses,
+        today_responses = EXCLUDED.today_responses,
+        today_date = EXCLUDED.today_date,
+        last_response_at = EXCLUDED.last_response_at,
+        updated_at = NOW();
+    `, { replacements: { surveyId, today }, type: sequelize.QueryTypes.RAW, transaction: t });
+
+    // surveyor_statistics: ganti seluruh baris survei ini dengan agregat nyata
+    await sequelize.query(
+      `DELETE FROM surveyor_statistics WHERE survey_id = :surveyId;`,
+      { replacements: { surveyId }, type: sequelize.QueryTypes.RAW, transaction: t }
+    );
+    await sequelize.query(`
+      INSERT INTO surveyor_statistics (survey_id, surveyor_id, total_responses, today_responses, today_date, updated_at)
+      SELECT
+        :surveyId,
+        surveyor_id,
+        COUNT(*),
+        COUNT(*) FILTER (WHERE to_char(created_at AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') = :today),
+        :today,
+        NOW()
+      FROM responses
+      WHERE survey_id = :surveyId AND questionnaire_number NOT LIKE 'PENDING-%'
+      GROUP BY surveyor_id;
+    `, { replacements: { surveyId, today }, type: sequelize.QueryTypes.RAW, transaction: t });
+  });
+}
+
+/**
  * Get pre-computed stats for dashboard (menggantikan COUNT query berat).
  *
  * @param {string[]} surveyIds - Array of survey UUIDs
@@ -96,7 +152,7 @@ async function getDashboardStats(surveyIds) {
     return { totalResponses: 0, todayResponses: 0 };
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = wibDateString();
 
   const [rows] = await sequelize.query(`
     SELECT
@@ -141,6 +197,7 @@ async function getSurveyorResponseCounts(surveyId) {
 module.exports = {
   incrementResponseStats,
   decrementResponseStats,
+  recomputeSurveyStats,
   getDashboardStats,
   getSurveyorResponseCounts,
 };
