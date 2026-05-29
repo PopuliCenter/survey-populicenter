@@ -3,9 +3,13 @@
  *
  * React hook for canvas-based signature pad.
  * Uses Pointer Events with proper coordinate scaling.
+ *
+ * Menggunakan callback ref (bukan useEffect + useRef) agar listener & ukuran
+ * kanvas terpasang setiap kali elemen <canvas> benar-benar mount — termasuk
+ * ketika kanvas baru dirender belakangan (mis. di langkah terakhir wizard).
  */
 
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback } from 'react';
 
 function renderStrokes(ctx, strokes, width, height) {
   // width/height di sini adalah canvas.width/height (DPR-scaled).
@@ -41,7 +45,8 @@ function getPointerPos(e, canvas) {
 }
 
 function useSignaturePad() {
-  const canvasRef = useRef(null);
+  const canvasNodeRef = useRef(null);   // node <canvas> yang sedang aktif
+  const cleanupRef = useRef(null);      // fungsi pelepas listener untuk node aktif
   const strokesRef = useRef([]);
   const currentStrokeRef = useRef(null);
   const isDrawingRef = useRef(false);
@@ -56,70 +61,63 @@ function useSignaturePad() {
   }, []);
 
   const redraw = useCallback(() => {
-    const canvas = canvasRef.current;
+    const canvas = canvasNodeRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     renderStrokes(ctx, strokesRef.current, canvas.width, canvas.height);
   }, []);
 
-  // Set canvas internal resolution once on mount
-  useEffect(() => {
-    const canvas = canvasRef.current;
+  // Set ukuran internal kanvas sesuai DPR + redraw strokes yang ada.
+  const setSize = useCallback(() => {
+    const canvas = canvasNodeRef.current;
     if (!canvas) return;
-
-    function setSize() {
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return; // Not visible yet
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.scale(dpr, dpr);
-        // Redraw existing strokes after resize
-        if (strokesRef.current.length > 0) {
-          renderStrokes(ctx, strokesRef.current, canvas.width, canvas.height);
-        }
-      }
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return; // belum terlihat
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.scale(dpr, dpr); // setelah set width/height, transform ter-reset
+      renderStrokes(ctx, strokesRef.current, canvas.width, canvas.height);
     }
-
-    // Initial sizing with small delay for layout to settle
-    const timer = setTimeout(setSize, 50);
-
-    // Re-size when window resizes or orientation changes
-    window.addEventListener('resize', setSize);
-
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', setSize);
-    };
   }, []);
 
-  // Attach pointer event listeners
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Callback ref: dipanggil React saat <canvas> mount (node) & unmount (null).
+  const canvasRef = useCallback((node) => {
+    // Lepas listener dari node sebelumnya (jika ada)
+    if (cleanupRef.current) {
+      cleanupRef.current();
+      cleanupRef.current = null;
+    }
 
+    canvasNodeRef.current = node;
+    if (!node) return; // unmount — selesai
+
+    // ── Penentuan ukuran ──
+    setSize();
+    // Coba lagi setelah layout settle (kadang width = 0 saat baru mount)
+    const sizeTimer = setTimeout(setSize, 50);
+    window.addEventListener('resize', setSize);
+
+    // ── Handler menggambar ──
     function handlePointerDown(e) {
-      e.preventDefault(); // Prevent scroll on touch
+      e.preventDefault();
       isDrawingRef.current = true;
-      const pos = getPointerPos(e, canvas);
-      currentStrokeRef.current = [pos];
-      canvas.setPointerCapture(e.pointerId);
+      currentStrokeRef.current = [getPointerPos(e, node)];
+      try { node.setPointerCapture(e.pointerId); } catch { /* abaikan */ }
     }
 
     function handlePointerMove(e) {
       if (!isDrawingRef.current || !currentStrokeRef.current) return;
       e.preventDefault();
-      const pos = getPointerPos(e, canvas);
-      currentStrokeRef.current.push(pos);
+      currentStrokeRef.current.push(getPointerPos(e, node));
 
-      const ctx = canvas.getContext('2d');
+      const ctx = node.getContext('2d');
       if (!ctx) return;
 
-      // Redraw all committed strokes + current in-progress stroke
-      renderStrokes(ctx, strokesRef.current, canvas.width, canvas.height);
+      renderStrokes(ctx, strokesRef.current, node.width, node.height);
       const stroke = currentStrokeRef.current;
       if (stroke.length >= 2) {
         ctx.strokeStyle = '#000';
@@ -147,24 +145,24 @@ function useSignaturePad() {
       redraw();
     }
 
-    // Use { passive: false } to allow preventDefault on touch
-    canvas.addEventListener('pointerdown', handlePointerDown, { passive: false });
-    canvas.addEventListener('pointermove', handlePointerMove, { passive: false });
-    canvas.addEventListener('pointerup', handlePointerUp, { passive: false });
-    canvas.addEventListener('pointercancel', handlePointerUp, { passive: false });
-
-    // Also prevent touchmove scroll on the canvas
     function preventScroll(e) { e.preventDefault(); }
-    canvas.addEventListener('touchmove', preventScroll, { passive: false });
 
-    return () => {
-      canvas.removeEventListener('pointerdown', handlePointerDown);
-      canvas.removeEventListener('pointermove', handlePointerMove);
-      canvas.removeEventListener('pointerup', handlePointerUp);
-      canvas.removeEventListener('pointercancel', handlePointerUp);
-      canvas.removeEventListener('touchmove', preventScroll);
+    node.addEventListener('pointerdown', handlePointerDown, { passive: false });
+    node.addEventListener('pointermove', handlePointerMove, { passive: false });
+    node.addEventListener('pointerup', handlePointerUp, { passive: false });
+    node.addEventListener('pointercancel', handlePointerUp, { passive: false });
+    node.addEventListener('touchmove', preventScroll, { passive: false });
+
+    cleanupRef.current = () => {
+      clearTimeout(sizeTimer);
+      window.removeEventListener('resize', setSize);
+      node.removeEventListener('pointerdown', handlePointerDown);
+      node.removeEventListener('pointermove', handlePointerMove);
+      node.removeEventListener('pointerup', handlePointerUp);
+      node.removeEventListener('pointercancel', handlePointerUp);
+      node.removeEventListener('touchmove', preventScroll);
     };
-  }, [syncState, redraw]);
+  }, [setSize, syncState, redraw]);
 
   const clear = useCallback(() => {
     strokesRef.current = [];
@@ -183,14 +181,14 @@ function useSignaturePad() {
 
   const toBlob = useCallback(() => {
     return new Promise((resolve) => {
-      const canvas = canvasRef.current;
+      const canvas = canvasNodeRef.current;
       if (!canvas || strokesRef.current.length === 0) { resolve(null); return; }
       canvas.toBlob((blob) => resolve(blob), 'image/png');
     });
   }, []);
 
   const toPngDataUrl = useCallback(() => {
-    const canvas = canvasRef.current;
+    const canvas = canvasNodeRef.current;
     if (!canvas || strokesRef.current.length === 0) return null;
     return canvas.toDataURL('image/png');
   }, []);
