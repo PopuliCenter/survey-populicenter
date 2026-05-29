@@ -1,5 +1,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
+// Debugging WebView & mixed content hanya diaktifkan saat development.
+// Di build rilis (NODE_ENV=production) keduanya dimatikan demi keamanan.
+const isDev = process.env.NODE_ENV !== 'production';
+
 const config: CapacitorConfig = {
   appId: 'com.populicenter.survey',
   appName: 'Populi Survey',
@@ -27,9 +31,9 @@ const config: CapacitorConfig = {
     },
   },
   android: {
-    allowMixedContent: true,
+    allowMixedContent: isDev,
     captureInput: true,
-    webContentsDebuggingEnabled: true,
+    webContentsDebuggingEnabled: isDev,
   },
 };
 

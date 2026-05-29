@@ -26,6 +26,7 @@ function useSyncManager() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [pendingItems, setPendingItems] = useState([]);
   const [failedItems, setFailedItems] = useState([]);
   const isSyncingRef = useRef(false);
 
@@ -33,8 +34,10 @@ function useSyncManager() {
   const refreshCounts = useCallback(async () => {
     try {
       const count = await getPendingCount();
+      const pending = await getQueueByStatus('pending');
       const failed = await getQueueByStatus('failed');
       setPendingCount(count);
+      setPendingItems(pending);
       setFailedItems(failed);
     } catch (err) {
       console.error('useSyncManager: refreshCounts error', err);
@@ -174,6 +177,7 @@ function useSyncManager() {
     isOnline,
     isSyncing,
     pendingCount,
+    pendingItems,
     failedItems,
     syncNow,
     deleteFailedItem,

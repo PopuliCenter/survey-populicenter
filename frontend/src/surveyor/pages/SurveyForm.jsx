@@ -12,7 +12,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import useSkipLogic from '../hooks/useSkipLogic';
 import useGeolocation from '../hooks/useGeolocation';
@@ -1023,7 +1023,27 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
 function SurveyForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { getLocation } = useGeolocation();
+
+  // Nomor kuesioner yang dipilih dari Daftar Survei (jika ada). Disimpan di ref
+  // agar stabil sepanjang masa hidup form (tidak ikut berubah saat re-render).
+  const preselectedNumberRef = useRef(location.state?.preselectedNumber ?? null);
+  // Penanda agar lompatan langkah hanya dilakukan sekali.
+  const preselectJumpedRef = useRef(false);
+
+  /**
+   * Terapkan nomor kuesioner terpilih ke jawaban pertanyaan unique_id (jika ada).
+   * @param {Array} qs - daftar pertanyaan
+   * @param {Object} base - peta jawaban kosong
+   * @returns {Object} peta jawaban dengan nomor terisi
+   */
+  function applyPreselectedNumber(qs, base) {
+    const pre = preselectedNumberRef.current;
+    if (pre == null) return base;
+    const uq = qs.find((q) => q.type === 'unique_id');
+    return uq ? { ...base, [uq.id]: String(pre) } : base;
+  }
 
   // ─── Offline support ────────────────────────────────────────────────────────
   const { isOnline, isSyncing, pendingCount } = useSyncManager();
@@ -1097,6 +1117,26 @@ function SurveyForm() {
     }
   }, [visibleQuestions.length, currentStep]);
 
+  // ─── Pertanyaan unique_id (nomor kuesioner) + nomor saat ini ────────────────
+  const uniqueIdQuestion = useMemo(
+    () => questions.find((q) => q.type === 'unique_id') || null,
+    [questions]
+  );
+  const currentQuestionnaireNumber = uniqueIdQuestion ? (answers[uniqueIdQuestion.id] || '') : '';
+
+  // Jika TPD memilih nomor dari Daftar Survei, lompat ke pertanyaan SETELAH
+  // pertanyaan nomor kuesioner (sekali saja, setelah daftar pertanyaan siap).
+  useEffect(() => {
+    if (preselectJumpedRef.current) return;
+    if (preselectedNumberRef.current == null || visibleQuestions.length === 0) return;
+    preselectJumpedRef.current = true;
+    if (!uniqueIdQuestion) return;
+    const idx = visibleQuestions.findIndex((q) => q.id === uniqueIdQuestion.id);
+    if (idx >= 0) {
+      setCurrentStep(Math.min(idx + 1, visibleQuestions.length - 1));
+    }
+  }, [visibleQuestions, uniqueIdQuestion]);
+
   // ─── Load survey + start session ────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -1123,7 +1163,7 @@ function SurveyForm() {
 
           const qs = surveyData.questions || [];
           setQuestions(qs);
-          setAnswers(buildEmptyAnswers(qs));
+          setAnswers(applyPreselectedNumber(qs, buildEmptyAnswers(qs)));
 
           // Compute stable randomised display options for choice questions
           const optMap = {};
@@ -1178,7 +1218,7 @@ function SurveyForm() {
                 setSurvey(cached);
                 const qs = cached.questions || [];
                 setQuestions(qs);
-                setAnswers(buildEmptyAnswers(qs));
+                setAnswers(applyPreselectedNumber(qs, buildEmptyAnswers(qs)));
                 const optMap = {};
                 for (const q of qs) {
                   if ((q.type === 'single_choice' || q.type === 'multiple_choice') && Array.isArray(q.options)) {
@@ -1781,9 +1821,14 @@ function SurveyForm() {
             <h1 className="text-base font-semibold text-gray-800 truncate">
               {survey?.title || 'Formulir Survei'}
             </h1>
-            {survey?.description && (
+            {currentQuestionnaireNumber ? (
+              <span className="inline-flex items-center gap-1 mt-0.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                Kuesioner No. {currentQuestionnaireNumber}
+              </span>
+            ) : survey?.description ? (
               <p className="text-xs text-gray-500 truncate">{survey.description}</p>
-            )}
+            ) : null}
           </div>
           <OfflineStatusBar isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
         </div>

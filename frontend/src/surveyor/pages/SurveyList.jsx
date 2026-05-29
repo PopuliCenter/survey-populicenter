@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import QuotaProgress from '../../components/QuotaProgress';
@@ -46,13 +46,24 @@ export function getSurveyTemporalStatus(startDate, endDate) {
 }
 
 /**
- * SurveyList page for TPD role.
+ * Ambil nilai nomor kuesioner (jawaban pertanyaan unique_id) dari sebuah entri antrian offline.
+ * @param {object} entry - entri offline_queue (punya .answers: array {question_id, answer_value})
+ * @param {string|number|null} qid - id pertanyaan unique_id untuk survei tsb
+ * @returns {string|null}
+ */
+function extractQuestionnaireNumber(entry, qid) {
+  if (qid == null || !Array.isArray(entry?.answers)) return null;
+  const found = entry.answers.find((a) => String(a.question_id) === String(qid));
+  const val = found?.answer_value;
+  return val == null || val === '' ? null : String(val);
+}
+
+/**
+ * SurveyList page for TPD role (Opsi A — ringkas & jelas).
  *
- * Displays:
- * - Logged-in TPD name (from localStorage `user`)
- * - Session counter: number of responses submitted in the current session
- * - List of active surveys with quota progress per survey
- * - Logout button
+ * Menampilkan daftar survei aktif dengan: progres kuota, status unduh offline,
+ * dan status tiap nomor kuesioner yang akurat baik online maupun offline
+ * (terkirim / menunggu upload / sedang upload / gagal / siap diisi / belum diunduh).
  *
  * Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 14.3, 14.4, 14.5, 14.6, 14.8
  */
@@ -80,8 +91,11 @@ function SurveyList() {
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
 
+  // ─── Map surveyId → id pertanyaan unique_id (untuk membaca nomor dari antrian) ─
+  const [uniqueQidMap, setUniqueQidMap] = useState({});
+
   // ─── Offline / Sync ─────────────────────────────────────────────────────────
-  const { isOnline, isSyncing, pendingCount, failedItems, deleteFailedItem } = useSyncManager();
+  const { isOnline, isSyncing, pendingCount, pendingItems, failedItems, deleteFailedItem } = useSyncManager();
 
   // ─── Load user from localStorage ───────────────────────────────────────────
   useEffect(() => {
@@ -192,20 +206,45 @@ function SurveyList() {
     fetchData();
   }, [fetchData]);
 
-  // ─── Check which surveys are already cached ─────────────────────────────────
+  // ─── Check which surveys are already cached + cari pertanyaan unique_id ──────
   useEffect(() => {
     async function checkCached() {
       const cached = new Set();
+      const qidMap = {};
       for (const s of surveys) {
-        const data = await getCachedSurvey(s.id);
-        if (data && data.questions && data.questions.length > 0) {
-          cached.add(s.id);
+        try {
+          const data = await getCachedSurvey(s.id);
+          if (data && data.questions && data.questions.length > 0) {
+            cached.add(s.id);
+            const uq = data.questions.find((q) => q.type === 'unique_id');
+            if (uq) qidMap[s.id] = uq.id;
+          }
+        } catch {
+          // Storage tidak tersedia (mis. lingkungan test) — abaikan
         }
       }
       setDownloadedSurveys(cached);
+      setUniqueQidMap(qidMap);
     }
     if (surveys.length > 0) checkCached();
   }, [surveys]);
+
+  // ─── Kumpulkan nomor kuesioner yang tersimpan offline (pending & failed) ─────
+  const offlineNumbersBySurvey = useMemo(() => {
+    const map = {};
+    const add = (surveyId, num, status) => {
+      if (num == null) return;
+      if (!map[surveyId]) map[surveyId] = { pending: new Set(), failed: new Set() };
+      map[surveyId][status].add(num);
+    };
+    for (const e of pendingItems || []) {
+      add(e.survey_id, extractQuestionnaireNumber(e, uniqueQidMap[e.survey_id]), 'pending');
+    }
+    for (const e of failedItems || []) {
+      add(e.survey_id, extractQuestionnaireNumber(e, uniqueQidMap[e.survey_id]), 'failed');
+    }
+    return map;
+  }, [pendingItems, failedItems, uniqueQidMap]);
 
   // ─── Download all surveys (questions + quota + assigned numbers) for offline ─
   async function handleDownloadAll() {
@@ -253,6 +292,7 @@ function SurveyList() {
 
   // ─── Last download time ─────────────────────────────────────────────────────
   const lastDownload = localStorage.getItem('last_download_time');
+  const allDownloaded = surveys.length > 0 && downloadedSurveys.size === surveys.length;
 
   // ─── Refresh data when navigating back from SubmitSuccess (Requirement 6.3) ─
   useEffect(() => {
@@ -314,109 +354,118 @@ function SurveyList() {
   }, [pendingCount]);
 
   // ─── Navigate to survey form ─────────────────────────────────────────────────
-  const handleStartSurvey = (surveyId) => {
-    navigate(`/surveyor/survey/${surveyId}`);
+  // preselectedNumber (opsional): jika TPD mengetuk sebuah nomor kuesioner,
+  // form langsung memilih nomor itu dan lompat ke pertanyaan setelahnya.
+  const handleStartSurvey = (surveyId, preselectedNumber = null) => {
+    navigate(
+      `/surveyor/survey/${surveyId}`,
+      preselectedNumber != null ? { state: { preselectedNumber } } : undefined
+    );
   };
+
+  // ─── Cek apakah kuota survei sudah terpenuhi (untuk pengurutan) ──────────────
+  const isTargetMet = useCallback((survey) => {
+    const q = quotaMap[survey.id];
+    return !!(q && q.quota != null && q.quota > 0 && (q.filled ?? 0) >= q.quota);
+  }, [quotaMap]);
+
+  // Survei yang kuotanya sudah terpenuhi diturunkan ke bawah daftar
+  const sortedSurveys = useMemo(() => {
+    return [...surveys].sort((a, b) => Number(isTargetMet(a)) - Number(isTargetMet(b)));
+  }, [surveys, isTargetMet]);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white shadow-sm sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
         <div className="max-w-3xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-lg font-semibold text-gray-800">Daftar Survei</h1>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-gray-900">Daftar Survei</h1>
               {user && (
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 mt-0.5 truncate">
                   Halo, <span className="font-medium text-gray-700">{user.name || user.email}</span>
+                  <span className="text-gray-300"> · </span>
+                  Diisi sesi ini: <span className="font-semibold text-blue-700">{sessionCount}</span>
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <OfflineStatusBar isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
-              <button onClick={handleLogoutClick} className="text-xs text-red-600 hover:text-red-800 border border-red-200 rounded-lg px-2.5 py-1.5">
+              <button
+                onClick={handleLogoutClick}
+                className="min-h-[44px] inline-flex items-center text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-xl px-3"
+              >
                 Keluar
               </button>
             </div>
           </div>
 
-          {/* ── Sync & Download Status Bar ── */}
-          <div className="mt-3 space-y-2">
-            {/* Upload pending indicator */}
-            {pendingCount > 0 && (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                <svg className="animate-spin h-4 w-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-                <span className="text-xs text-amber-700 font-medium">
-                  {isSyncing ? 'Mengunggah data...' : `${pendingCount} data menunggu diunggah`}
-                </span>
+          {/* ── Baris status offline + tombol unduh (ringkas) ── */}
+          {surveys.length > 0 && (
+            <div className={`mt-3 flex items-center gap-2 rounded-xl p-2.5 border ${
+              allDownloaded ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'
+            }`}>
+              {allDownloaded ? (
+                <svg className="w-5 h-5 text-green-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+              ) : (
+                <svg className="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" /></svg>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className={`text-xs font-medium ${allDownloaded ? 'text-green-800' : 'text-amber-800'}`}>
+                  {allDownloaded
+                    ? 'Semua survei siap dipakai offline'
+                    : `${downloadedSurveys.size}/${surveys.length} survei siap offline`}
+                </p>
+                {lastDownload && (
+                  <p className="text-[11px] text-gray-400 truncate">
+                    Terakhir diunduh: {new Date(lastDownload).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
+                  </p>
+                )}
               </div>
-            )}
-
-            {/* Download all button + status */}
-            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={handleDownloadAll}
-                disabled={downloading || surveys.length === 0}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg disabled:opacity-50 transition-colors"
+                disabled={downloading}
+                className="min-h-[44px] shrink-0 inline-flex items-center gap-1.5 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl disabled:opacity-50 transition-colors"
               >
                 {downloading ? (
                   <>
-                    <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
-                    Mengunduh {downloadProgress.current}/{downloadProgress.total}...
+                    {downloadProgress.current}/{downloadProgress.total}
                   </>
                 ) : (
                   <>
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    {downloadedSurveys.size === surveys.length && surveys.length > 0
-                      ? 'Perbarui Data Offline'
-                      : 'Unduh Semua untuk Offline'}
+                    {allDownloaded ? 'Perbarui' : 'Unduh'}
                   </>
                 )}
               </button>
-
-              {/* Download status summary */}
-              {surveys.length > 0 && (
-                <span className={`text-xs font-medium px-2.5 py-1.5 rounded-lg ${
-                  downloadedSurveys.size === surveys.length
-                    ? 'bg-green-50 text-green-700 border border-green-200'
-                    : 'bg-amber-50 text-amber-700 border border-amber-200'
-                }`}>
-                  {downloadedSurveys.size === surveys.length ? (
-                    <>✓ Semua survei tersimpan di HP — siap offline</>
-                  ) : (
-                    <>{downloadedSurveys.size}/{surveys.length} survei tersimpan — unduh semua agar bisa offline</>
-                  )}
-                </span>
-              )}
-
-              {lastDownload && (
-                <span className="text-xs text-gray-400">
-                  Terakhir diunduh: {new Date(lastDownload).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
-                </span>
-              )}
             </div>
+          )}
 
-            {/* Session counter */}
-            {sessionCount > 0 && (
-              <div className="text-xs text-gray-500">
-                Responden diisi sesi ini: <span className="font-semibold text-blue-700">{sessionCount}</span>
-              </div>
-            )}
-          </div>
+          {/* Upload pending indicator */}
+          {pendingCount > 0 && (
+            <div className="mt-2 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
+              <svg className="animate-spin h-4 w-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              <span className="text-xs text-blue-700 font-medium">
+                {isSyncing ? 'Mengunggah data...' : `${pendingCount} data menunggu diunggah`}
+              </span>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Main content */}
-      <main className="max-w-3xl mx-auto px-4 py-6">
+      <main className="max-w-3xl mx-auto px-4 py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         {loading && (
           <div className="flex items-center justify-center py-16">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
@@ -444,37 +493,78 @@ function SurveyList() {
 
         {!loading && !error && surveys.length > 0 && (
           <div className="space-y-4">
-            {surveys.map((survey) => {
+            {sortedSurveys.map((survey) => {
               const quotaInfo = quotaMap[survey.id];
               const hasQuota = quotaInfo && quotaInfo.quota != null && quotaInfo.quota > 0;
               const filled = quotaInfo?.filled ?? 0;
               const quota = hasQuota ? quotaInfo.quota : null;
               const targetMet = hasQuota && filled >= quota;
               const temporal = getSurveyTemporalStatus(survey.start_date, survey.end_date);
-              // Fitur #6: nomor kuesioner yang ditugaskan dan sudah diisi
+              const isOfflineReady = downloadedSurveys.has(survey.id);
+
+              // Nomor kuesioner: ditugaskan (server), terkirim (server), + offline (perangkat)
               const assignedNumbers = quotaInfo?.assigned_numbers || null;
-              const submittedNumbers = quotaInfo?.submitted_numbers || [];
-              const submittedSet = new Set(submittedNumbers);
+              const submittedSet = new Set((quotaInfo?.submitted_numbers || []).map(String));
+              const offlineInfo = offlineNumbersBySurvey[survey.id] || { pending: new Set(), failed: new Set() };
+              const pendingSet = offlineInfo.pending;
+              const failedSet = offlineInfo.failed;
+
+              // Tentukan status sebuah nomor kuesioner
+              const numStatus = (num) => {
+                const n = String(num);
+                if (submittedSet.has(n)) return 'synced';
+                if (failedSet.has(n)) return 'failed';
+                if (pendingSet.has(n)) return isSyncing ? 'uploading' : 'pending';
+                if (isOfflineReady) return 'ready';
+                return 'not_downloaded';
+              };
+
+              // Daftar nomor yang akan dirender:
+              // - jika ada penugasan → seluruh assignedNumbers
+              // - jika tidak → gabungan nomor yang sudah punya data (terkirim/menunggu/gagal)
+              const numbersToShow = assignedNumbers && assignedNumbers.length > 0
+                ? assignedNumbers.map(String)
+                : Array.from(new Set([
+                    ...submittedSet,
+                    ...pendingSet,
+                    ...failedSet,
+                  ]));
+
+              const syncedCount = numbersToShow.filter((n) => numStatus(n) === 'synced').length;
+              const localPendingCount = numbersToShow.filter((n) => ['pending', 'uploading'].includes(numStatus(n))).length;
+              const localFailedCount = numbersToShow.filter((n) => numStatus(n) === 'failed').length;
+              const filledNumCount = syncedCount + localPendingCount + localFailedCount;
+
+              // Warna pita status di sisi kiri kartu
+              const stripeColor = targetMet
+                ? 'bg-green-500'
+                : !temporal.canStart
+                  ? 'bg-gray-300'
+                  : isOfflineReady
+                    ? 'bg-blue-500'
+                    : 'bg-amber-400';
 
               return (
                 <div
                   key={survey.id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
+                  className={`bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex ${targetMet ? 'opacity-70' : ''}`}
                 >
-                  {/* Survey title & description */}
-                  <div className="mb-3">
+                  {/* Pita status warna */}
+                  <div className={`w-1.5 shrink-0 ${stripeColor}`} aria-hidden="true" />
+
+                  <div className="flex-1 min-w-0 p-4 sm:p-5">
+                    {/* Judul + badge unduh */}
                     <div className="flex items-start justify-between gap-2">
-                      <h2 className="text-base font-semibold text-gray-800">{survey.title}</h2>
-                      {/* Download status badge */}
-                      <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                        downloadedSurveys.has(survey.id)
+                      <h2 className="text-base font-bold text-gray-900 leading-snug">{survey.title}</h2>
+                      <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold ${
+                        isOfflineReady
                           ? 'bg-green-50 text-green-700 border border-green-200'
-                          : 'bg-gray-100 text-gray-400 border border-gray-200'
+                          : 'bg-gray-100 text-gray-500 border border-gray-200'
                       }`}>
-                        {downloadedSurveys.has(survey.id) ? (
-                          <><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg> Offline</>
+                        {isOfflineReady ? (
+                          <><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg> Tersimpan</>
                         ) : (
-                          <><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" /></svg> Online</>
+                          <>Belum diunduh</>
                         )}
                       </span>
                     </div>
@@ -483,160 +573,134 @@ function SurveyList() {
                     )}
                     {temporal.label && (
                       <p className={`text-xs mt-1 font-medium ${temporal.isUrgent ? 'text-red-600' : 'text-gray-500'}`}>
-                        {temporal.label}
+                        {temporal.isUrgent ? '⏳ ' : ''}{temporal.label}
                       </p>
                     )}
-                  </div>
 
-                  {/* Quota progress — Requirements 14.3, 14.4, 14.5, 14.8 */}
-                  <div className="mb-4">
-                    {hasQuota ? (
-                      <>
-                        <p className="text-xs text-gray-500 mb-1">Progres kuota</p>
-                        <QuotaProgress filled={filled} quota={quota} />
-                        {/* Requirement 14.5: notification when target met */}
-                        {targetMet && (
-                          <p className="mt-2 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-block">
-                            ✓ Target Terpenuhi
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      /* Requirement 14.8: no quota set */
-                      <p className="text-xs text-gray-400 italic">Tidak ada target</p>
-                    )}
-                  </div>
-
-                  {/* Fitur #6: Daftar nomor kuesioner yang ditugaskan */}
-                  {assignedNumbers && assignedNumbers.length > 0 && (() => {
-                    const doneCount = assignedNumbers.filter((n) => submittedSet.has(n)).length;
-                    const allDone = doneCount === assignedNumbers.length;
-                    const isOfflineReady = downloadedSurveys.has(survey.id);
-                    return (
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs text-gray-600 font-medium">
-                            Daftar Kuesioner ({doneCount}/{assignedNumbers.length})
-                          </p>
-                          <div className="flex items-center gap-1.5">
-                            {isOfflineReady && (
-                              <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 flex items-center gap-1">
-                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                                Tersimpan di HP
-                              </span>
-                            )}
-                            {allDone && (
-                              <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-                                ✓ Semua selesai
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Status offline info */}
-                        {!isOfflineReady && (
-                          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5 mb-2 flex items-center gap-1.5">
-                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                            </svg>
-                            Belum diunduh — tekan "Unduh Semua untuk Offline" agar bisa diisi tanpa internet
-                          </p>
-                        )}
-
-                        {/* Progress bar mini */}
-                        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
-                          <div
-                            className={`h-1.5 rounded-full transition-all ${allDone ? 'bg-green-500' : 'bg-blue-500'}`}
-                            style={{ width: `${(doneCount / assignedNumbers.length) * 100}%` }}
-                          />
-                        </div>
-
-                        {/* Daftar nomor kuesioner dengan status lengkap */}
-                        <div className="flex flex-wrap gap-1.5">
-                          {assignedNumbers.map((num) => {
-                            const isDone = submittedSet.has(num);
-                            // Determine status: synced > filled > downloaded > pending
-                            let statusLabel, statusClass, icon;
-                            if (isDone) {
-                              statusLabel = 'Sudah diisi & sinkron';
-                              statusClass = 'bg-green-100 text-green-800 border-green-300';
-                              icon = <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>;
-                            } else if (isOfflineReady) {
-                              statusLabel = 'Siap diisi (offline ready)';
-                              statusClass = 'bg-blue-50 text-blue-700 border-blue-200';
-                              icon = <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>;
-                            } else {
-                              statusLabel = 'Belum diunduh';
-                              statusClass = 'bg-white text-gray-500 border-gray-300';
-                              icon = <span className="w-3.5 h-3.5 rounded-full border-2 border-gray-300 inline-block" />;
-                            }
-                            return (
-                              <span
-                                key={num}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${statusClass}`}
-                                title={`Kuesioner ${num}: ${statusLabel}`}
-                              >
-                                {icon}
-                                {num}
-                              </span>
-                            );
-                          })}
-                        </div>
-
-                        {/* Legend */}
-                        <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Selesai
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> Siap offline
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block" /> Belum diunduh
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Nomor kuesioner sudah tersimpan (tanpa penugasan spesifik) */}
-                  {(!assignedNumbers || assignedNumbers.length === 0) && submittedNumbers.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs text-gray-500 mb-2">
-                        Nomor kuesioner tersimpan ({submittedNumbers.length}):
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {submittedNumbers.map((qn) => (
-                          <span
-                            key={qn}
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200"
-                          >
-                            ✓ {qn}
-                          </span>
-                        ))}
-                      </div>
+                    {/* Progres kuota — Requirements 14.3, 14.4, 14.5, 14.8 */}
+                    <div className="mt-3">
+                      {hasQuota ? (
+                        <>
+                          <p className="text-xs text-gray-500 mb-1">Progres kuota</p>
+                          <QuotaProgress filled={filled} quota={quota} />
+                        </>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">Tidak ada target</p>
+                      )}
                     </div>
-                  )}
 
-                  {/* Action button — Requirements 6.2, 9.6, 14.6 */}
-                  <button
-                    onClick={() => handleStartSurvey(survey.id)}
-                    disabled={!temporal.canStart || targetMet}
-                    className={`w-full sm:w-auto text-sm font-medium px-5 py-2 rounded-lg transition-colors ${
-                      temporal.canStart && !targetMet
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
-                    aria-label={
-                      targetMet
-                        ? `Kuota tercapai untuk survei ${survey.title}`
-                        : temporal.canStart
-                          ? `Mulai isi survei ${survey.title}`
-                          : `Survei ${survey.title} tidak dapat diisi`
-                    }
-                  >
-                    {targetMet ? 'Kuota Tercapai' : 'Mulai Isi'}
-                  </button>
+                    {/* Peringatan belum diunduh */}
+                    {!isOfflineReady && temporal.canStart && !targetMet && (
+                      <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-1.5">
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" /></svg>
+                        Unduh dulu agar bisa diisi tanpa internet
+                      </p>
+                    )}
+
+                    {/* Daftar nomor kuesioner (collapsible) */}
+                    {numbersToShow.length > 0 && (
+                      <details className="mt-3 group">
+                        <summary className="cursor-pointer list-none flex items-center justify-between gap-2 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl px-3 py-3 min-h-[48px] transition-colors">
+                          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <span className="font-medium">Nomor kuesioner</span>
+                            <span className="text-gray-500">{filledNumCount}/{numbersToShow.length} terisi</span>
+                          </span>
+                          <span className="flex items-center gap-2 shrink-0">
+                            {/* Ringkasan status sekilas */}
+                            {localPendingCount > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">
+                                ⏳ {localPendingCount}
+                              </span>
+                            )}
+                            {localFailedCount > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
+                                ✕ {localFailedCount}
+                              </span>
+                            )}
+                            <svg className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          </span>
+                        </summary>
+
+                        <div className="mt-3">
+                          {/* Progress bar mini */}
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3 overflow-hidden flex">
+                            {syncedCount > 0 && <div className="h-1.5 bg-green-500" style={{ width: `${(syncedCount / numbersToShow.length) * 100}%` }} />}
+                            {localPendingCount > 0 && <div className="h-1.5 bg-amber-400" style={{ width: `${(localPendingCount / numbersToShow.length) * 100}%` }} />}
+                            {localFailedCount > 0 && <div className="h-1.5 bg-red-400" style={{ width: `${(localFailedCount / numbersToShow.length) * 100}%` }} />}
+                          </div>
+
+                          {/* Daftar nomor vertikal — tiap baris menampilkan status,
+                              baris "belum diisi" dapat diketuk untuk langsung mengisi. */}
+                          <ul className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
+                            {numbersToShow.map((num) => {
+                              const status = numStatus(num);
+                              const map = {
+                                synced: { row: 'bg-green-50', badge: 'bg-green-100 text-green-800', icon: '✓', iconCls: 'text-green-600', label: 'Sudah terkirim' },
+                                uploading: { row: 'bg-amber-50', badge: 'bg-amber-100 text-amber-800', icon: '↑', iconCls: 'text-amber-600 animate-pulse', label: 'Sedang mengunggah data' },
+                                pending: { row: 'bg-amber-50/60', badge: 'bg-amber-100 text-amber-800', icon: '⏳', iconCls: 'text-amber-600', label: 'Menunggu upload' },
+                                failed: { row: 'bg-red-50', badge: 'bg-red-100 text-red-800', icon: '✕', iconCls: 'text-red-600', label: 'Gagal upload — perlu ditinjau' },
+                                ready: { row: 'bg-white hover:bg-blue-50', badge: 'bg-blue-100 text-blue-700', icon: '○', iconCls: 'text-blue-500', label: 'Belum diisi — ketuk untuk mengisi' },
+                                not_downloaded: { row: 'bg-white', badge: 'bg-gray-100 text-gray-500', icon: '○', iconCls: 'text-gray-400', label: 'Belum diisi' },
+                              }[status];
+                              const clickable = (status === 'ready' || status === 'not_downloaded') && temporal.canStart && !targetMet;
+                              const RowTag = clickable ? 'button' : 'div';
+                              return (
+                                <li key={num}>
+                                  <RowTag
+                                    {...(clickable
+                                      ? {
+                                          type: 'button',
+                                          onClick: () => handleStartSurvey(survey.id, num),
+                                          'aria-label': `Isi kuesioner nomor ${num} (${map.label})`,
+                                        }
+                                      : {})}
+                                    className={`w-full min-h-[48px] flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${map.row} ${clickable ? 'cursor-pointer' : ''}`}
+                                  >
+                                    <span className={`text-lg leading-none w-5 text-center shrink-0 ${map.iconCls}`} aria-hidden="true">{map.icon}</span>
+                                    <span className="flex-1 min-w-0">
+                                      <span className="block text-sm font-semibold text-gray-800">Kuesioner No. {num}</span>
+                                      <span className="block text-xs text-gray-500">{map.label}</span>
+                                    </span>
+                                    <span className={`shrink-0 text-[11px] font-semibold rounded-full px-2 py-0.5 ${map.badge}`}>
+                                      {{ synced: 'Terkirim', uploading: 'Mengunggah', pending: 'Menunggu', failed: 'Gagal', ready: 'Isi', not_downloaded: 'Belum' }[status]}
+                                    </span>
+                                    {clickable && (
+                                      <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    )}
+                                  </RowTag>
+                                </li>
+                              );
+                            })}
+                          </ul>
+
+                          {/* Keterangan ringkas */}
+                          <p className="mt-2 text-[11px] text-gray-400">
+                            Ketuk nomor yang masih "Belum diisi" untuk langsung membuka pertanyaannya.
+                          </p>
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Tombol aksi utama — Requirements 6.2, 9.6, 14.6 */}
+                    <button
+                      onClick={() => handleStartSurvey(survey.id)}
+                      disabled={!temporal.canStart || targetMet}
+                      className={`mt-4 w-full min-h-[48px] text-base font-semibold px-5 rounded-xl transition-colors ${
+                        temporal.canStart && !targetMet
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
+                      aria-label={
+                        targetMet
+                          ? `Kuota tercapai untuk survei ${survey.title}`
+                          : temporal.canStart
+                            ? `Mulai isi survei ${survey.title}`
+                            : `Survei ${survey.title} tidak dapat diisi`
+                      }
+                    >
+                      {targetMet ? 'Kuota Tercapai' : (filledNumCount > 0 ? 'Lanjutkan Mengisi' : 'Mulai Isi')}
+                    </button>
+                  </div>
                 </div>
               );
             })}
