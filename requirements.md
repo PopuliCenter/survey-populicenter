@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Web Survey Platform adalah aplikasi survei berbasis web yang memungkinkan admin mengelola survei, pertanyaan, dan surveyor; serta memungkinkan surveyor login untuk mengisi data responden secara online. Platform ini dirancang untuk mendukung pengumpulan data lapangan secara terstruktur dengan fitur skip logic, randomisasi jawaban, upload foto, dan ekspor laporan.
+Populi Survey Platform adalah aplikasi survei lapangan full-stack untuk Populi Center — dirancang untuk pengumpulan data nasional melalui jaringan TPD (Tenaga Pengumpul Data) yang tersebar di seluruh Indonesia. Platform mendukung pengisian offline-first via Android APK (Capacitor), sinkronisasi data otomatis, 13 tipe pertanyaan, skip logic, field tools (GPS, audio, foto, tanda tangan), manajemen kuota, dan ekspor laporan.
 
 ## Glossary
 
@@ -25,6 +25,11 @@ Web Survey Platform adalah aplikasi survei berbasis web yang memungkinkan admin 
 - **Durasi Pengisian**: Selisih waktu antara Timestamp Mulai dan Timestamp Selesai dalam satuan detik.
 - **Geolokasi**: Koordinat geografis berupa latitude dan longitude yang diperoleh dari browser Surveyor pada saat penyimpanan data responden.
 - **Peta Sebaran**: Visualisasi peta interaktif yang menampilkan titik-titik lokasi wawancara berdasarkan data Geolokasi.
+- **TPD**: Tenaga Pengumpul Data — peran Surveyor yang bekerja di lapangan menggunakan Android APK atau web browser.
+- **Tipe Survei**: Klasifikasi survei berdasarkan skala: Nasional, Daerah, atau Lainnya.
+- **Field Tools**: Kumpulan alat lapangan yang dapat dikonfigurasi per survei: GPS, rekaman audio, foto kamera, dan tanda tangan digital.
+- **Offline Queue**: Antrian data yang tersimpan di perangkat (SQLite/IndexedDB) saat tidak ada koneksi internet, disinkronkan otomatis saat online.
+- **Service Worker**: Background script PWA yang memungkinkan aplikasi berjalan offline dan memperbarui UI secara otomatis tanpa hard refresh.
 
 ---
 
@@ -273,3 +278,96 @@ Web Survey Platform adalah aplikasi survei berbasis web yang memungkinkan admin 
 8. WHEN admin membuka halaman Peta Sebaran, THE Platform SHALL menampilkan filter berdasarkan survei, surveyor, dan rentang tanggal untuk menyaring titik lokasi yang ditampilkan.
 9. WHEN admin mengklik titik lokasi pada Peta Sebaran, THE Platform SHALL menampilkan informasi ringkas berupa nama surveyor, Nomor Kuesioner, dan Timestamp Selesai untuk pengisian tersebut.
 10. WHILE data Geolokasi berstatus "lokasi_tidak_tersedia", "tidak_didukung", atau "timeout", THE Platform SHALL tidak menampilkan titik lokasi tersebut pada Peta Sebaran dan menandainya secara eksplisit dalam file ekspor.
+
+---
+
+### Requirement 17: Antarmuka Mobile Android (Offline-First)
+
+**User Story:** Sebagai TPD, saya ingin menggunakan aplikasi Android yang dapat bekerja tanpa internet di lapangan, sehingga saya dapat mengisi data responden di daerah dengan koneksi terbatas.
+
+#### Acceptance Criteria
+
+1. THE Platform SHALL mendistribusikan antarmuka TPD sebagai APK Android (Capacitor) yang dapat diinstall di perangkat Android 8.0+.
+2. WHEN TPD mengunduh semua survei aktif sebelum ke lapangan, THE Platform SHALL menyimpan data survei (pertanyaan, kuota, nomor kuesioner) di penyimpanan lokal perangkat (SQLite).
+3. WHEN TPD mengisi dan menyimpan responden dalam kondisi offline, THE Platform SHALL menyimpan data ke antrian lokal (SQLite) dan menampilkan status "Menunggu Upload".
+4. WHEN koneksi internet tersedia, THE Platform SHALL secara otomatis menyinkronkan data antrian ke server tanpa interaksi pengguna.
+5. THE Platform SHALL menampilkan status tiap nomor kuesioner secara real-time: Terkirim / Sedang Mengunggah / Menunggu / Gagal / Siap Diisi.
+6. WHEN TPD menekan nomor kuesioner dengan status "Siap Diisi" dari daftar survei, THE Platform SHALL membuka formulir dengan nomor tersebut sudah terisi dan langsung melompat ke pertanyaan setelah nomor kuesioner.
+7. THE Platform SHALL menampilkan indikator "Kuesioner No. X" yang persisten di header formulir selama pengisian.
+8. WHEN TPD menekan tombol back Android di halaman daftar survei, THE Platform SHALL menampilkan konfirmasi keluar berupa bottom sheet yang mencantumkan jumlah data yang belum tersinkron.
+
+---
+
+### Requirement 18: Field Tools Lapangan
+
+**User Story:** Sebagai admin, saya ingin mengonfigurasi alat lapangan yang wajib/opsional per survei, sehingga saya dapat memastikan kelengkapan bukti pengumpulan data.
+
+#### Acceptance Criteria
+
+1. THE Platform SHALL menyediakan empat field tool yang dapat dikonfigurasi: GPS Lokasi, Rekaman Audio, Foto Kamera, dan Tanda Tangan Digital.
+2. WHEN admin mengatur field tool sebagai "wajib", THE Platform SHALL memblokir submit responden jika tool tersebut belum diisi, dengan pesan dan scroll otomatis ke bagian yang belum terisi.
+3. WHEN field tool GPS diatur wajib, THE Platform SHALL memantau lokasi sejak formulir dibuka (watchPosition) agar fix satelit tersedia saat submit, termasuk dalam kondisi offline.
+4. WHEN GPS wajib belum terkunci saat TPD mencoba submit, THE Platform SHALL menampilkan panel status GPS dengan opsi "Coba Ambil Lokasi" dan panduan (pastikan di luar ruangan).
+5. WHEN TPD mengambil foto di Android, THE Platform SHALL menggunakan kamera native (Capacitor Camera) yang mengompresi foto (quality 80, maks 1280px) saat pengambilan.
+6. THE Platform SHALL merekam audio dalam format mono 32 kbps dengan noise suppression aktif, menghasilkan file ≤1 MB per 5 menit.
+7. THE Platform SHALL menyimpan semua media (audio, foto, tanda tangan) ke penyimpanan lokal saat offline dan mengunggahnya ke server saat sinkronisasi dengan timeout 120 detik.
+
+---
+
+### Requirement 19: Dashboard Monitoring Real-time
+
+**User Story:** Sebagai admin/supervisor, saya ingin memantau kemajuan pengumpulan data secara real-time, sehingga saya dapat mengambil keputusan operasional dengan cepat.
+
+#### Acceptance Criteria
+
+1. THE Platform SHALL menampilkan dashboard dengan empat kartu statistik: Survei Aktif, TPD Aktif, Responden Hari Ini, dan Total Responden.
+2. THE Platform SHALL menghitung "hari ini" berdasarkan zona waktu WIB (Asia/Jakarta), bukan UTC.
+3. THE Platform SHALL menampilkan grafik tren pengisian 7 hari terakhir (dihitung per hari WIB) dan progress keseluruhan survei aktif.
+4. THE Platform SHALL memperbarui statistik secara inkremental (UPSERT atomik) setelah setiap responden tersimpan, tanpa menghambat proses submit.
+5. WHEN admin menghapus data responden melalui fitur Pembersihan Data, THE Platform SHALL secara otomatis menghitung ulang statistik yang terdampak agar dashboard tidak menampilkan angka yang membengkak.
+6. THE Platform SHALL menampilkan Top 5 TPD berdasarkan jumlah responden dengan avatar inisial dan dapat difilter per survei.
+
+---
+
+### Requirement 20: Manajemen Data & Explorer Survei
+
+**User Story:** Sebagai admin, saya ingin menemukan survei dan data responden dengan cepat walau data sudah banyak, sehingga saya dapat efisien dalam pengelolaan.
+
+#### Acceptance Criteria
+
+1. THE Platform SHALL menyediakan field "Tipe Survei" pada setiap survei dengan nilai: Nasional, Daerah, atau Lainnya.
+2. THE Platform SHALL menampilkan daftar survei dengan filter: Cari Judul, Tipe, Status, Tahun, dan Bulan.
+3. THE Platform SHALL mengelompokkan survei secara otomatis per Tahun · Bulan berdasarkan tanggal dibuat di tampilan grid maupun list.
+4. THE Platform SHALL menyediakan toggle "Tampilan Folder" yang menampilkan navigator pohon Tahun › Bulan › Tipe di sisi kiri daftar survei.
+5. THE Platform SHALL menyediakan pagination server-side pada halaman Responden (default 25 per halaman, maks 200) dengan header `X-Total-Count` untuk total data.
+6. THE Platform SHALL mendukung pencarian nomor kuesioner di halaman Responden dan filter geo_status di server (bukan client-side) agar total dan halaman akurat.
+7. THE Platform SHALL mendukung pencarian nama/email TPD di halaman Manajemen TPD.
+
+---
+
+### Requirement 21: Keandalan Server (Produksi)
+
+**User Story:** Sebagai pengelola platform, saya ingin platform tetap responsif saat 150+ TPD aktif menyinkronkan data secara bersamaan, sehingga tidak ada data yang hilang atau tertahan.
+
+#### Acceptance Criteria
+
+1. THE Platform SHALL menjalankan backend dalam mode cluster (minimal 2 worker di produksi) untuk memanfaatkan seluruh kapasitas CPU server.
+2. THE Platform SHALL menggunakan connection pool database dengan minimal 15 koneksi per worker agar permintaan tidak mengantri saat lonjakan sinkronisasi.
+3. THE Platform SHALL mengonfigurasi timeout unggah media di nginx minimal 120 detik untuk mengakomodasi koneksi lapangan yang lambat.
+4. WHEN service worker (PWA) di-update, THE Platform SHALL mendistribusikan UI baru kepada semua pengguna pada refresh biasa (bukan hanya hard refresh), dengan mengecualikan `sw.js` dan `index.html` dari cache jangka panjang nginx.
+5. THE Platform SHALL mencatat error produksi ke Sentry (backend dan frontend) dengan sanitasi header sensitif (Authorization, Cookie) sebelum pengiriman.
+
+---
+
+### Requirement 22: Pengelompokan Role & Akses
+
+**User Story:** Sebagai pengelola platform, saya ingin setiap peran hanya dapat mengakses fitur yang relevan, sehingga keamanan dan integritas data terjaga.
+
+#### Acceptance Criteria
+
+1. THE Platform SHALL mendukung empat peran: Admin, Supervisor, Viewer, dan Surveyor (TPD), masing-masing dengan hak akses berbeda.
+2. Admin SHALL memiliki akses penuh: kelola survei, TPD, responden, laporan, audit log, pembersihan data, dan manajemen pengguna.
+3. Supervisor SHALL dapat mengelola survei dan TPD, melihat responden dan laporan, tetapi tidak dapat mengelola pengguna atau mengakses audit log.
+4. Viewer SHALL hanya dapat melihat responden dari survei aktif/nonaktif dan peta sebaran.
+5. Surveyor (TPD) SHALL hanya dapat mengakses daftar survei aktif dan formulir pengisian data melalui antarmuka TPD (`/surveyor`).
+6. THE Platform SHALL mencatat semua aksi admin dan supervisor (create/update/delete survei, TPD, responden) ke tabel audit_logs dengan informasi user, waktu, dan IP address.
