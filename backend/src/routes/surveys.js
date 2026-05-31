@@ -62,14 +62,14 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
     if (role === 'admin' || role === 'supervisor') {
       // Admin and supervisor see all surveys
       surveys = await Survey.findAll({
-        attributes: ['id', 'title', 'description', 'status', 'start_date', 'end_date', 'created_at'],
+        attributes: ['id', 'title', 'description', 'status', 'type', 'start_date', 'end_date', 'created_at'],
         order: [['created_at', 'DESC']],
       });
     } else if (role === 'viewer') {
       // Viewer sees active and inactive surveys (not draft)
       surveys = await Survey.findAll({
         where: { status: ['active', 'inactive'] },
-        attributes: ['id', 'title', 'description', 'status', 'start_date', 'end_date', 'created_at'],
+        attributes: ['id', 'title', 'description', 'status', 'type', 'start_date', 'end_date', 'created_at'],
         order: [['created_at', 'DESC']],
       });
     } else {
@@ -93,7 +93,7 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
             },
           ],
         },
-        attributes: ['id', 'title', 'description', 'status', 'start_date', 'end_date', 'created_at'],
+        attributes: ['id', 'title', 'description', 'status', 'type', 'start_date', 'end_date', 'created_at'],
         order: [['created_at', 'DESC']],
       });
     }
@@ -145,6 +145,7 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
       title: s.title,
       description: s.description,
       status: s.status,
+      type: s.type,
       question_count: questionCountMap[s.id] || 0,
       response_count: responseCountMap[s.id] || 0,
       start_date: s.start_date,
@@ -170,7 +171,7 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
  */
 router.post('/', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
   try {
-    const { title, description, start_date, end_date } = req.body;
+    const { title, description, start_date, end_date, type } = req.body;
 
     // Validasi tanggal
     const dateValidation = validateSurveyDates(start_date || null, end_date || null);
@@ -178,10 +179,17 @@ router.post('/', authMiddleware, requireRole(['admin', 'supervisor']), async (re
       return res.status(422).json({ error: dateValidation.error });
     }
 
+    // Validasi tipe survei (opsional; default 'lainnya')
+    const VALID_TYPES = ['nasional', 'daerah', 'lainnya'];
+    if (type !== undefined && type !== null && !VALID_TYPES.includes(type)) {
+      return res.status(422).json({ error: 'Tipe survei tidak valid. Gunakan: nasional, daerah, atau lainnya' });
+    }
+
     const survey = await Survey.create({
       title,
       description: description || null,
       status: 'draft',
+      type: type || 'lainnya',
       created_by: req.user.id,
       start_date: start_date || null,
       end_date: end_date || null,
@@ -202,6 +210,7 @@ router.post('/', authMiddleware, requireRole(['admin', 'supervisor']), async (re
       title: survey.title,
       description: survey.description,
       status: survey.status,
+      type: survey.type,
       start_date: survey.start_date,
       end_date: survey.end_date,
       field_tools_settings: survey.field_tools_settings,
@@ -276,7 +285,7 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
 router.put('/:id', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, description, start_date, end_date, field_tools_settings, form_mode } = req.body;
+    const { title, description, start_date, end_date, field_tools_settings, form_mode, type } = req.body;
 
     const survey = await Survey.findOne({ where: { id } });
     if (!survey) {
@@ -289,6 +298,11 @@ router.put('/:id', authMiddleware, requireRole(['admin', 'supervisor']), async (
       if (!ftsValidation.valid) {
         return res.status(422).json({ error: ftsValidation.error });
       }
+    }
+
+    // Validasi tipe survei jika dikirim
+    if (type !== undefined && !['nasional', 'daerah', 'lainnya'].includes(type)) {
+      return res.status(422).json({ error: 'Tipe survei tidak valid. Gunakan: nasional, daerah, atau lainnya' });
     }
 
     // Tentukan nilai final untuk validasi
@@ -308,6 +322,7 @@ router.put('/:id', authMiddleware, requireRole(['admin', 'supervisor']), async (
     if (end_date !== undefined) survey.end_date = end_date || null;
     if (field_tools_settings !== undefined) survey.field_tools_settings = field_tools_settings;
     if (form_mode !== undefined) survey.form_mode = form_mode;
+    if (type !== undefined) survey.type = type;
 
     await survey.save();
 
@@ -326,6 +341,7 @@ router.put('/:id', authMiddleware, requireRole(['admin', 'supervisor']), async (
       title: survey.title,
       description: survey.description,
       status: survey.status,
+      type: survey.type,
       start_date: survey.start_date,
       end_date: survey.end_date,
       field_tools_settings: survey.field_tools_settings,

@@ -6,6 +6,24 @@ import ViewToggle, { useViewMode } from '../components/ViewToggle';
 import SurveyCard from '../components/SurveyCard';
 import api from '../services/api';
 
+// ─── Tipe / skala survei ────────────────────────────────────────────────────────
+const SURVEY_TYPES = [
+  { value: 'nasional', label: 'Nasional', badge: 'bg-blue-100 text-blue-700' },
+  { value: 'daerah', label: 'Daerah', badge: 'bg-emerald-100 text-emerald-700' },
+  { value: 'lainnya', label: 'Lainnya', badge: 'bg-gray-100 text-gray-600' },
+];
+
+function SurveyTypeBadge({ type }) {
+  const t = SURVEY_TYPES.find((x) => x.value === type) || SURVEY_TYPES[2];
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${t.badge}`}>
+      {t.label}
+    </span>
+  );
+}
+
+const MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
 // ─── Create Survey Modal ──────────────────────────────────────────────────────
 /**
  * Modal form for creating a new survey.
@@ -17,6 +35,7 @@ function CreateSurveyModal({ onClose, onSaved }) {
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [type, setType] = useState('lainnya');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
   const [titleError, setTitleError] = useState('');
@@ -44,6 +63,7 @@ function CreateSurveyModal({ onClose, onSaved }) {
       await api.post('/surveys', {
         title: title.trim(),
         ...(description.trim() ? { description: description.trim() } : {}),
+        type,
         start_date: startDate ? new Date(startDate).toISOString() : null,
         end_date: endDate ? new Date(endDate).toISOString() : null,
       });
@@ -129,6 +149,23 @@ function CreateSurveyModal({ onClose, onSaved }) {
             />
           </div>
 
+          {/* Tipe survei */}
+          <div>
+            <label htmlFor="survey-type" className="block text-sm font-medium text-gray-700 mb-1">
+              Tipe Survei
+            </label>
+            <select
+              id="survey-type"
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {SURVEY_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Date Picker Section */}
           <div className="space-y-3">
             <div className="flex items-start gap-4 flex-wrap">
@@ -202,6 +239,7 @@ function CreateSurveyModal({ onClose, onSaved }) {
 function EditSurveyModal({ survey, onClose, onSaved }) {
   const [title, setTitle] = useState(survey.title || '');
   const [description, setDescription] = useState(survey.description || '');
+  const [type, setType] = useState(survey.type || 'lainnya');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
 
@@ -214,6 +252,7 @@ function EditSurveyModal({ survey, onClose, onSaved }) {
       await api.put(`/surveys/${survey.id}`, {
         title: title.trim(),
         description: description.trim() || null,
+        type,
       });
       onSaved();
     } catch (err) {
@@ -240,6 +279,13 @@ function EditSurveyModal({ survey, onClose, onSaved }) {
             <label htmlFor="edit-desc" className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
             <textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+          </div>
+          <div>
+            <label htmlFor="edit-type" className="block text-sm font-medium text-gray-700 mb-1">Tipe Survei</label>
+            <select id="edit-type" value={type} onChange={(e) => setType(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+              {SURVEY_TYPES.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
+            </select>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} disabled={submitting}
@@ -393,6 +439,7 @@ function Surveys() {
   const [filterMonth, setFilterMonth] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterType, setFilterType] = useState('');
 
   // ── Fetch surveys ───────────────────────────────────────────────────────────
   const fetchSurveys = useCallback(async () => {
@@ -521,6 +568,7 @@ function Surveys() {
   const filteredSurveys = surveys.filter((s) => {
     if (searchQuery.trim() && !(s.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
     if (filterStatus && s.status !== filterStatus) return false;
+    if (filterType && (s.type || 'lainnya') !== filterType) return false;
     if (filterYear || filterMonth) {
       const date = new Date(s.created_at);
       if (filterYear && date.getFullYear() !== parseInt(filterYear, 10)) return false;
@@ -531,6 +579,19 @@ function Surveys() {
 
   // Get unique years from surveys for the dropdown
   const availableYears = [...new Set(surveys.map((s) => new Date(s.created_at).getFullYear()))].sort((a, b) => b - a);
+
+  // Kelompokkan survei (sudah terurut created_at DESC dari server) per Tahun · Bulan
+  const surveyGroups = [];
+  const groupIndex = {};
+  for (const s of filteredSurveys) {
+    const d = new Date(s.created_at);
+    const key = `${d.getFullYear()} · ${MONTH_NAMES[d.getMonth()]}`;
+    if (groupIndex[key] === undefined) {
+      groupIndex[key] = surveyGroups.length;
+      surveyGroups.push({ key, items: [] });
+    }
+    surveyGroups[groupIndex[key]].items.push(s);
+  }
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -583,6 +644,15 @@ function Surveys() {
             <option value="inactive">Nonaktif</option>
           </select>
           <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Filter tipe survei"
+          >
+            <option value="">Semua Tipe</option>
+            {SURVEY_TYPES.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
+          </select>
+          <select
             value={filterYear}
             onChange={(e) => setFilterYear(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -613,9 +683,9 @@ function Surveys() {
             <option value="11">November</option>
             <option value="12">Desember</option>
           </select>
-          {(filterYear || filterMonth || filterStatus || searchQuery) && (
+          {(filterYear || filterMonth || filterStatus || filterType || searchQuery) && (
             <button
-              onClick={() => { setFilterYear(''); setFilterMonth(''); setFilterStatus(''); setSearchQuery(''); }}
+              onClick={() => { setFilterYear(''); setFilterMonth(''); setFilterStatus(''); setFilterType(''); setSearchQuery(''); }}
               className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
             >
               Reset Filter
@@ -685,25 +755,35 @@ function Surveys() {
               Tidak ada survei yang sesuai filter.
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-              {filteredSurveys.map((survey) => (
-                <SurveyCard
-                  key={survey.id}
-                  survey={survey}
-                  onBuilder={(s) => navigate(`/surveys/${s.id}/builder`)}
-                  onClone={handleClone}
-                  onActivate={handleActivate}
-                  onDeactivate={handleDeactivate}
-                  onDelete={handleDelete}
-                  cloningId={cloningId}
-                  confirmDeleteId={confirmDeleteId}
-                  onConfirmDelete={(id) => setConfirmDeleteId(id)}
-                  onCancelDelete={() => setConfirmDeleteId(null)}
-                  confirmDeactivateId={confirmDeactivateId}
-                  onConfirmDeactivate={(id) => setConfirmDeactivateId(id)}
-                  onCancelDeactivate={() => setConfirmDeactivateId(null)}
-                  formatDate={formatDate}
-                />
+            <div className="p-4 space-y-6">
+              {surveyGroups.map((g) => (
+                <div key={g.key}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="text-sm font-bold text-gray-700">{g.key}</h3>
+                    <span className="text-xs text-gray-400">· {g.items.length} survei</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {g.items.map((survey) => (
+                      <SurveyCard
+                        key={survey.id}
+                        survey={survey}
+                        onBuilder={(s) => navigate(`/surveys/${s.id}/builder`)}
+                        onClone={handleClone}
+                        onActivate={handleActivate}
+                        onDeactivate={handleDeactivate}
+                        onDelete={handleDelete}
+                        cloningId={cloningId}
+                        confirmDeleteId={confirmDeleteId}
+                        onConfirmDelete={(id) => setConfirmDeleteId(id)}
+                        onCancelDelete={() => setConfirmDeleteId(null)}
+                        confirmDeactivateId={confirmDeactivateId}
+                        onConfirmDeactivate={(id) => setConfirmDeactivateId(id)}
+                        onCancelDeactivate={() => setConfirmDeactivateId(null)}
+                        formatDate={formatDate}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
@@ -728,7 +808,14 @@ function Surveys() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filteredSurveys.map((survey) => {
+                  {surveyGroups.map((g) => (
+                    <React.Fragment key={g.key}>
+                      <tr className="bg-gray-50/70">
+                        <td colSpan={6} className="px-5 py-2 text-xs font-bold text-gray-500">
+                          {g.key} <span className="font-normal text-gray-400">· {g.items.length} survei</span>
+                        </td>
+                      </tr>
+                      {g.items.map((survey) => {
                     const isConfirmingDelete = confirmDeleteId === survey.id;
                     const isConfirmingDeactivate =
                       confirmDeactivateId === survey.id;
@@ -748,6 +835,9 @@ function Surveys() {
                             title={survey.title}
                           >
                             {survey.title}
+                          </span>
+                          <span className="mt-1 inline-block">
+                            <SurveyTypeBadge type={survey.type} />
                           </span>
                         </td>
 
@@ -916,6 +1006,8 @@ function Surveys() {
                       </tr>
                     );
                   })}
+                    </React.Fragment>
+                  ))}
                 </tbody>
               </table>
             </div>

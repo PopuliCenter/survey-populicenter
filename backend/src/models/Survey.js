@@ -86,6 +86,14 @@ module.exports = (sequelize) => {
         isIn: [['scroll', 'wizard']],
       },
     },
+    type: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'lainnya',
+      validate: {
+        isIn: [['nasional', 'daerah', 'lainnya']],
+      },
+    },
   }, {
     tableName: 'surveys',
     underscored: true,
