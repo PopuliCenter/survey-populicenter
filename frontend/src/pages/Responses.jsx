@@ -68,11 +68,18 @@ function Responses() {
   const [endDate, setEndDate] = useState('');
   const [geoStatusFilter, setGeoStatusFilter] = useState('');
   const [reviewStatusFilter, setReviewStatusFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // ── Table data ──────────────────────────────────────────────────────────────
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+
+  // ── Pagination ────────────────────────────────────────────────────────────
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // ── Load dropdown data on mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -102,26 +109,25 @@ function Responses() {
   // Bug #5: gunakan applied filter state terpisah agar fetch hanya terjadi saat tombol diklik
   const [appliedFilters, setAppliedFilters] = useState(null); // null = belum pernah filter
 
-  const fetchResponses = useCallback(async (filters) => {
+  const fetchResponses = useCallback(async (filters, pageArg = 1) => {
     setLoading(true);
     setFetchError(null);
     try {
-      const params = {};
+      const params = { page: pageArg, page_size: PAGE_SIZE };
       if (filters.survey_id) params.survey_id = filters.survey_id;
       if (filters.surveyor_id) params.surveyor_id = filters.surveyor_id;
       if (filters.start_date) params.start_date = filters.start_date;
       if (filters.end_date) params.end_date = filters.end_date;
+      if (filters.geo_status) params.geo_status = filters.geo_status; // server-side
+      if (filters.q && filters.q.trim()) params.q = filters.q.trim();
       if (filters.review_status && !isSurveyor) params.review_status = filters.review_status;
 
       const res = await api.get('/responses', { params });
-      let data = res.data || [];
+      setResponses(res.data || []);
 
-      // Client-side geo_status filter
-      if (filters.geo_status) {
-        data = data.filter((r) => r.geo_status === filters.geo_status);
-      }
-
-      setResponses(data);
+      // Total dari header pagination (fallback ke panjang data)
+      const totalHeader = res.headers?.['x-total-count'];
+      setTotal(totalHeader != null ? (parseInt(totalHeader, 10) || 0) : (res.data?.length || 0));
     } catch (err) {
       setFetchError(
         err.response?.data?.message ||
@@ -133,13 +139,13 @@ function Responses() {
     }
   }, [isSurveyor]);
 
-  // Bug #5: jangan fetch otomatis saat mount, tunggu user klik filter
-  // useEffect hanya dijalankan ketika appliedFilters berubah (bukan null)
+  // Bug #5: jangan fetch otomatis saat mount, tunggu user klik filter.
+  // Fetch juga saat halaman (page) berubah.
   useEffect(() => {
     if (appliedFilters !== null) {
-      fetchResponses(appliedFilters);
+      fetchResponses(appliedFilters, page);
     }
-  }, [appliedFilters, fetchResponses]);
+  }, [appliedFilters, page, fetchResponses]);
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   function formatTimestamp(isoStr) {
@@ -154,6 +160,7 @@ function Responses() {
 
   function handleApplyFilter(e) {
     e.preventDefault();
+    setPage(1); // selalu mulai dari halaman 1 saat filter baru
     setAppliedFilters({
       survey_id: selectedSurveyId,
       surveyor_id: selectedSurveyorId,
@@ -161,6 +168,7 @@ function Responses() {
       end_date: endDate,
       geo_status: geoStatusFilter,
       review_status: reviewStatusFilter,
+      q: searchQuery,
     });
   }
 
@@ -171,8 +179,11 @@ function Responses() {
     setEndDate('');
     setGeoStatusFilter('');
     setReviewStatusFilter('');
+    setSearchQuery('');
+    setPage(1);
     setAppliedFilters(null);
     setResponses([]);
+    setTotal(0);
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -191,6 +202,21 @@ function Responses() {
             onSubmit={handleApplyFilter}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
           >
+            {/* Search by questionnaire number */}
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label htmlFor="filter-q" className="block text-xs font-medium text-gray-600 mb-1">
+                Cari Nomor Kuesioner
+              </label>
+              <input
+                id="filter-q"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="mis. 0001 atau SK-20260528-0001"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+
             {/* Survey selector */}
             <div>
               <label
@@ -476,11 +502,33 @@ function Responses() {
           )}
         </div>
 
-        {/* Result count */}
-        {!loading && !fetchError && responses.length > 0 && (
-          <p className="text-xs text-gray-400 text-right">
-            Menampilkan {responses.length} responden
-          </p>
+        {/* Pagination */}
+        {!loading && !fetchError && total > 0 && (
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <p className="text-xs text-gray-500">
+              Menampilkan <strong>{((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, total)}</strong>
+              {' '}dari <strong>{total.toLocaleString('id-ID')}</strong> responden
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-3 h-9 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ‹ Sebelumnya
+              </button>
+              <span className="px-3 text-sm text-gray-600">Hal. {page} / {totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="px-3 h-9 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Berikutnya ›
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </Layout>

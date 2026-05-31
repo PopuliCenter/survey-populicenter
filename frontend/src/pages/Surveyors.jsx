@@ -506,7 +506,12 @@ function Surveyors() {
 
   // ── Filtered TPD ────────────────────────────────────────────────────────────
   const filteredSurveyors = tpdList.filter((tpd) => {
-    if (filterName && !tpd.name.toLowerCase().includes(filterName.toLowerCase())) return false;
+    if (filterName) {
+      const q = filterName.toLowerCase();
+      const matchName = (tpd.name || '').toLowerCase().includes(q);
+      const matchEmail = (tpd.email || '').toLowerCase().includes(q);
+      if (!matchName && !matchEmail) return false;
+    }
     if (filterSurveyId && Array.isArray(tpd.quotas)) {
       const hasSurvey = tpd.quotas.some((q) => q.survey_id === filterSurveyId);
       if (!hasSurvey) return false;
@@ -588,9 +593,9 @@ function Surveyors() {
             type="text"
             value={filterName}
             onChange={(e) => setFilterName(e.target.value)}
-            placeholder="Cari nama TPD…"
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-48"
-            aria-label="Cari nama TPD"
+            placeholder="Cari nama / email TPD…"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-56"
+            aria-label="Cari nama atau email TPD"
           />
           <select
             value={filterSurveyId}

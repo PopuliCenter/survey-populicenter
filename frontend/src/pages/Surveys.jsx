@@ -391,6 +391,8 @@ function Surveys() {
   // Filter state
   const [filterYear, setFilterYear] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
   // ── Fetch surveys ───────────────────────────────────────────────────────────
   const fetchSurveys = useCallback(async () => {
@@ -517,10 +519,13 @@ function Surveys() {
 
   // ── Filtered surveys ─────────────────────────────────────────────────────────
   const filteredSurveys = surveys.filter((s) => {
-    if (!filterYear && !filterMonth) return true;
-    const date = new Date(s.created_at);
-    if (filterYear && date.getFullYear() !== parseInt(filterYear, 10)) return false;
-    if (filterMonth && (date.getMonth() + 1) !== parseInt(filterMonth, 10)) return false;
+    if (searchQuery.trim() && !(s.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
+    if (filterStatus && s.status !== filterStatus) return false;
+    if (filterYear || filterMonth) {
+      const date = new Date(s.created_at);
+      if (filterYear && date.getFullYear() !== parseInt(filterYear, 10)) return false;
+      if (filterMonth && (date.getMonth() + 1) !== parseInt(filterMonth, 10)) return false;
+    }
     return true;
   });
 
@@ -553,6 +558,30 @@ function Surveys() {
 
         {/* Filter bar */}
         <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative">
+            <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari judul survei…"
+              className="w-56 border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              aria-label="Cari survei"
+            />
+          </div>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Filter status"
+          >
+            <option value="">Semua Status</option>
+            <option value="draft">Draft</option>
+            <option value="active">Aktif</option>
+            <option value="inactive">Nonaktif</option>
+          </select>
           <select
             value={filterYear}
             onChange={(e) => setFilterYear(e.target.value)}
@@ -584,9 +613,9 @@ function Surveys() {
             <option value="11">November</option>
             <option value="12">Desember</option>
           </select>
-          {(filterYear || filterMonth) && (
+          {(filterYear || filterMonth || filterStatus || searchQuery) && (
             <button
-              onClick={() => { setFilterYear(''); setFilterMonth(''); }}
+              onClick={() => { setFilterYear(''); setFilterMonth(''); setFilterStatus(''); setSearchQuery(''); }}
               className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
             >
               Reset Filter

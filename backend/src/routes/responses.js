@@ -579,6 +579,17 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
     // Exclude PENDING responses from listing
     whereClause.questionnaire_number = { [Op.notLike]: 'PENDING-%' };
 
+    // Pencarian teks berdasarkan nomor kuesioner (digabung dengan exclude PENDING)
+    if (req.query.q && String(req.query.q).trim()) {
+      whereClause.questionnaire_number[Op.iLike] = `%${String(req.query.q).trim()}%`;
+    }
+
+    // Filter status geolokasi (sebelumnya difilter di klien — kini server-side
+    // agar pagination & total akurat)
+    if (req.query.geo_status) {
+      whereClause.geo_status = req.query.geo_status;
+    }
+
     // Apply review_status filter for non-surveyor roles
     const validReviewStatuses = ['unreviewed', 'flagged', 'verified'];
     if (role !== 'surveyor' && req.query.review_status) {
@@ -589,6 +600,11 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
     }
 
     const isSurveyor = role === 'surveyor';
+
+    // ── Pagination (server-side) ──────────────────────────────────────────────
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(200, Math.max(1, parseInt(req.query.page_size, 10) || 25));
+    const offset = (page - 1) * pageSize;
 
     // Base attributes
     const attributes = [
@@ -630,12 +646,21 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
       });
     }
 
+    const total = await Response.count({ where: whereClause });
+
     const responses = await Response.findAll({
       where: whereClause,
       attributes,
       include: includeAssociations,
       order: [['created_at', 'DESC']],
+      limit: pageSize,
+      offset,
     });
+
+    // Metadata pagination via header (body tetap array — kompatibel)
+    res.set('X-Total-Count', String(total ?? 0));
+    res.set('X-Page', String(page));
+    res.set('X-Page-Size', String(pageSize));
 
     const result = responses.map((r) => {
       const item = {
