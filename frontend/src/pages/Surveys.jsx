@@ -24,6 +24,100 @@ function SurveyTypeBadge({ type }) {
 
 const MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
+function typeLabel(t) {
+  return (SURVEY_TYPES.find((x) => x.value === t) || SURVEY_TYPES[2]).label;
+}
+
+function Chevron({ open }) {
+  return (
+    <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+/**
+ * Navigasi folder Tahun › Bulan › Tipe. Mengeklik folder memanggil onSelect
+ * untuk mem-filter daftar survei (reuse render daftar yang sudah ada).
+ */
+function FolderTree({ surveys, selected, onSelect }) {
+  const [expanded, setExpanded] = useState(() => new Set());
+  const toggle = (k) => setExpanded((prev) => {
+    const n = new Set(prev);
+    if (n.has(k)) n.delete(k); else n.add(k);
+    return n;
+  });
+
+  const tree = {};
+  for (const s of surveys) {
+    const d = new Date(s.created_at);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const t = s.type || 'lainnya';
+    tree[y] = tree[y] || { count: 0, months: {} };
+    tree[y].count += 1;
+    tree[y].months[m] = tree[y].months[m] || { count: 0, types: {} };
+    tree[y].months[m].count += 1;
+    tree[y].months[m].types[t] = (tree[y].months[m].types[t] || 0) + 1;
+  }
+  const years = Object.keys(tree).map(Number).sort((a, b) => b - a);
+  const itemCls = (active) => `flex-1 text-left px-2 py-1.5 rounded-lg truncate ${active ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50 text-gray-700'}`;
+
+  return (
+    <aside className="w-56 shrink-0 border-r border-gray-100 p-2 overflow-auto text-sm" style={{ maxHeight: '70vh' }} aria-label="Navigasi folder survei">
+      <button
+        type="button"
+        onClick={() => onSelect('', '', '')}
+        className={`w-full text-left px-2 py-1.5 rounded-lg mb-1 ${!selected.year ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50 text-gray-700'}`}
+      >
+        Semua Survei <span className="text-xs text-gray-400">({surveys.length})</span>
+      </button>
+      {years.map((y) => {
+        const yKey = `y${y}`;
+        const yExp = expanded.has(yKey);
+        const yObj = tree[y];
+        const months = Object.keys(yObj.months).map(Number).sort((a, b) => b - a);
+        return (
+          <div key={y}>
+            <div className="flex items-center">
+              <button type="button" onClick={() => toggle(yKey)} className="p-1" aria-label={`Buka/tutup ${y}`}><Chevron open={yExp} /></button>
+              <button type="button" onClick={() => onSelect(String(y), '', '')} className={itemCls(selected.year === String(y) && !selected.month)}>
+                📁 {y} <span className="text-xs text-gray-400">({yObj.count})</span>
+              </button>
+            </div>
+            {yExp && months.map((m) => {
+              const mKey = `m${y}-${m}`;
+              const mExp = expanded.has(mKey);
+              const mObj = yObj.months[m];
+              const types = Object.keys(mObj.types);
+              return (
+                <div key={m} className="pl-3">
+                  <div className="flex items-center">
+                    <button type="button" onClick={() => toggle(mKey)} className="p-1" aria-label={`Buka/tutup ${MONTH_NAMES[m]} ${y}`}><Chevron open={mExp} /></button>
+                    <button type="button" onClick={() => onSelect(String(y), String(m + 1), '')} className={itemCls(selected.year === String(y) && selected.month === String(m + 1) && !selected.type)}>
+                      📂 {MONTH_NAMES[m]} <span className="text-xs text-gray-400">({mObj.count})</span>
+                    </button>
+                  </div>
+                  {mExp && types.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => onSelect(String(y), String(m + 1), t)}
+                      className={`block w-full text-left pl-9 pr-2 py-1.5 rounded-lg truncate ${selected.year === String(y) && selected.month === String(m + 1) && selected.type === t ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50 text-gray-600'}`}
+                    >
+                      {typeLabel(t)} <span className="text-xs text-gray-400">({mObj.types[t]})</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </aside>
+  );
+}
+
 // ─── Create Survey Modal ──────────────────────────────────────────────────────
 /**
  * Modal form for creating a new survey.
@@ -440,6 +534,7 @@ function Surveys() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [explorerMode, setExplorerMode] = useState('list'); // 'list' | 'folder'
 
   // ── Fetch surveys ───────────────────────────────────────────────────────────
   const fetchSurveys = useCallback(async () => {
@@ -601,6 +696,18 @@ function Surveys() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-800">Manajemen Survei</h1>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setExplorerMode((m) => (m === 'folder' ? 'list' : 'folder'))}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${explorerMode === 'folder' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+              aria-pressed={explorerMode === 'folder'}
+              title="Tampilan folder"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+              </svg>
+              Folder
+            </button>
             <ViewToggle viewMode={viewMode} onViewChange={handleViewChange} />
             <button
               onClick={() => setShowImportModal(true)}
@@ -724,7 +831,15 @@ function Surveys() {
         )}
 
         {/* Table card */}
-        <div className="bg-white rounded-xl shadow overflow-hidden">
+        <div className="bg-white rounded-xl shadow overflow-hidden flex">
+          {explorerMode === 'folder' && (
+            <FolderTree
+              surveys={surveys}
+              selected={{ year: filterYear, month: filterMonth, type: filterType }}
+              onSelect={(y, m, t) => { setFilterYear(y); setFilterMonth(m); setFilterType(t); }}
+            />
+          )}
+          <div className="flex-1 min-w-0">
           {loading ? (
             <div
               className="flex items-center justify-center h-48 text-gray-400 text-sm"
@@ -1012,6 +1127,7 @@ function Surveys() {
               </table>
             </div>
           )}
+          </div>
         </div>
       </div>
 
