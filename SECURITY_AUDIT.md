@@ -12,9 +12,9 @@ Ringkasan: 4 CRITICAL, 5 HIGH, 6 MEDIUM, beberapa catatan skalabilitas. Banyak f
 ### C1. Secret default ter-hardcode di `docker-compose.yml`
 **Bukti:** [docker-compose.yml:46-48](docker-compose.yml)
 ```yaml
-DB_PASSWORD: ${DB_PASSWORD:-Populi13!}
-JWT_SECRET: ${JWT_SECRET:-dca503c239758113e1324da185e1f962a8df821310bada9a7e4b0729f310900c}
-SESSION_SECRET: ${SESSION_SECRET:-ffd3f5900450d1517cefd1c861cba3413fe7587e81eee9be888deb5395d36bb5}
+DB_PASSWORD: ${DB_PASSWORD:}
+JWT_SECRET: ${JWT_SECRET:}
+SESSION_SECRET: ${SESSION_SECRET:}
 ```
 **Dampak:** Nilai default ini **ada di repo publik/klien**. Jika deploy tanpa meng-override `.env`, siapa pun yang melihat repo dapat **memalsukan JWT admin** (akses penuh) dan tahu password DB. Ini kebocoran kredensial produksi.
 **Perbaikan:**
