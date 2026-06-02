@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mockup — Login & Pop-up Konfirmasi (Modern)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #e5e7eb; }
+    .phone { width: 360px; max-width: 100%; background: #f9fafb; border-radius: 28px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.25); overflow: hidden; border: 8px solid #111827; position: relative; height: 720px; }
+    .statusbar { height: 26px; }
+    .logo { background: linear-gradient(135deg,#2563eb,#1e40af); }
+    @keyframes sheetUp { from { transform: translateY(100%);} to { transform: translateY(0);} }
+    .sheet { animation: sheetUp .35s cubic-bezier(.16,1,.3,1); }
+  </style>
+</head>
+<body class="py-8 px-4 font-sans text-gray-800">
+
+  <div class="max-w-6xl mx-auto mb-6 text-center">
+    <h1 class="text-xl font-bold text-gray-900">Mockup — Login & Pop-up Konfirmasi (gaya modern)</h1>
+    <p class="text-sm text-gray-600 mt-1">2 opsi tampilan login + 2 gaya pop-up. Bandingkan, lalu pilih.</p>
+  </div>
+
+  <!-- ============ LOGIN OPTIONS ============ -->
+  <h2 class="max-w-6xl mx-auto text-center text-base font-bold text-gray-700 mb-4">A. Tampilan Login</h2>
+  <div class="flex flex-wrap gap-10 justify-center items-start mb-12">
+
+    <!-- LOGIN OPSI 1 — Split hero atas + kartu -->
+    <div class="flex flex-col items-center">
+      <div class="mb-3 px-4 py-1.5 rounded-full bg-blue-600 text-white text-sm font-semibold">Login 1 — Hero + Kartu</div>
+      <div class="phone">
+        <div class="statusbar bg-blue-700"></div>
+        <!-- Hero -->
+        <div class="logo h-56 rounded-b-[40px] flex flex-col items-center justify-center text-white relative">
+          <div class="w-20 h-20 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center mb-3 ring-1 ring-white/30">
+            <span class="text-3xl font-black">P</span>
+          </div>
+          <h1 class="text-xl font-bold">Populi Center</h1>
+          <p class="text-xs text-blue-100 mt-1">Platform Survei Lapangan</p>
+        </div>
+        <!-- Form card mengambang -->
+        <div class="px-5 -mt-8 relative">
+          <div class="bg-white rounded-2xl shadow-lg p-5">
+            <h2 class="text-base font-bold text-gray-900 mb-1">Masuk</h2>
+            <p class="text-xs text-gray-400 mb-4">Gunakan akun yang terdaftar</p>
+
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Email</label>
+            <div class="relative mb-3">
+              <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              <input placeholder="nama@email.com" class="w-full h-12 pl-11 pr-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-400 focus:outline-none" />
+            </div>
+
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Password</label>
+            <div class="relative mb-5">
+              <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-1.1.9-2 2-2m-8 2a6 6 0 1112 0v3a2 2 0 01-2 2H8a2 2 0 01-2-2v-3z"/></svg>
+              <input type="password" value="password" class="w-full h-12 pl-11 pr-11 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-400 focus:outline-none" />
+              <button class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.5 12C4 7 8 4 12 4s8 3 9.5 8c-1.5 5-5.5 8-9.5 8s-8-3-9.5-8z"/></svg></button>
+            </div>
+
+            <button class="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-sm shadow-blue-300 transition">Masuk</button>
+          </div>
+          <p class="text-center text-[11px] text-gray-400 mt-4">© 2026 Populi Center</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGIN OPSI 2 — Full gradient + glass card -->
+    <div class="flex flex-col items-center">
+      <div class="mb-3 px-4 py-1.5 rounded-full bg-purple-600 text-white text-sm font-semibold">Login 2 — Gradient Penuh</div>
+      <div class="phone" style="background:linear-gradient(160deg,#1e3a8a,#2563eb 55%,#3b82f6)">
+        <div class="statusbar"></div>
+        <div class="h-full flex flex-col justify-center px-6 -mt-6">
+          <div class="text-center mb-7">
+            <div class="w-20 h-20 rounded-3xl bg-white/15 backdrop-blur flex items-center justify-center mx-auto mb-4 ring-1 ring-white/30">
+              <span class="text-3xl font-black text-white">P</span>
+            </div>
+            <h1 class="text-2xl font-bold text-white">Selamat Datang</h1>
+            <p class="text-sm text-blue-100 mt-1">Masuk untuk mulai survei</p>
+          </div>
+
+          <div class="bg-white/95 backdrop-blur rounded-3xl shadow-2xl p-5 space-y-3">
+            <div class="relative">
+              <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              <input placeholder="Email" class="w-full h-12 pl-11 pr-3 bg-gray-100 rounded-xl text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" />
+            </div>
+            <div class="relative">
+              <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-1.1.9-2 2-2m-8 2a6 6 0 1112 0v3a2 2 0 01-2 2H8a2 2 0 01-2-2v-3z"/></svg>
+              <input type="password" value="password" class="w-full h-12 pl-11 pr-3 bg-gray-100 rounded-xl text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" />
+            </div>
+            <button class="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-sm transition mt-1">Masuk</button>
+          </div>
+          <p class="text-center text-[11px] text-blue-100 mt-5">© 2026 Populi Center · Platform Survei</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL OPTIONS ============ -->
+  <h2 class="max-w-6xl mx-auto text-center text-base font-bold text-gray-700 mb-4">B. Pop-up Konfirmasi (Keluar Aplikasi / Keluar Daftar Survei)</h2>
+  <div class="flex flex-wrap gap-10 justify-center items-start">
+
+    <!-- MODAL OPSI 1 — Bottom Sheet (paling native/modern di Android) -->
+    <div class="flex flex-col items-center">
+      <div class="mb-3 px-4 py-1.5 rounded-full bg-emerald-600 text-white text-sm font-semibold">Pop-up 1 — Bottom Sheet</div>
+      <div class="phone">
+        <div class="statusbar bg-gray-800"></div>
+        <!-- background app diburamkan -->
+        <div class="absolute inset-0 bg-gray-100 blur-[2px] opacity-60"></div>
+        <div class="absolute inset-0 bg-black/40"></div>
+        <!-- sheet -->
+        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5 pb-7 sheet shadow-2xl">
+          <div class="w-10 h-1.5 bg-gray-300 rounded-full mx-auto mb-5"></div>
+          <div class="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z"/></svg>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 text-center">Keluar dari Daftar Survei?</h3>
+          <div class="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-center">
+            ⚠️ Ada <b>2 data</b> belum tersinkron. Data tetap tersimpan & otomatis diunggah saat login kembali.
+          </div>
+          <div class="mt-5 space-y-2.5">
+            <button class="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition">Ya, Keluar</button>
+            <button class="w-full h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition">Batal</button>
+          </div>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 mt-3 max-w-[320px] text-center">Muncul dari bawah, mudah dijangkau jempol. Sangat terasa "native Android".</p>
+    </div>
+
+    <!-- MODAL OPSI 2 — Centered Dialog modern -->
+    <div class="flex flex-col items-center">
+      <div class="mb-3 px-4 py-1.5 rounded-full bg-indigo-600 text-white text-sm font-semibold">Pop-up 2 — Dialog Tengah</div>
+      <div class="phone">
+        <div class="statusbar bg-gray-800"></div>
+        <div class="absolute inset-0 bg-gray-100 blur-[2px] opacity-60"></div>
+        <div class="absolute inset-0 bg-black/50 flex items-center justify-center px-6">
+          <div class="bg-white rounded-3xl shadow-2xl w-full p-6 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900">Keluar Aplikasi?</h3>
+            <p class="text-sm text-gray-500 mt-1.5">Apakah Anda yakin ingin menutup aplikasi Populi Survey?</p>
+            <div class="mt-6 flex gap-3">
+              <button class="flex-1 h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition">Batal</button>
+              <button class="flex-1 h-12 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition">Keluar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 mt-3 max-w-[320px] text-center">Dialog tengah klasik tapi lebih halus: sudut membulat, ikon besar, tombol tinggi 48px.</p>
+    </div>
+
+  </div>
+
+  <div class="max-w-3xl mx-auto mt-10 bg-white rounded-2xl p-6 shadow-sm text-sm text-gray-700">
+    <h3 class="font-bold text-gray-900 mb-2">Catatan</h3>
+    <ul class="list-disc pl-5 space-y-1">
+      <li>Huruf "P" hanya placeholder — versi asli memakai logo <code>logo-populi-center.png</code> Anda.</li>
+      <li>Semua input & tombol tingginya 48px (nyaman untuk jempol di lapangan).</li>
+      <li>Login punya tombol <b>lihat/sembunyikan password</b> (mata) — membantu input tanpa salah ketik.</li>
+      <li><b>Bottom Sheet</b> dipakai untuk kedua pop-up (keluar app & keluar daftar survei) agar konsisten, atau bisa campur sesuai selera.</li>
+    </ul>
+  </div>
+
+</body>
+</html>

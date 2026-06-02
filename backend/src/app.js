@@ -1,5 +1,14 @@
 require('dotenv').config();
 
+// Fail-fast: validate required environment variables
+const REQUIRED_ENV = ['JWT_SECRET', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) {
+    console.error(`[FATAL] Required environment variable ${key} is not set. Exiting.`);
+    process.exit(1);
+  }
+}
+
 // Sentry MUST be initialized before importing any other module
 const Sentry = require('@sentry/node');
 if (process.env.SENTRY_DSN) {
@@ -28,6 +37,9 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
+const RedisStore = require('rate-limit-redis').default;
+const redis = require('./config/redis');
 
 const app = express();
 
@@ -40,9 +52,25 @@ if (process.env.SENTRY_DSN) {
 app.use(helmet());
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-// Izinkan semua origin untuk development + Capacitor native app
 app.use(cors({
-  origin: true, // Izinkan semua origin
+  origin: (origin, callback) => {
+    // Allow: configured frontend URL, Capacitor native (null origin), localhost dev
+    const allowed = [
+      process.env.FRONTEND_URL,
+      'capacitor://localhost',
+      'ionic://localhost',
+      'http://localhost',
+      'http://localhost:5173',
+      'http://localhost:3000',
+    ].filter(Boolean);
+
+    // Allow requests with no origin (native apps, mobile)
+    if (!origin || allowed.some(u => origin.startsWith(u))) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -64,8 +92,32 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined'));
 }
 
+// ─── Global Rate Limiter ──────────────────────────────────────────────────────
+if (process.env.NODE_ENV !== 'test') {
+  const globalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: new RedisStore({
+      sendCommand: (...args) => redis.call(...args),
+    }),
+    message: { error: 'Terlalu banyak permintaan. Coba lagi nanti.' },
+  });
+  app.use(globalLimiter);
+}
+
 // ─── Static Files (uploaded photos) ──────────────────────────────────────────
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// Protected media endpoint — requires valid JWT
+const { authMiddleware } = require('./middleware/auth');
+app.get('/uploads/*', authMiddleware, (req, res) => {
+  const filePath = path.join(__dirname, '..', req.path);
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      res.status(404).json({ error: 'File tidak ditemukan' });
+    }
+  });
+});
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {

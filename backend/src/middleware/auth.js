@@ -1,7 +1,11 @@
 const jwt = require('jsonwebtoken');
 const redis = require('../config/redis');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('[FATAL] JWT_SECRET environment variable is not set. Server cannot start.');
+  process.exit(1);
+}
 
 /**
  * authMiddleware - Verify JWT and attach user to req.user

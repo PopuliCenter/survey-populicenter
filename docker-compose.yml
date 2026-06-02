@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: web_survey_platform
       POSTGRES_USER: surveyapp
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-Populi13!}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib di-set di file .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -43,9 +43,9 @@ services:
       DB_PORT: 5432
       DB_NAME: web_survey_platform
       DB_USER: surveyapp
-      DB_PASSWORD: ${DB_PASSWORD:-Populi13!}
-      JWT_SECRET: ${JWT_SECRET:-dca503c239758113e1324da185e1f962a8df821310bada9a7e4b0729f310900c}
-      SESSION_SECRET: ${SESSION_SECRET:-ffd3f5900450d1517cefd1c861cba3413fe7587e81eee9be888deb5395d36bb5}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib di-set di file .env}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET wajib di-set di file .env}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET wajib di-set di file .env}
       REDIS_URL: redis://redis:6379
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       UPLOAD_DIR: uploads/photos
@@ -73,7 +73,7 @@ services:
       DB_PORT: 5432
       DB_NAME: web_survey_platform
       DB_USER: surveyapp
-      DB_PASSWORD: ${DB_PASSWORD:-Populi13!}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib di-set di file .env}
       REDIS_URL: redis://redis:6379
       SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:

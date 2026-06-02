@@ -1,6 +1,8 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
+const RedisStore = require('rate-limit-redis').default;
 const { User } = require('../models');
 const redis = require('../config/redis');
 const { authMiddleware } = require('../middleware/auth');
@@ -8,13 +10,29 @@ const { createAuditLog } = require('../middleware/auditLog');
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('[FATAL] JWT_SECRET environment variable is not set. Server cannot start.');
+  process.exit(1);
+}
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: new RedisStore({
+    sendCommand: (...args) => redis.call(...args),
+  }),
+  message: { error: 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.' },
+  skip: () => process.env.NODE_ENV === 'test',
+});
 
 /**
  * POST /auth/login
  * Authenticate user and issue JWT
  */
-router.post('/login', async (req, res, next) => {
+router.post('/login', loginLimiter, async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
