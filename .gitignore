@@ -26,3 +26,12 @@ proxy.cjs
 coverage/
 # Vite temporary config bundles (bocor saat dev/build)
 *.timestamp-*.mjs
+
+# SSL certs (Cloudflare Origin Certificate) — JANGAN commit private key
+certs/
+*.pem
+*.key
+# Backup files dari operasi di server
+*.bak
+*.bak.*
+.env.bak.*
