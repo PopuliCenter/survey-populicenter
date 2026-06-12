@@ -37,10 +37,10 @@ function OfflineStatusBar({ isOnline, isSyncing, pendingCount }) {
       <div
         role="status"
         aria-live="polite"
-        className="flex items-center gap-1.5 text-xs font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-3 py-1"
+        className="flex items-center gap-1.5 text-xs font-medium text-accent-700 bg-accent-50 border border-accent-200 rounded-full px-3 py-1"
       >
         <svg
-          className="animate-spin h-3 w-3 text-primary-600"
+          className="animate-spin h-3 w-3 text-accent-600"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -59,9 +59,11 @@ function OfflineStatusBar({ isOnline, isSyncing, pendingCount }) {
       <div
         role="status"
         aria-live="polite"
-        className="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1"
+        className="flex items-center gap-1.5 text-xs font-medium text-accent-700 bg-accent-50 border border-accent-200 rounded-full px-3 py-1"
       >
-        <span aria-hidden="true">✓</span>
+        <svg className="h-3.5 w-3.5 text-accent-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
         Semua data berhasil disinkronkan
       </div>
     );
@@ -80,14 +82,14 @@ function OfflineStatusBar({ isOnline, isSyncing, pendingCount }) {
     );
   }
 
-  // Online
+  // Online — aksen hangat (kalem), bukan hijau
   return (
     <div
       role="status"
       aria-live="polite"
-      className="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1"
+      className="flex items-center gap-1.5 text-xs font-medium text-accent-700 bg-accent-50 border border-accent-200 rounded-full px-3 py-1"
     >
-      <span className="h-2 w-2 rounded-full bg-green-500 flex-shrink-0" aria-hidden="true" />
+      <span className="h-2 w-2 rounded-full bg-accent-500 flex-shrink-0" aria-hidden="true" />
       {pendingCount > 0 ? (
         <span>Online &middot; {pendingCount} data menunggu sinkronisasi</span>
       ) : (
