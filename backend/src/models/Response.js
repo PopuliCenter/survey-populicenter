@@ -120,6 +120,12 @@ module.exports = (sequelize) => {
         isIn: [GEO_STATUSES],
       },
     },
+    // Nilai nomor kuesioner (jawaban pertanyaan unique_id), bila ada. Dipakai
+    // untuk constraint UNIQUE per-survei yang tidak bergantung tanggal (bug C2).
+    unique_identifier: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
   }, {
     tableName: 'responses',
     underscored: true,

@@ -353,8 +353,12 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     const transaction = await sequelize.transaction();
     try {
       // --- Quota re-check inside transaction (prevents race condition) ---
+      // Kunci baris kuota (FOR UPDATE) agar submit konkuren dari TPD yang sama
+      // ter-serialisasi: tanpa ini, di READ COMMITTED dua submit bisa sama-sama
+      // membaca count yang sama lalu sama-sama lolos → kuota jebol (bug C1).
       const quotaRecord = await SurveyorQuota.findOne({
         where: { survey_id, surveyor_id },
+        lock: transaction.LOCK.UPDATE,
         transaction,
       });
       if (quotaRecord) {
@@ -422,6 +426,7 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
           start_latitude: start_latitude != null ? start_latitude : null,
           start_longitude: start_longitude != null ? start_longitude : null,
           start_geo_status: start_geo_status || 'available',
+          unique_identifier: uniqueIdValue || null,
         },
         { transaction }
       );
@@ -441,6 +446,17 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
       await transaction.commit();
     } catch (txError) {
       await transaction.rollback();
+      // Log error agar 500 tidak "senyap" (memudahkan diagnosa di produksi).
+      console.error('[responses/submit] transaksi gagal:', txError.message);
+      // Pelanggaran UNIQUE (nomor kuesioner / unique_id sudah dipakai) — ini
+      // backstop race C2: kembalikan 422 yang ramah, bukan 500 generik.
+      if (txError.name === 'SequelizeUniqueConstraintError') {
+        const fields = txError.fields || {};
+        if ('unique_identifier' in fields || (txError.parent?.constraint || '').includes('unique_identifier')) {
+          return res.status(422).json({ error: 'Nomor kuesioner sudah digunakan dalam survei ini' });
+        }
+        return res.status(422).json({ error: 'Nomor kuesioner sudah digunakan. Silakan gunakan nomor lain.' });
+      }
       // If sequence doesn't exist or other DB error
       return res.status(500).json({ error: 'Gagal menyimpan data. Silakan coba kembali' });
     }

@@ -93,12 +93,33 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // ─── Global Rate Limiter ──────────────────────────────────────────────────────
-if (process.env.NODE_ENV !== 'test') {
+// Di-key per PENGGUNA (bukan per-IP) bila ada token valid, agar banyak TPD yang
+// berbagi satu IP (WiFi kantor / NAT seluler) tidak saling memblokir (bug M1).
+// Ambang & status aktif dapat dikonfigurasi via env (untuk load test: naikkan
+// RATE_LIMIT_MAX atau set RATE_LIMIT_DISABLED=true).
+if (process.env.NODE_ENV !== 'test' && process.env.RATE_LIMIT_DISABLED !== 'true') {
+  const jwt = require('jsonwebtoken');
+  const RL_SECRET = process.env.JWT_SECRET;
+
+  const rateLimitKey = (req) => {
+    const auth = req.headers.authorization;
+    if (auth && auth.startsWith('Bearer ') && RL_SECRET) {
+      try {
+        const decoded = jwt.verify(auth.slice(7), RL_SECRET);
+        if (decoded && decoded.id) return `user:${decoded.id}`;
+      } catch {
+        // token tidak valid → jatuh ke key IP
+      }
+    }
+    return req.ip;
+  };
+
   const globalLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 300,
+    max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 600,
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: rateLimitKey,
     store: new RedisStore({
       sendCommand: (...args) => redis.call(...args),
     }),
