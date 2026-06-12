@@ -1,0 +1,171 @@
+'use strict';
+
+/**
+ * maintenance.js — tugas pemeliharaan terjadwal (berjalan di proses worker,
+ * instance tunggal, sehingga aman memakai setInterval).
+ *
+ * Mengatasi temuan review konkurensi:
+ *  - M2: rekonsiliasi statistik survei (perbaiki drift akibat increment
+ *        fire-and-forget yang sesekali gagal).
+ *  - M3: hapus PENDING response yatim (>24 jam) agar tabel tidak membengkak
+ *        dan COUNT kuota tetap cepat.
+ *  - M4: reaper media yatim (file upload tak direferensikan response apa pun).
+ *        DEFAULT dry-run (hanya melapor); set MEDIA_REAPER_ENABLED=true untuk
+ *        benar-benar menghapus.
+ *
+ * ENV:
+ *  MAINTENANCE_INTERVAL_MIN   default 60
+ *  PENDING_TTL_HOURS          default 24
+ *  MEDIA_REAPER_ENABLED       default false (dry-run)
+ *  MEDIA_REAPER_AGE_HOURS     default 48
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { Op } = require('sequelize');
+const { sequelize, Response, Answer, Survey } = require('../models');
+const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
+
+const UPLOAD_ROOT = path.join(__dirname, '..', '..', 'uploads');
+const MEDIA_DIRS = ['photos', 'audio', 'signatures'];
+
+// ─── M3: hapus PENDING yatim ───────────────────────────────────────────────────
+async function cleanupStalePending() {
+  const ttlHours = parseInt(process.env.PENDING_TTL_HOURS, 10) || 24;
+  const cutoff = new Date(Date.now() - ttlHours * 60 * 60 * 1000);
+  const pending = await Response.findAll({
+    where: {
+      questionnaire_number: { [Op.or]: [{ [Op.eq]: 'PENDING' }, { [Op.like]: 'PENDING-%' }] },
+      created_at: { [Op.lte]: cutoff },
+    },
+    attributes: ['id'],
+    raw: true,
+  });
+  const ids = pending.map((r) => r.id);
+  if (ids.length === 0) return 0;
+  await sequelize.transaction(async (t) => {
+    await Answer.destroy({ where: { response_id: { [Op.in]: ids } }, transaction: t });
+    await Response.destroy({ where: { id: { [Op.in]: ids } }, transaction: t });
+  });
+  return ids.length;
+}
+
+// ─── M2: rekonsiliasi statistik ────────────────────────────────────────────────
+async function reconcileStats() {
+  const surveys = await Survey.findAll({ where: { status: 'active' }, attributes: ['id'], raw: true });
+  let ok = 0;
+  for (const s of surveys) {
+    try {
+      await recomputeSurveyStats(s.id);
+      ok += 1;
+    } catch (err) {
+      console.error(`[maintenance] gagal recompute stats survey ${s.id}:`, err.message);
+    }
+  }
+  return ok;
+}
+
+// ─── M4: reaper media yatim ────────────────────────────────────────────────────
+async function getReferencedMediaPaths() {
+  const referenced = new Set();
+  // responses.audio_path / signature_path
+  const [rows] = await sequelize.query(
+    `SELECT audio_path, signature_path, photo_paths FROM responses
+     WHERE audio_path IS NOT NULL OR signature_path IS NOT NULL OR photo_paths IS NOT NULL`
+  );
+  for (const r of rows) {
+    if (r.audio_path) referenced.add(r.audio_path);
+    if (r.signature_path) referenced.add(r.signature_path);
+    if (Array.isArray(r.photo_paths)) for (const p of r.photo_paths) if (p) referenced.add(p);
+  }
+  // answers.photo_path
+  const [ans] = await sequelize.query(
+    `SELECT photo_path FROM answers WHERE photo_path IS NOT NULL`
+  );
+  for (const a of ans) if (a.photo_path) referenced.add(a.photo_path);
+  return referenced;
+}
+
+function walkFiles(dir) {
+  const out = [];
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...walkFiles(full));
+    else out.push(full);
+  }
+  return out;
+}
+
+async function reapOrphanMedia() {
+  const enabled = process.env.MEDIA_REAPER_ENABLED === 'true';
+  const ageHours = parseInt(process.env.MEDIA_REAPER_AGE_HOURS, 10) || 48;
+  const cutoffMs = Date.now() - ageHours * 60 * 60 * 1000;
+  const referenced = await getReferencedMediaPaths();
+
+  let orphans = 0;
+  let deleted = 0;
+  for (const sub of MEDIA_DIRS) {
+    const dir = path.join(UPLOAD_ROOT, sub);
+    for (const full of walkFiles(dir)) {
+      let stat;
+      try { stat = fs.statSync(full); } catch { continue; }
+      if (stat.mtimeMs > cutoffMs) continue; // terlalu baru — mungkin masih in-flight
+      // relative path seperti tersimpan di DB: uploads/<sub>/<...>
+      const rel = path.relative(path.join(UPLOAD_ROOT, '..'), full).split(path.sep).join('/');
+      if (referenced.has(rel)) continue;
+      orphans += 1;
+      if (enabled) {
+        try { fs.unlinkSync(full); deleted += 1; } catch (e) {
+          console.error('[maintenance] gagal hapus media yatim', rel, e.message);
+        }
+      }
+    }
+  }
+  return { orphans, deleted, enabled };
+}
+
+// ─── Runner ──────────────────────────────────────────────────────────────────
+let running = false;
+async function runOnce() {
+  if (running) return;
+  running = true;
+  const t0 = Date.now();
+  try {
+    const pending = await cleanupStalePending();
+    const stats = await reconcileStats();
+    const media = await reapOrphanMedia();
+    console.log(
+      `[maintenance] selesai dalam ${Date.now() - t0}ms | PENDING dihapus=${pending} | ` +
+        `stats direkonsiliasi=${stats} | media yatim=${media.orphans} ` +
+        `(${media.enabled ? `dihapus=${media.deleted}` : 'dry-run'})`
+    );
+  } catch (err) {
+    console.error('[maintenance] error:', err.message);
+  } finally {
+    running = false;
+  }
+}
+
+function startMaintenanceScheduler() {
+  const intervalMin = parseInt(process.env.MAINTENANCE_INTERVAL_MIN, 10) || 60;
+  console.log(`[maintenance] scheduler aktif — tiap ${intervalMin} menit`);
+  // Jalankan sekali ~30 dtk setelah start (beri waktu koneksi siap), lalu berkala.
+  setTimeout(runOnce, 30 * 1000);
+  const handle = setInterval(runOnce, intervalMin * 60 * 1000);
+  if (handle.unref) handle.unref();
+  return handle;
+}
+
+module.exports = {
+  startMaintenanceScheduler,
+  runOnce,
+  cleanupStalePending,
+  reconcileStats,
+  reapOrphanMedia,
+};

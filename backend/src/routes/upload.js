@@ -28,8 +28,37 @@ const SIGNATURE_ALLOWED_MIME_TYPES = ['image/png'];
   }
 });
 
+const PROJECT_ROOT = path.join(__dirname, '..', '..');
+
+// Shard direktori upload per tanggal (YYYY-MM-DD) agar tidak menumpuk ribuan
+// file dalam satu folder datar (bug M4). Forward-only: file lama tetap di tempat.
+function dateSubdir() {
+  return new Date().toISOString().slice(0, 10);
+}
+function shardedDestination(baseDir) {
+  return (req, file, cb) => {
+    const dir = path.join(baseDir, dateSubdir());
+    fs.mkdir(dir, { recursive: true }, (err) => cb(err, dir));
+  };
+}
+// Path relatif seperti disimpan di DB: uploads/<jenis>/<tanggal>/<file>
+function relUploadPath(file) {
+  return path.relative(PROJECT_ROOT, file.path).split(path.sep).join('/');
+}
+
+// Limiter upload per-user (bug M4): cegah satu akun membanjiri penyimpanan.
+const rateLimit = require('express-rate-limit');
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: parseInt(process.env.UPLOAD_RATE_LIMIT_MAX, 10) || 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.user && req.user.id ? `upload:${req.user.id}` : req.ip),
+  message: { error: 'Terlalu banyak unggahan. Coba lagi sebentar.' },
+});
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  destination: shardedDestination(UPLOAD_DIR),
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const ext = path.extname(file.originalname).toLowerCase();
@@ -57,7 +86,7 @@ const upload = multer({
  * Requires authentication (admin or surveyor)
  * Returns: { path: "uploads/photos/filename.jpg" }
  */
-router.post('/photo', authMiddleware, requireRole(['admin', 'supervisor', 'surveyor']), (req, res, next) => {
+router.post('/photo', authMiddleware, requireRole(['admin', 'supervisor', 'surveyor']), uploadLimiter, (req, res, next) => {
   upload.single('photo')(req, res, (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -74,14 +103,14 @@ router.post('/photo', authMiddleware, requireRole(['admin', 'supervisor', 'surve
     }
 
     // Return relative path
-    const relativePath = `uploads/photos/${req.file.filename}`;
+    const relativePath = relUploadPath(req.file);
     res.status(201).json({ path: relativePath });
   });
 });
 
 // --- Audio multer config ---
 const audioStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, AUDIO_UPLOAD_DIR),
+  destination: shardedDestination(AUDIO_UPLOAD_DIR),
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const ext = path.extname(file.originalname).toLowerCase() || '.webm';
@@ -109,7 +138,7 @@ const audioUpload = multer({
  * Requires authentication (admin, supervisor, or surveyor)
  * Returns: { path: "uploads/audio/audio-{timestamp}-{random}.ext" }
  */
-router.post('/audio', authMiddleware, requireRole(['admin', 'supervisor', 'surveyor']), (req, res, next) => {
+router.post('/audio', authMiddleware, requireRole(['admin', 'supervisor', 'surveyor']), uploadLimiter, (req, res, next) => {
   audioUpload.single('audio')(req, res, (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -125,14 +154,14 @@ router.post('/audio', authMiddleware, requireRole(['admin', 'supervisor', 'surve
       return res.status(422).json({ error: 'File tidak ditemukan dalam request' });
     }
 
-    const relativePath = `uploads/audio/${req.file.filename}`;
+    const relativePath = relUploadPath(req.file);
     res.status(201).json({ path: relativePath });
   });
 });
 
 // --- Signature multer config ---
 const signatureStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, SIGNATURE_UPLOAD_DIR),
+  destination: shardedDestination(SIGNATURE_UPLOAD_DIR),
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     cb(null, `sig-${uniqueSuffix}.png`);
@@ -159,7 +188,7 @@ const signatureUpload = multer({
  * Requires authentication (admin, supervisor, or surveyor)
  * Returns: { path: "uploads/signatures/sig-{timestamp}-{random}.png" }
  */
-router.post('/signature', authMiddleware, requireRole(['admin', 'supervisor', 'surveyor']), (req, res, next) => {
+router.post('/signature', authMiddleware, requireRole(['admin', 'supervisor', 'surveyor']), uploadLimiter, (req, res, next) => {
   signatureUpload.single('signature')(req, res, (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -175,7 +204,7 @@ router.post('/signature', authMiddleware, requireRole(['admin', 'supervisor', 's
       return res.status(422).json({ error: 'File tidak ditemukan dalam request' });
     }
 
-    const relativePath = `uploads/signatures/${req.file.filename}`;
+    const relativePath = relUploadPath(req.file);
     res.status(201).json({ path: relativePath });
   });
 });

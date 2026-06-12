@@ -68,4 +68,12 @@ async function shutdown(signal) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
+// ─── Maintenance terjadwal (M2 stats, M3 PENDING, M4 media yatim) ──────────────
+// Berjalan di proses worker (instance tunggal). Bisa dimatikan via
+// MAINTENANCE_DISABLED=true.
+if (process.env.MAINTENANCE_DISABLED !== 'true') {
+  const { startMaintenanceScheduler } = require('./maintenance');
+  startMaintenanceScheduler();
+}
+
 console.log('[Worker] Export worker is ready and waiting for jobs');
