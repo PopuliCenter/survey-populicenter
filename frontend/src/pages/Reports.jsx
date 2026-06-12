@@ -445,7 +445,7 @@ function Reports() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               >
                 <option value="committed">Sukses (Ter-commit)</option>
-                <option value="pending">Pending</option>
+                <option value="pending">Sesi belum selesai (tanpa jawaban)</option>
                 <option value="all">Semua</option>
               </select>
             </div>

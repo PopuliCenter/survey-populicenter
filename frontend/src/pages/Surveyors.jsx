@@ -6,6 +6,7 @@ import SurveyorCard from '../components/SurveyorCard';
 import BulkUploadModal from '../components/BulkUploadModal';
 import BulkAssignModal from '../components/BulkAssignModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import IconButton from '../components/IconButton';
 import { useToast } from '../components/Toast';
 import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
@@ -758,61 +759,52 @@ function Surveyors() {
 
                           {/* Actions */}
                           <td className="px-5 py-3">
-                            <div className="flex items-center justify-end gap-2 flex-wrap">
-                              {/* Lihat Kuota button */}
-                              <button
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Lihat Kuota */}
+                              <IconButton
+                                icon={isQuotaExpanded ? 'quotaHide' : 'quota'}
+                                variant="info"
+                                label={isQuotaExpanded ? `Sembunyikan kuota ${tpd.name}` : `Lihat kuota ${tpd.name}`}
                                 onClick={() => toggleQuotaPanel(tpd.id)}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-300 ${
-                                  isQuotaExpanded
-                                    ? 'text-indigo-700 bg-indigo-100 hover:bg-indigo-200'
-                                    : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
-                                }`}
                                 aria-expanded={isQuotaExpanded}
-                                aria-label={`${isQuotaExpanded ? 'Sembunyikan' : 'Lihat'} kuota ${tpd.name}`}
-                              >
-                                {isQuotaExpanded ? 'Sembunyikan Kuota' : 'Lihat Kuota'}
-                              </button>
+                              />
 
-                              {/* Edit button */}
-                              <button
+                              {/* Edit */}
+                              <IconButton
+                                icon="edit"
+                                variant="primary"
+                                label={`Edit TPD ${tpd.name}`}
                                 onClick={() => {
                                   setEditTarget(tpd);
                                   setModalMode('edit');
                                 }}
-                                className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
-                                aria-label={`Edit TPD ${tpd.name}`}
-                              >
-                                Edit
-                              </button>
+                              />
 
-                              {/* Deactivate / Activate toggle */}
+                              {/* Nonaktifkan / Aktifkan */}
                               {tpd.is_active ? (
-                                <button
+                                <IconButton
+                                  icon="deactivate"
+                                  variant="danger"
+                                  label={`Nonaktifkan TPD ${tpd.name}`}
                                   onClick={() => setDeactivateTarget(tpd)}
-                                  className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                  aria-label={`Nonaktifkan TPD ${tpd.name}`}
-                                >
-                                  Nonaktifkan
-                                </button>
+                                />
                               ) : (
-                                <button
+                                <IconButton
+                                  icon="activate"
+                                  variant="success"
+                                  label={`Aktifkan kembali TPD ${tpd.name}`}
                                   onClick={() => handleActivate(tpd)}
-                                  className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
-                                  aria-label={`Aktifkan kembali TPD ${tpd.name}`}
-                                >
-                                  Aktifkan
-                                </button>
+                                />
                               )}
 
-                              {/* Delete button — only for admin role */}
+                              {/* Hapus — admin only */}
                               {currentUser.role === 'admin' && (
-                                <button
+                                <IconButton
+                                  icon="trash"
+                                  variant="danger"
+                                  label={`Hapus TPD ${tpd.name}`}
                                   onClick={() => setDeleteTarget(tpd)}
-                                  className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                  aria-label={`Hapus TPD ${tpd.name}`}
-                                >
-                                  Hapus
-                                </button>
+                                />
                               )}
                             </div>
                           </td>

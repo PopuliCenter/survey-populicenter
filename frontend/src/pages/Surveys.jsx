@@ -5,6 +5,7 @@ import { SurveyStatusBadge, TemporalBadge } from '../components/SurveyBadges';
 import ViewToggle, { useViewMode } from '../components/ViewToggle';
 import SurveyCard from '../components/SurveyCard';
 import ConfirmDialog from '../components/ConfirmDialog';
+import IconButton from '../components/IconButton';
 import { useToast } from '../components/Toast';
 import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
@@ -989,86 +990,78 @@ function Surveys() {
 
                         {/* Actions */}
                         <td className="px-5 py-3">
-                          <div className="flex items-center justify-end gap-2 flex-wrap">
-                            {/* Builder button */}
-                            <button
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Builder */}
+                            <IconButton
+                              icon="builder"
+                              variant="primary"
+                              label={`Buka builder survei ${survey.title}`}
                               onClick={() => navigate(`/surveys/${survey.id}/builder`)}
-                              className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
-                              aria-label={`Buka builder untuk survei ${survey.title}`}
-                            >
-                              Builder
-                            </button>
+                            />
 
-                            {/* Edit button */}
-                            <button
+                            {/* Edit */}
+                            <IconButton
+                              icon="edit"
+                              variant="default"
+                              label={`Edit survei ${survey.title}`}
                               onClick={() => setEditTarget(survey)}
-                              className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
-                              aria-label={`Edit survei ${survey.title}`}
-                            >
-                              Edit
-                            </button>
+                            />
 
-                            {/* Export questionnaire */}
+                            {/* Export kuesioner */}
                             {(survey.question_count ?? 0) > 0 && (
-                              <button
+                              <IconButton
+                                icon="export"
+                                variant="success"
+                                label={`Export kuesioner ${survey.title}`}
                                 onClick={() => handleExportQuestionnaire(survey)}
-                                className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
-                                aria-label={`Export kuesioner ${survey.title}`}
-                              >
-                                Export
-                              </button>
+                              />
                             )}
 
-                            {/* Duplikasi button */}
-                            <button
+                            {/* Duplikasi */}
+                            <IconButton
+                              icon="duplicate"
+                              variant="accent"
+                              label={cloningId === survey.id ? `Menduplikasi ${survey.title}…` : `Duplikasi survei ${survey.title}`}
                               onClick={() => handleClone(survey)}
                               disabled={cloningId === survey.id}
-                              className="px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-60 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-purple-300"
-                              aria-label={`Duplikasi survei ${survey.title}`}
-                            >
-                              {cloningId === survey.id ? 'Menduplikasi…' : 'Duplikasi'}
-                            </button>
+                            />
 
-                            {/* Activate / Deactivate toggle */}
+                            {/* Aktifkan / Nonaktifkan */}
                             {survey.status === 'draft' && (
-                              <button
+                              <IconButton
+                                icon="activate"
+                                variant="success"
+                                label={`Aktifkan survei ${survey.title}`}
                                 onClick={() => handleActivate(survey)}
-                                className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
-                                aria-label={`Aktifkan survei ${survey.title}`}
-                              >
-                                Aktifkan
-                              </button>
+                              />
                             )}
 
                             {survey.status === 'active' && (
-                              <button
+                              <IconButton
+                                icon="deactivate"
+                                variant="warning"
+                                label={`Nonaktifkan survei ${survey.title}`}
                                 onClick={() => setDeactivateTarget(survey)}
-                                className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                                aria-label={`Nonaktifkan survei ${survey.title}`}
-                              >
-                                Nonaktifkan
-                              </button>
+                              />
                             )}
 
                             {survey.status === 'inactive' && (
-                              <button
+                              <IconButton
+                                icon="activate"
+                                variant="success"
+                                label={`Aktifkan kembali survei ${survey.title}`}
                                 onClick={() => handleActivate(survey)}
-                                className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
-                                aria-label={`Aktifkan kembali survei ${survey.title}`}
-                              >
-                                Aktifkan
-                              </button>
+                              />
                             )}
 
-                            {/* Delete (only draft with no responses) */}
+                            {/* Hapus (hanya draft tanpa respons) */}
                             {canDelete && (
-                              <button
+                              <IconButton
+                                icon="trash"
+                                variant="danger"
+                                label={`Hapus survei ${survey.title}`}
                                 onClick={() => setDeleteTarget(survey)}
-                                className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                aria-label={`Hapus survei ${survey.title}`}
-                              >
-                                Hapus
-                              </button>
+                              />
                             )}
                           </div>
                         </td>

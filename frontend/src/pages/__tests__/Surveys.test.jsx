@@ -200,13 +200,12 @@ describe('Loading state saat duplikasi', () => {
     });
     fireEvent.click(duplikasiBtn);
 
+    // Saat menduplikasi, tombol ikon disabled & accessible name jadi "Menduplikasi …"
     await waitFor(() => {
-      expect(screen.getByText('Menduplikasi…')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /menduplikasi survei draft/i })
+      ).toBeDisabled();
     });
-
-    // The button should be disabled
-    const loadingBtn = screen.getByText('Menduplikasi…').closest('button');
-    expect(loadingBtn).toBeDisabled();
 
     // Cleanup: resolve the promise
     resolveClone({ data: { id: 'cloned-uuid-001' } });
@@ -299,12 +298,11 @@ describe('Setelah duplikasi error', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
 
-    // Button should be back to normal (not disabled, text is "Duplikasi")
+    // Tombol kembali normal: tidak disabled & accessible name kembali "Duplikasi survei …"
     const duplikasiBtn = screen.getByRole('button', {
       name: /duplikasi survei survei draft/i,
     });
     expect(duplikasiBtn).not.toBeDisabled();
-    expect(duplikasiBtn).toHaveTextContent('Duplikasi');
   });
 
   test('navigate tidak dipanggil setelah error', async () => {
