@@ -96,7 +96,7 @@ function SurveyList() {
   const [uniqueQidMap, setUniqueQidMap] = useState({});
 
   // ─── Offline / Sync ─────────────────────────────────────────────────────────
-  const { isOnline, isSyncing, pendingCount, pendingItems, failedItems, deleteFailedItem } = useSyncManager();
+  const { isOnline, isSyncing, pendingCount, pendingItems, failedItems, deleteFailedItem, retryFailedItem, retryAllFailed } = useSyncManager();
 
   // ─── Load user from localStorage ───────────────────────────────────────────
   useEffect(() => {
@@ -711,10 +711,19 @@ function SurveyList() {
         {/* Failed sync items — Requirement 6.2, 6.3 */}
         {failedItems.length > 0 && (
           <div className="mt-6">
-            <h2 className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
-              Respons Gagal Tersinkron ({failedItems.length})
-            </h2>
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <h2 className="text-sm font-semibold text-red-700 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
+                Respons Gagal Tersinkron ({failedItems.length})
+              </h2>
+              <button
+                onClick={retryAllFailed}
+                disabled={!isOnline || isSyncing}
+                className="flex-shrink-0 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-300 rounded px-3 py-1.5 transition-colors"
+              >
+                {isSyncing ? 'Menyinkron…' : 'Coba Lagi Semua'}
+              </button>
+            </div>
             <div className="space-y-2">
               {failedItems.map((item) => (
                 <div
@@ -734,13 +743,23 @@ function SurveyList() {
                       </p>
                     )}
                   </div>
-                  <button
-                    onClick={() => deleteFailedItem(item.localId)}
-                    className="flex-shrink-0 text-xs font-medium text-red-700 hover:text-red-900 border border-red-300 hover:border-red-500 rounded px-2 py-1 transition-colors"
-                    aria-label={`Hapus respons gagal untuk survei ${item.survey_id}`}
-                  >
-                    Hapus
-                  </button>
+                  <div className="flex-shrink-0 flex flex-col gap-1">
+                    <button
+                      onClick={() => retryFailedItem(item.localId)}
+                      disabled={!isOnline || isSyncing}
+                      className="text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-300 rounded px-2 py-1 transition-colors"
+                      aria-label={`Coba sinkron ulang respons untuk survei ${item.survey_id}`}
+                    >
+                      Coba Lagi
+                    </button>
+                    <button
+                      onClick={() => deleteFailedItem(item.localId)}
+                      className="text-xs font-medium text-red-700 hover:text-red-900 border border-red-300 hover:border-red-500 rounded px-2 py-1 transition-colors"
+                      aria-label={`Hapus respons gagal untuk survei ${item.survey_id}`}
+                    >
+                      Hapus
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

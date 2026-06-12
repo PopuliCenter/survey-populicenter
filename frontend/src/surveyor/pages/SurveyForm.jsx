@@ -1347,6 +1347,22 @@ function SurveyForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fieldToolsSettings.gps_mode]);
 
+  // ─── Auto-mulai rekaman saat audio WAJIB ───────────────────────────────────
+  // Jika audio_mode = 'required', rekaman dimulai otomatis begitu form survei
+  // terbuka sehingga surveyor tidak perlu menekan tombol dan tidak lupa merekam.
+  // Untuk mode 'optional', perilaku tetap manual seperti semula (tidak auto-mulai).
+  // Bila izin mikrofon ditolak, panel tetap menampilkan tombol rekam manual.
+  const autoRecordAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (loading || !survey) return;
+    if (fieldToolsSettings.audio_mode !== 'required') return;
+    if (!audioRecorder.isSupported) return;
+    if (autoRecordAttemptedRef.current) return;
+    autoRecordAttemptedRef.current = true;
+    audioRecorder.startRecording();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, survey, fieldToolsSettings.audio_mode, audioRecorder.isSupported]);
+
   // Ambil lokasi GPS secara manual (tombol "Coba Ambil Lokasi").
   const refreshStartGeo = useCallback(async () => {
     setGpsSearching(true);

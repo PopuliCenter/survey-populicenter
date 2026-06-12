@@ -76,9 +76,19 @@ export async function initSQLiteDB() {
       local_id INTEGER NOT NULL,
       type TEXT NOT NULL,
       blob_base64 TEXT NOT NULL,
-      filename TEXT NOT NULL
+      filename TEXT NOT NULL,
+      mime_type TEXT
     );
   `);
+
+  // Migrasi: tambah kolom mime_type untuk instalasi lama yang tabelnya sudah ada.
+  // Tanpa kolom ini, blob direkonstruksi sebagai 'application/octet-stream' dan
+  // DITOLAK server saat sync (fileFilter multer) → data media gagal tersinkron.
+  try {
+    await db.execute(`ALTER TABLE media_files ADD COLUMN mime_type TEXT;`);
+  } catch {
+    // Kolom sudah ada (instalasi baru) — abaikan.
+  }
 
   await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_media_local_id ON media_files(local_id);
@@ -212,9 +222,12 @@ export async function saveMediaFileSQLite({ localId, type, blob, filename }) {
   const conn = await initSQLiteDB();
   // Convert blob to base64
   const base64 = await blobToBase64(blob);
+  // Simpan MIME type asli (mis. audio/webm, image/jpeg, image/png) agar saat sync
+  // blob direkonstruksi dengan tipe benar dan diterima server. Fallback bila kosong.
+  const mimeType = (blob && blob.type) || deriveMimeType(type, filename);
   const res = await conn.run(
-    `INSERT INTO media_files (local_id, type, blob_base64, filename) VALUES (?, ?, ?, ?)`,
-    [localId, type, base64, filename]
+    `INSERT INTO media_files (local_id, type, blob_base64, filename, mime_type) VALUES (?, ?, ?, ?, ?)`,
+    [localId, type, base64, filename, mimeType]
   );
   return res.changes?.lastId || 0;
 }
@@ -227,11 +240,13 @@ export async function getMediaFilesByLocalIdSQLite(localId) {
   );
   const files = [];
   for (const row of res.values || []) {
+    // Pakai mime_type tersimpan; data lama (sebelum migrasi) NULL → turunkan dari type/filename.
+    const mimeType = row.mime_type || deriveMimeType(row.type, row.filename);
     files.push({
       fileId: row.file_id,
       localId: row.local_id,
       type: row.type,
-      blob: base64ToBlob(row.blob_base64),
+      blob: base64ToBlob(row.blob_base64, mimeType),
       filename: row.filename,
     });
   }
@@ -244,6 +259,20 @@ export async function deleteMediaFilesByLocalIdSQLite(localId) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Turunkan MIME type dari jenis media + ekstensi nama file.
+ * Dipakai sebagai fallback untuk data lama yang tersimpan tanpa kolom mime_type.
+ */
+function deriveMimeType(type, filename) {
+  if (type === 'audio') return 'audio/webm';
+  if (type === 'signature') return 'image/png';
+  // photo → tebak dari ekstensi (hasil kompresi default jpeg)
+  const ext = (filename || '').toLowerCase().split('.').pop();
+  if (ext === 'png') return 'image/png';
+  if (ext === 'webp') return 'image/webp';
+  return 'image/jpeg';
+}
 
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {

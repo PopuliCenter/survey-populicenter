@@ -146,6 +146,32 @@ function useSyncManager() {
     }
   }, [refreshCounts]);
 
+  // ─── Retry a single failed item ─────────────────────────────────────────────
+  // Kembalikan status 'failed' → 'pending' (hapus pesan error), lalu picu sync ulang.
+  const retryFailedItem = useCallback(async (localId) => {
+    try {
+      await updateQueueStatus(localId, 'pending', null);
+      await refreshCounts();
+      if (navigator.onLine) syncNow();
+    } catch (err) {
+      console.error('useSyncManager: retryFailedItem error', err);
+    }
+  }, [refreshCounts, syncNow]);
+
+  // ─── Retry all failed items ─────────────────────────────────────────────────
+  const retryAllFailed = useCallback(async () => {
+    try {
+      const failed = await getQueueByStatus('failed');
+      for (const entry of failed) {
+        await updateQueueStatus(entry.localId, 'pending', null);
+      }
+      await refreshCounts();
+      if (navigator.onLine) syncNow();
+    } catch (err) {
+      console.error('useSyncManager: retryAllFailed error', err);
+    }
+  }, [refreshCounts, syncNow]);
+
   // ─── Online/offline event listeners ────────────────────────────────────────
   useEffect(() => {
     const handleOnline = () => {
@@ -182,6 +208,8 @@ function useSyncManager() {
     failedItems,
     syncNow,
     deleteFailedItem,
+    retryFailedItem,
+    retryAllFailed,
   };
 }
 
