@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { addBackButtonListener } from '../utils/capacitorBridge';
+import { addBackButtonListener, setStatusBarStyle } from '../utils/capacitorBridge';
 import ConfirmSheet from '../components/ConfirmSheet';
 
 /**
@@ -26,6 +26,14 @@ function Login() {
       return true; // Prevent default
     }).then((fn) => { cleanup = fn; });
     return () => cleanup();
+  }, []);
+
+  // ─── Status bar adaptif ─────────────────────────────────────────────────────
+  // Login berlatar biru gelap → ikon status bar PUTIH agar terbaca. Saat keluar
+  // halaman (mis. ke daftar survei yang putih) kembalikan ke ikon gelap.
+  useEffect(() => {
+    setStatusBarStyle({ style: 'DARK', color: '#1e3a8a' });
+    return () => setStatusBarStyle({ style: 'LIGHT', color: '#ffffff' });
   }, []);
 
   const handleSubmit = async (e) => {
