@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 
@@ -122,6 +122,39 @@ function Layout({ children }) {
     try { localStorage.setItem(SIDEBAR_PREF_KEY, open ? '1' : '0'); } catch { /* ignore */ }
   };
 
+  // ── Swipe-to-close drawer (khusus mobile) ───────────────────────────────────
+  // Menggeser drawer ke kiri akan menutupnya; offset mengikuti jari (dragX),
+  // lalu menutup bila tergeser melewati ambang. Hanya aktif saat sidebar terbuka
+  // di layar kecil (di desktop sidebar bersifat tetap/rail).
+  const DRAWER_WIDTH = 256; // selaras dengan w-64
+  const dragRef = useRef({ startX: 0, startY: 0, active: false });
+  const [dragX, setDragX] = useState(null); // px (≤0) saat menggeser; null = idle
+
+  const onTouchStart = (e) => {
+    if (isDesktopViewport() || !sidebarOpen) return;
+    const t = e.touches[0];
+    dragRef.current = { startX: t.clientX, startY: t.clientY, active: false };
+  };
+  const onTouchMove = (e) => {
+    if (isDesktopViewport() || !sidebarOpen) return;
+    const t = e.touches[0];
+    const dx = t.clientX - dragRef.current.startX;
+    const dy = t.clientY - dragRef.current.startY;
+    if (!dragRef.current.active) {
+      if (Math.abs(dx) < 8) return;               // abaikan getaran kecil
+      if (Math.abs(dx) < Math.abs(dy)) return;    // gerak vertikal → biarkan scroll
+      dragRef.current.active = true;
+    }
+    setDragX(Math.max(-DRAWER_WIDTH, Math.min(0, dx))); // hanya ke kiri (menutup)
+  };
+  const onTouchEnd = () => {
+    if (dragRef.current.active && dragX !== null && dragX < -DRAWER_WIDTH / 3) {
+      setSidebar(false); // tergeser > 1/3 lebar → tutup
+    }
+    dragRef.current.active = false;
+    setDragX(null);
+  };
+
   // Read user info from localStorage
   let user = null;
   try {
@@ -150,22 +183,26 @@ function Layout({ children }) {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* ── Overlay untuk mobile ketika sidebar terbuka ── */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/40 md:hidden"
-          onClick={() => setSidebar(false)}
-          aria-hidden="true"
-        />
-      )}
+      {/* ── Overlay mobile (memudar; ikut redup saat digeser) ── */}
+      <div
+        className={`fixed inset-0 z-20 bg-black/40 md:hidden ${dragX !== null ? '' : 'transition-opacity duration-300'} ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        style={dragX !== null ? { opacity: Math.max(0, 1 + dragX / DRAWER_WIDTH) } : undefined}
+        onClick={() => setSidebar(false)}
+        aria-hidden="true"
+      />
 
-      {/* ── Sidebar (gelap) ── */}
+      {/* ── Sidebar (gelap) — drawer geser di mobile, rail tetap di desktop ── */}
       <aside
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={dragX !== null ? { transform: `translateX(${dragX}px)`, transition: 'none' } : undefined}
         className={`
           fixed md:relative z-30 md:z-auto
           h-full flex flex-col bg-slate-900 text-slate-300
-          transition-all duration-300 ease-in-out
-          ${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 md:w-16 -translate-x-full md:translate-x-0'}
+          w-64 ${sidebarOpen ? 'md:w-64' : 'md:w-16'}
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
+          transition-transform md:transition-all duration-300 ease-out will-change-transform
           overflow-hidden
         `}
         aria-label="Sidebar"
