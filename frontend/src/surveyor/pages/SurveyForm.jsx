@@ -2074,7 +2074,7 @@ function SurveyForm() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
+      <header className="bg-white shadow-sm sticky top-0 z-10 pt-[env(safe-area-inset-top)]">
         <div className="max-w-2xl mx-auto px-screen py-4 flex items-center gap-3">
           <button
             onClick={handleBackClick}
