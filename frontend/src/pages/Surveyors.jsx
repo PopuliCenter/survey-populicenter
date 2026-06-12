@@ -12,6 +12,13 @@ import { useToast } from '../components/Toast';
 import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
 
+// Tipe/skala survei — selaras dengan halaman Manajemen Survei (nasional/daerah/lainnya).
+const SURVEY_TYPE_META = [
+  { value: 'nasional', label: 'Nasional', dot: 'bg-primary-500' },
+  { value: 'daerah', label: 'Daerah', dot: 'bg-emerald-500' },
+  { value: 'lainnya', label: 'Lainnya', dot: 'bg-gray-400' },
+];
+
 // ─── Password Validation ──────────────────────────────────────────────────────
 /**
  * Validates a password against the platform rules:
@@ -413,6 +420,7 @@ function Surveyors() {
   // Set default ke false bila kelak ingin kembali ke daftar datar (Opsi B).
   const [projectView, setProjectView] = useState(true);
   const [surveySearch, setSurveySearch] = useState('');
+  const [surveyTypeFilter, setSurveyTypeFilter] = useState(''); // '' = semua tipe
 
   // Bulk upload / assign modal state
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
@@ -609,8 +617,14 @@ function Surveyors() {
     return tpd.response_count ?? 0;
   };
   const visibleSurveys = surveys.filter(
-    (s) => !surveySearch || (s.title || '').toLowerCase().includes(surveySearch.toLowerCase())
+    (s) =>
+      (!surveySearch || (s.title || '').toLowerCase().includes(surveySearch.toLowerCase())) &&
+      (!surveyTypeFilter || (s.type || 'lainnya') === surveyTypeFilter)
   );
+  // Kelompokkan survei per tipe (urut: Nasional, Daerah, Lainnya) agar terorganisir.
+  const groupedSurveys = SURVEY_TYPE_META
+    .map((t) => ({ ...t, items: visibleSurveys.filter((s) => (s.type || 'lainnya') === t.value) }))
+    .filter((g) => g.items.length > 0);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -684,7 +698,18 @@ function Surveyors() {
                 <h2 className="text-sm font-semibold text-gray-700">Pilih Survei</h2>
                 <p className="text-xs text-gray-400 mt-0.5">Pilih survei untuk melihat & mengelola TPD yang ditugaskan padanya.</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={surveyTypeFilter}
+                  onChange={(e) => setSurveyTypeFilter(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+                  aria-label="Filter tipe survei"
+                >
+                  <option value="">Semua Tipe</option>
+                  {SURVEY_TYPE_META.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
                 <input
                   type="text"
                   value={surveySearch}
@@ -711,15 +736,24 @@ function Surveyors() {
                 {surveys.length === 0 ? 'Belum ada survei.' : 'Tidak ada survei yang cocok.'}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {visibleSurveys.map((s) => {
-                  const count = tpdCountBySurvey[s.id] || 0;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => { setFilterSurveyId(s.id); setFilterName(''); }}
-                      className="text-left bg-white rounded-xl shadow border border-gray-100 hover:shadow-md hover:border-primary-200 transition p-5 flex flex-col gap-3 focus:outline-none focus:ring-2 focus:ring-primary-400"
-                    >
+              <div className="space-y-6">
+                {groupedSurveys.map((group) => (
+                  <div key={group.value}>
+                    {/* Heading kelompok tipe survei */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className={`w-2 h-2 rounded-full ${group.dot}`} aria-hidden="true" />
+                      <h3 className="text-sm font-semibold text-gray-700">{group.label}</h3>
+                      <span className="text-xs text-gray-400">({group.items.length})</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {group.items.map((s) => {
+                        const count = tpdCountBySurvey[s.id] || 0;
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => { setFilterSurveyId(s.id); setFilterName(''); }}
+                            className="text-left bg-white rounded-xl shadow border border-gray-100 hover:shadow-md hover:border-primary-200 transition p-5 flex flex-col gap-3 focus:outline-none focus:ring-2 focus:ring-primary-400"
+                          >
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="text-sm font-semibold text-gray-800 line-clamp-2">{s.title}</h3>
                         <SurveyStatusBadge status={s.status} />
@@ -746,9 +780,12 @@ function Surveyors() {
                           </svg>
                         </span>
                       </div>
-                    </button>
-                  );
-                })}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
