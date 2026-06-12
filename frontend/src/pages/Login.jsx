@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { addBackButtonListener, setStatusBarStyle } from '../utils/capacitorBridge';
+import { addBackButtonListener } from '../utils/capacitorBridge';
+import useStatusBar from '../hooks/useStatusBar';
 import ConfirmSheet from '../components/ConfirmSheet';
 
 /**
@@ -30,11 +31,8 @@ function Login() {
 
   // ─── Status bar adaptif ─────────────────────────────────────────────────────
   // Login berlatar biru gelap → ikon status bar PUTIH agar terbaca. Saat keluar
-  // halaman (mis. ke daftar survei yang putih) kembalikan ke ikon gelap.
-  useEffect(() => {
-    setStatusBarStyle({ style: 'DARK', color: '#1e3a8a' });
-    return () => setStatusBarStyle({ style: 'LIGHT', color: '#ffffff' });
-  }, []);
+  // halaman (mis. ke daftar survei yang putih) hook otomatis balik ke ikon gelap.
+  useStatusBar('dark');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -118,7 +116,7 @@ function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nama@email.com"
-                className="w-full h-12 pl-11 pr-3 bg-gray-100 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-400 focus:outline-none"
+                className="w-full h-12 pl-11 pr-3 bg-gray-100 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-accent-400 focus:outline-none"
                 aria-required="true"
               />
             </div>
@@ -141,7 +139,7 @@ function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-12 pl-11 pr-11 bg-gray-100 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-400 focus:outline-none"
+                className="w-full h-12 pl-11 pr-11 bg-gray-100 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-accent-400 focus:outline-none"
                 aria-required="true"
               />
               <button
@@ -168,7 +166,7 @@ function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-1 mt-1"
+            className="w-full h-12 bg-accent-600 hover:bg-accent-700 disabled:bg-accent-400 text-white font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-accent-300 focus:ring-offset-1 mt-1"
           >
             {loading ? 'Memproses...' : 'Masuk'}
           </button>
