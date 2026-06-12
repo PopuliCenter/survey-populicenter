@@ -882,7 +882,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
           ))}
           {question.allow_other && (
             <div className="space-y-1">
-              <label className="flex items-center gap-3 cursor-pointer min-h-[44px]">
+              <label className="flex items-center gap-3 cursor-pointer rounded-xl px-3 min-h-[48px] transition-colors hover:bg-gray-50 active:bg-gray-100">
                 <input
                   type="radio"
                   name={`q_${question.id}`}
@@ -891,7 +891,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                   onChange={() => onChange('__other__:')}
                   className="accent-primary-600 w-5 h-5 flex-shrink-0"
                 />
-                <span className="text-sm text-gray-700">Lainnya</span>
+                <span className="text-base text-gray-800">Lainnya</span>
               </label>
               {answer && answer.startsWith && answer.startsWith('__other__:') && (
                 <input
@@ -902,7 +902,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                   value={answer.replace('__other__:', '')}
                   onChange={(e) => onChange(`__other__:${e.target.value.toUpperCase()}`)}
                   placeholder="Ketik jawaban lainnya…"
-                  className="ml-6 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+                  className="ml-11 w-[calc(100%-2.75rem)] border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary-400"
                   style={{ textTransform: 'uppercase' }}
                   autoFocus
                 />
@@ -946,7 +946,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
             const otherChecked = !!otherEntry;
             return (
               <div className="space-y-1">
-                <label className="flex items-center gap-3 cursor-pointer min-h-[44px]">
+                <label className="flex items-center gap-3 cursor-pointer rounded-xl px-3 min-h-[48px] transition-colors hover:bg-gray-50 active:bg-gray-100">
                   <input
                     type="checkbox"
                     checked={otherChecked}
@@ -959,7 +959,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                     }}
                     className="accent-primary-600 w-5 h-5 flex-shrink-0"
                   />
-                  <span className="text-sm text-gray-700">Lainnya</span>
+                  <span className="text-base text-gray-800">Lainnya</span>
                 </label>
                 {otherChecked && (
                   <input
@@ -975,7 +975,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                       onChange(updated);
                     }}
                     placeholder="Ketik jawaban lainnya…"
-                    className="ml-6 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+                    className="ml-11 w-[calc(100%-2.75rem)] border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary-400"
                     style={{ textTransform: 'uppercase' }}
                     autoFocus
                   />
