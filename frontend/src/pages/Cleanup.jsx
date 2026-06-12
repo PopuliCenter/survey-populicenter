@@ -2,6 +2,22 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
 
+function CheckCircleIcon({ className = 'w-4 h-4' }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function WarnIcon({ className = 'w-4 h-4' }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+    </svg>
+  );
+}
+
 function StatCard({ title, count, description, color = 'gray' }) {
   const colors = {
     gray: 'bg-gray-50 border-gray-200 text-gray-700',
@@ -136,8 +152,9 @@ function Cleanup() {
         </div>
 
         {successMsg && (
-          <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm" role="status">
-            ✓ {successMsg}
+          <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm flex items-center gap-2" role="status">
+            <CheckCircleIcon className="w-4 h-4 shrink-0" />
+            <span>{successMsg}</span>
           </div>
         )}
         {errorMsg && (
@@ -155,7 +172,7 @@ function Cleanup() {
             <StatCard title="Total Log Audit" count={stats.total_audit_logs} description="Semua waktu" color="blue" />
             <StatCard title="Total Respons" count={stats.total_committed_responses} description="Ter-commit" color="gray" />
             <StatCard title="Survei Nonaktif" count={stats.inactive_surveys} description="Bisa dihapus" color="red" />
-            <StatCard title="TPD Nonaktif" count={stats.inactive_tpd} description="Bisa dihapus" color="yellow" />
+            <StatCard title="TPD Nonaktif" count={stats.inactive_tpd} description={`${(stats.deletable_inactive_tpd ?? 0).toLocaleString('id-ID')} bisa dihapus · sisanya punya respons`} color="yellow" />
           </div>
         )}
 
@@ -326,8 +343,9 @@ function Cleanup() {
           {previewCount > 0 && (
             confirmAction === 'responses' ? (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <WarnIcon className="w-4 h-4 text-red-600 shrink-0" />
                 <span className="text-xs text-red-700">
-                  ⚠ Yakin hapus <strong>{previewCount.toLocaleString('id-ID')}</strong> respons? Tindakan ini tidak dapat dibatalkan.
+                  Yakin hapus <strong>{previewCount.toLocaleString('id-ID')}</strong> respons? Tindakan ini tidak dapat dibatalkan.
                 </span>
                 <button
                   onClick={() => {
@@ -409,8 +427,9 @@ function Cleanup() {
 
           {confirmAction === 'audit' ? (
             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <WarnIcon className="w-4 h-4 text-red-600 shrink-0" />
               <span className="text-xs text-red-700">
-                ⚠ Yakin hapus log audit {auditYear}{auditMonth ? ` bulan ${months.find(m => m.value === auditMonth)?.label}` : ''}?
+                Yakin hapus log audit {auditYear}{auditMonth ? ` bulan ${months.find(m => m.value === auditMonth)?.label}` : ''}?
               </span>
               <button
                 onClick={() => {
@@ -506,8 +525,9 @@ function Cleanup() {
 
           {confirmAction === 'tpd' ? (
             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <WarnIcon className="w-4 h-4 text-red-600 shrink-0" />
               <span className="text-xs text-red-700">
-                ⚠ Yakin hapus {stats?.inactive_tpd || 0} TPD nonaktif? TPD dengan data respons akan dilewati.
+                Yakin hapus {stats?.deletable_inactive_tpd || 0} TPD nonaktif? TPD dengan data respons akan dilewati.
               </span>
               <button
                 onClick={() => handleAction('/cleanup/inactive-tpd')}
@@ -526,17 +546,20 @@ function Cleanup() {
           ) : (
             <button
               onClick={() => setConfirmAction('tpd')}
-              disabled={!stats?.inactive_tpd}
+              disabled={!stats?.deletable_inactive_tpd}
               className="px-4 py-2 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              Hapus TPD Nonaktif ({stats?.inactive_tpd || 0})
+              Hapus TPD Nonaktif ({stats?.deletable_inactive_tpd || 0})
             </button>
           )}
         </div>
 
         {/* Info */}
         <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-amber-800 mb-1">⚠ Perhatian</h3>
+          <h3 className="text-sm font-semibold text-amber-800 mb-1 flex items-center gap-1.5">
+            <WarnIcon className="w-4 h-4 shrink-0" />
+            Perhatian
+          </h3>
           <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
             <li>Data yang dihapus tidak dapat dikembalikan. Pastikan sudah di-backup atau di-export terlebih dahulu.</li>
             <li>Pembersihan respons pending otomatis hanya menghapus yang lebih dari 24 jam.</li>

@@ -39,7 +39,7 @@ router.get('/stats', async (req, res, next) => {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    const [pendingResponses, oldExportJobs, totalAuditLogs, totalResponses, inactiveSurveys, inactiveTPD] = await Promise.all([
+    const [pendingResponses, oldExportJobs, totalAuditLogs, totalResponses, inactiveSurveys, inactiveTPDList] = await Promise.all([
       Response.count({
         where: {
           questionnaire_number: { [Op.or]: [{ [Op.eq]: 'PENDING' }, { [Op.like]: 'PENDING-%' }] },
@@ -58,8 +58,27 @@ router.get('/stats', async (req, res, next) => {
         },
       }),
       Survey.count({ where: { status: 'inactive' } }),
-      User.count({ where: { role: 'surveyor', is_active: false } }),
+      User.findAll({ where: { role: 'surveyor', is_active: false }, attributes: ['id'], raw: true }),
     ]);
+
+    // TPD nonaktif yang BENAR-BENAR bisa dihapus = tanpa respons ter-commit.
+    // (Yang masih punya respons akan DILEWATI oleh /cleanup/inactive-tpd, jadi
+    // menampilkan total inactive sebagai "bisa dihapus" menyesatkan.)
+    const inactiveTPDIds = inactiveTPDList.map((t) => t.id);
+    let deletableInactiveTPD = 0;
+    if (inactiveTPDIds.length > 0) {
+      const tpdWithResponses = await Response.findAll({
+        where: {
+          surveyor_id: { [Op.in]: inactiveTPDIds },
+          questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+        },
+        attributes: ['surveyor_id'],
+        group: ['surveyor_id'],
+        raw: true,
+      });
+      const withResponseSet = new Set(tpdWithResponses.map((r) => r.surveyor_id));
+      deletableInactiveTPD = inactiveTPDIds.filter((id) => !withResponseSet.has(id)).length;
+    }
 
     res.json({
       pending_responses: pendingResponses,
@@ -67,7 +86,8 @@ router.get('/stats', async (req, res, next) => {
       total_audit_logs: totalAuditLogs,
       total_committed_responses: totalResponses,
       inactive_surveys: inactiveSurveys,
-      inactive_tpd: inactiveTPD,
+      inactive_tpd: inactiveTPDIds.length,
+      deletable_inactive_tpd: deletableInactiveTPD,
     });
   } catch (error) {
     next(error);
