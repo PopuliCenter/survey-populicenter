@@ -7,7 +7,7 @@
  *   - Klik bintang ke-3 memanggil onChange dengan "3"
  *   - Klik tombol angka 7 memanggil onChange dengan "7"
  *   - Bintang 1-3 memiliki class text-amber-400 ketika nilai terpilih adalah 3
- *   - Tombol angka 5 memiliki class bg-primary-600 ketika nilai terpilih adalah 5
+ *   - Tombol angka 5 memiliki class bg-accent-600 ketika nilai terpilih adalah 5
  *   - Labels.min dan labels.max ditampilkan jika tersedia di options
  *   - Pertanyaan rating_scale required tanpa nilai menampilkan border merah setelah submit
  *
@@ -278,7 +278,7 @@ describe('RatingScaleField — mode numbers', () => {
     });
   });
 
-  test('tombol angka 5 memiliki class bg-primary-600 ketika nilai terpilih adalah 5', async () => {
+  test('tombol angka 5 memiliki class bg-accent-600 ketika nilai terpilih adalah 5', async () => {
     api.get.mockResolvedValue({
       data: buildSurveyWithRating({ options: { min: 1, max: 10, display: 'numbers', labels: {} } }),
     });
@@ -294,7 +294,7 @@ describe('RatingScaleField — mode numbers', () => {
 
     await waitFor(() => {
       const btn5Updated = screen.getByRole('button', { name: /pilih nilai 5/i });
-      expect(btn5Updated.className).toContain('bg-primary-600');
+      expect(btn5Updated.className).toContain('bg-accent-600');
     });
   });
 });

@@ -85,7 +85,7 @@ function PhotoCapturePanel({ photoCapture }) {
           type="button"
           onClick={handleAddClick}
           disabled={capturing}
-          className="min-w-[44px] min-h-[44px] px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60 inline-flex items-center gap-1.5"
+          className="min-w-[44px] min-h-[44px] px-4 py-2 bg-accent-600 hover:bg-accent-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60 inline-flex items-center gap-1.5"
           aria-label="Tambah foto"
         >
           {capturing ? (
