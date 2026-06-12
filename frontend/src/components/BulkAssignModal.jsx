@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import api from '../services/api';
+import useModalA11y from '../hooks/useModalA11y';
 
 /**
  * Generate and download a CSV template for bulk TPD assignment.
@@ -38,6 +39,10 @@ function BulkAssignModal({ open, surveyId: propSurveyId, surveyTitle, surveys, o
   const [result, setResult] = useState(null);
   const [generalError, setGeneralError] = useState(null);
   const fileInputRef = useRef(null);
+  const dialogRef = useRef(null);
+  const closeRef = useRef(null);
+  const stableClose = useCallback(() => closeRef.current?.(), []);
+  useModalA11y(open, stableClose, dialogRef);
 
   // Use prop surveyId if provided, otherwise use selected from dropdown
   const activeSurveyId = propSurveyId || selectedSurveyId;
@@ -100,6 +105,8 @@ function BulkAssignModal({ open, surveyId: propSurveyId, surveyTitle, surveys, o
     }
   }
 
+  closeRef.current = handleClose;
+
   if (!open) return null;
 
   return (
@@ -108,8 +115,14 @@ function BulkAssignModal({ open, surveyId: propSurveyId, surveyTitle, surveys, o
       role="dialog"
       aria-modal="true"
       aria-labelledby="bulk-assign-modal-title"
+      onClick={handleClose}
     >
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6"
+      >
         <h2
           id="bulk-assign-modal-title"
           className="text-lg font-semibold text-gray-800 mb-4"

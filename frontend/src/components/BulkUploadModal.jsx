@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import api from '../services/api';
+import useModalA11y from '../hooks/useModalA11y';
 
 /**
  * Generate and download a CSV template for bulk TPD upload.
@@ -34,6 +35,10 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
   const [result, setResult] = useState(null);
   const [generalError, setGeneralError] = useState(null);
   const fileInputRef = useRef(null);
+  const dialogRef = useRef(null);
+  const closeRef = useRef(null);
+  const stableClose = useCallback(() => closeRef.current?.(), []);
+  useModalA11y(open, stableClose, dialogRef);
 
   function reset() {
     setFile(null);
@@ -90,6 +95,8 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
     }
   }
 
+  closeRef.current = handleClose;
+
   if (!open) return null;
 
   return (
@@ -98,8 +105,14 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="bulk-upload-modal-title"
+      onClick={handleClose}
     >
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6"
+      >
         <h2
           id="bulk-upload-modal-title"
           className="text-lg font-semibold text-gray-800 mb-4"

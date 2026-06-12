@@ -6,27 +6,27 @@ const NAV_ITEMS_BY_ROLE = {
   admin: [
     { label: 'Dashboard', path: '/dashboard', icon: 'grid' },
     { label: 'Manajemen Pengguna', path: '/users', icon: 'users' },
-    { label: 'TPD', path: '/surveyors', icon: 'brief' },
-    { label: 'Surveys', path: '/surveys', icon: 'doc' },
-    { label: 'Responses', path: '/responses', icon: 'clipboard' },
-    { label: 'Reports', path: '/reports', icon: 'chart' },
-    { label: 'Map', path: '/map', icon: 'map' },
-    { label: 'Audit Log', path: '/audit-log', icon: 'search' },
+    { label: 'Manajemen TPD', path: '/surveyors', icon: 'brief' },
+    { label: 'Survei', path: '/surveys', icon: 'doc' },
+    { label: 'Data Responden', path: '/responses', icon: 'clipboard' },
+    { label: 'Laporan', path: '/reports', icon: 'chart' },
+    { label: 'Peta', path: '/map', icon: 'map' },
+    { label: 'Log Audit', path: '/audit-log', icon: 'search' },
     { label: 'Pembersihan Data', path: '/cleanup', icon: 'trash' },
   ],
   supervisor: [
     { label: 'Dashboard', path: '/dashboard', icon: 'grid' },
-    { label: 'Surveys', path: '/surveys', icon: 'doc' },
-    { label: 'TPD', path: '/surveyors', icon: 'brief' },
-    { label: 'Responses', path: '/responses', icon: 'clipboard' },
-    { label: 'Reports', path: '/reports', icon: 'chart' },
-    { label: 'Map', path: '/map', icon: 'map' },
+    { label: 'Survei', path: '/surveys', icon: 'doc' },
+    { label: 'Manajemen TPD', path: '/surveyors', icon: 'brief' },
+    { label: 'Data Responden', path: '/responses', icon: 'clipboard' },
+    { label: 'Laporan', path: '/reports', icon: 'chart' },
+    { label: 'Peta', path: '/map', icon: 'map' },
   ],
   // Bug #4: viewer hanya bisa lihat responses survei aktif, sembunyikan Surveys & Reports
   viewer: [
     { label: 'Dashboard', path: '/dashboard', icon: 'grid' },
-    { label: 'Responses', path: '/responses', icon: 'clipboard' },
-    { label: 'Map', path: '/map', icon: 'map' },
+    { label: 'Data Responden', path: '/responses', icon: 'clipboard' },
+    { label: 'Peta', path: '/map', icon: 'map' },
   ],
   surveyor: [], // TPD menggunakan layout terpisah
 };
@@ -98,8 +98,8 @@ function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Bug #1: state untuk toggle sidebar di mobile
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Bug #1: state untuk toggle sidebar di mobile — default tertutup di layar kecil, terbuka di >= md
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
 
   // Read user info from localStorage
   let user = null;

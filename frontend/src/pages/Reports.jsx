@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Layout from '../components/Layout';
 import SurveySelector from '../components/SurveySelector';
+import { useToast } from '../components/Toast';
 import api from '../services/api';
 
 // ─── Job Status Badge ─────────────────────────────────────────────────────────
@@ -129,10 +130,24 @@ function ExportJobTracker({ job, onDone }) {
         {status === 'completed' && (
           <button
             onClick={handleDownload}
-            className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-400"
             aria-label={`Unduh file ekspor ${job.format.toUpperCase()} untuk ${job.surveyTitle}`}
           >
-            ⬇ Unduh
+            <svg
+              className="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3v12" />
+              <path d="M7 11l5 5 5-5" />
+              <path d="M5 21h14" />
+            </svg>
+            Unduh
           </button>
         )}
         {(status === 'pending' || status === 'processing') && (
@@ -161,6 +176,8 @@ function ExportJobTracker({ job, onDone }) {
  * Requirements: 11.2, 11.3, 11.4, 11.5, 11.6
  */
 function Reports() {
+  const toast = useToast();
+
   // ── Current user ────────────────────────────────────────────────────────────
   const currentUser = (() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
@@ -282,6 +299,7 @@ function Reports() {
       } else {
         // Sync export: trigger browser download
         triggerBlobDownload(res.data, res.headers, format);
+        toast.success(`Ekspor ${format.toUpperCase()} berhasil diunduh.`);
       }
     } catch (err) {
       // If the error response is a blob, try to parse it as JSON for the error message
@@ -305,13 +323,15 @@ function Reports() {
           }
 
           setExportError(json.message || 'Gagal mengekspor data.');
+          toast.error(json.message || 'Gagal mengekspor data.');
         } catch {
           setExportError('Gagal mengekspor data.');
+          toast.error('Gagal mengekspor data.');
         }
       } else {
-        setExportError(
-          err.response?.data?.message || err.message || 'Gagal mengekspor data.'
-        );
+        const msg = err.response?.data?.message || err.message || 'Gagal mengekspor data.';
+        setExportError(msg);
+        toast.error(msg);
       }
     } finally {
       setExporting(false);
@@ -437,7 +457,20 @@ function Reports() {
               className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
               role="alert"
             >
-              <span>⚠</span>
+              <svg
+                className="w-4 h-4 flex-shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
               <span>{exportError}</span>
             </div>
           )}
@@ -453,12 +486,36 @@ function Reports() {
             >
               {exportingXlsx ? (
                 <>
-                  <span className="animate-spin">⏳</span>
+                  <svg
+                    className="w-4 h-4 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
                   Mengekspor XLSX…
                 </>
               ) : (
                 <>
-                  <span>📊</span>
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="18" y1="20" x2="18" y2="10" />
+                    <line x1="12" y1="20" x2="12" y2="4" />
+                    <line x1="6" y1="20" x2="6" y2="14" />
+                  </svg>
                   Ekspor XLSX
                 </>
               )}
@@ -473,12 +530,38 @@ function Reports() {
             >
               {exportingCsv ? (
                 <>
-                  <span className="animate-spin">⏳</span>
+                  <svg
+                    className="w-4 h-4 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
                   Mengekspor CSV…
                 </>
               ) : (
                 <>
-                  <span>📄</span>
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <path d="M14 2v6h6" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <line x1="10" y1="9" x2="8" y2="9" />
+                  </svg>
                   Ekspor CSV
                 </>
               )}
@@ -515,11 +598,23 @@ function Reports() {
                   <button
                     type="button"
                     onClick={() => handleDismissJob(job.jobId)}
-                    className="absolute top-2 right-2 text-gray-300 hover:text-gray-500 text-xs leading-none focus:outline-none"
+                    className="absolute top-2 right-2 text-gray-300 hover:text-gray-500 leading-none focus:outline-none"
                     aria-label={`Hapus job ${job.jobId} dari daftar`}
                     title="Hapus dari daftar"
                   >
-                    ✕
+                    <svg
+                      className="w-3.5 h-3.5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
                   </button>
                 </div>
               ))}

@@ -229,7 +229,20 @@ function MapView() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
           {!hasFiltered ? (
             <div className="w-full h-[500px] rounded-lg border border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400 gap-3">
-              <span className="text-5xl">🗺️</span>
+              <svg
+                className="w-16 h-16 text-gray-300"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                <line x1="8" y1="2" x2="8" y2="18" />
+                <line x1="16" y1="6" x2="16" y2="22" />
+              </svg>
               <p className="text-sm">Pilih survei dan klik <strong className="text-gray-600">Tampilkan</strong> untuk melihat peta.</p>
             </div>
           ) : (

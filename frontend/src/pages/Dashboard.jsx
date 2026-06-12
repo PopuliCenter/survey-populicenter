@@ -44,7 +44,12 @@ function StatCard({ title, value, subtitle, iconName, tint, trend }) {
           <DIcon name={iconName} />
         </div>
         {trend && (
-          <span className="text-[11px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">{trend}</span>
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 15l7-7 7 7" />
+            </svg>
+            {trend}
+          </span>
         )}
       </div>
       <p className="text-2xl font-bold text-gray-900 mt-3">
@@ -286,7 +291,7 @@ function Dashboard() {
               subtitle={`dari total ${(stats?.totalResponses || 0).toLocaleString('id-ID')} responden`}
               iconName="clipboard"
               tint="bg-amber-50 text-amber-600"
-              trend={stats?.todayResponses > 0 ? `▲ ${stats.todayResponses.toLocaleString('id-ID')} hari ini` : undefined}
+              trend={stats?.todayResponses > 0 ? `${stats.todayResponses.toLocaleString('id-ID')} hari ini` : undefined}
             />
             <StatCard
               title="Total Responden (N)"

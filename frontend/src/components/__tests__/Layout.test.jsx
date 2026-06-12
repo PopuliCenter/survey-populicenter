@@ -123,12 +123,12 @@ describe('Layout — admin role', () => {
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Manajemen Pengguna')).toBeInTheDocument();
-    expect(screen.getByText('Surveyors')).toBeInTheDocument();
-    expect(screen.getByText('Surveys')).toBeInTheDocument();
-    expect(screen.getByText('Responses')).toBeInTheDocument();
-    expect(screen.getByText('Reports')).toBeInTheDocument();
-    expect(screen.getByText('Map')).toBeInTheDocument();
-    expect(screen.getByText('Audit Log')).toBeInTheDocument();
+    expect(screen.getByText('Manajemen TPD')).toBeInTheDocument();
+    expect(screen.getByText('Survei')).toBeInTheDocument();
+    expect(screen.getByText('Data Responden')).toBeInTheDocument();
+    expect(screen.getByText('Laporan')).toBeInTheDocument();
+    expect(screen.getByText('Peta')).toBeInTheDocument();
+    expect(screen.getByText('Log Audit')).toBeInTheDocument();
   });
 
   test('menampilkan label sidebar "Admin Dashboard" untuk admin', () => {
@@ -144,11 +144,11 @@ describe('Layout — supervisor role', () => {
     renderLayout();
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('Surveys')).toBeInTheDocument();
-    expect(screen.getByText('Surveyors')).toBeInTheDocument();
-    expect(screen.getByText('Responses')).toBeInTheDocument();
-    expect(screen.getByText('Reports')).toBeInTheDocument();
-    expect(screen.getByText('Map')).toBeInTheDocument();
+    expect(screen.getByText('Survei')).toBeInTheDocument();
+    expect(screen.getByText('Manajemen TPD')).toBeInTheDocument();
+    expect(screen.getByText('Data Responden')).toBeInTheDocument();
+    expect(screen.getByText('Laporan')).toBeInTheDocument();
+    expect(screen.getByText('Peta')).toBeInTheDocument();
   });
 
   test('menyembunyikan Manajemen Pengguna dan Audit Log untuk supervisor', () => {
@@ -156,7 +156,7 @@ describe('Layout — supervisor role', () => {
     renderLayout();
 
     expect(screen.queryByText('Manajemen Pengguna')).not.toBeInTheDocument();
-    expect(screen.queryByText('Audit Log')).not.toBeInTheDocument();
+    expect(screen.queryByText('Log Audit')).not.toBeInTheDocument();
   });
 
   test('menampilkan label sidebar "Supervisor Dashboard" untuk supervisor', () => {
@@ -171,9 +171,9 @@ describe('Layout — viewer role', () => {
     setUser('viewer');
     renderLayout();
 
-    expect(screen.getByText('Reports')).toBeInTheDocument();
-    expect(screen.getByText('Map')).toBeInTheDocument();
-    expect(screen.getByText('Responses')).toBeInTheDocument();
+    expect(screen.getByText('Laporan')).toBeInTheDocument();
+    expect(screen.getByText('Peta')).toBeInTheDocument();
+    expect(screen.getByText('Data Responden')).toBeInTheDocument();
   });
 
   test('menyembunyikan item navigasi lain untuk viewer', () => {
@@ -181,10 +181,10 @@ describe('Layout — viewer role', () => {
     renderLayout();
 
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
-    expect(screen.queryByText('Surveys')).not.toBeInTheDocument();
-    expect(screen.queryByText('Surveyors')).not.toBeInTheDocument();
+    expect(screen.queryByText('Survei')).not.toBeInTheDocument();
+    expect(screen.queryByText('Manajemen TPD')).not.toBeInTheDocument();
     expect(screen.queryByText('Manajemen Pengguna')).not.toBeInTheDocument();
-    expect(screen.queryByText('Audit Log')).not.toBeInTheDocument();
+    expect(screen.queryByText('Log Audit')).not.toBeInTheDocument();
   });
 
   test('menampilkan label sidebar "Viewer Dashboard" untuk viewer', () => {

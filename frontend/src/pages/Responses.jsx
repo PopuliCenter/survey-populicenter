@@ -81,6 +81,17 @@ function Responses() {
   const [total, setTotal] = useState(0);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // ── Client-side sorting (sorts the currently loaded page only) ──────────────
+  const [sort, setSort] = useState({ key: null, dir: 'asc' });
+
+  function handleSort(key) {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' }
+    );
+  }
+
   // ── Load dropdown data on mount ─────────────────────────────────────────────
   useEffect(() => {
     async function loadDropdowns() {
@@ -156,6 +167,100 @@ function Responses() {
   function formatDuration(seconds) {
     if (seconds == null) return '—';
     return `${seconds} dtk`;
+  }
+
+  // ── Sort helpers ────────────────────────────────────────────────────────────
+  // Map a sort key to a comparable value for a given response row.
+  function sortValue(row, key) {
+    switch (key) {
+      case 'questionnaire_number':
+        return row.questionnaire_number || '';
+      case 'surveyor_name':
+        return (row.surveyor_name || '').toLowerCase();
+      case 'start_time':
+        return row.start_time ? new Date(row.start_time).getTime() : -Infinity;
+      case 'end_time':
+        return row.end_time ? new Date(row.end_time).getTime() : -Infinity;
+      case 'duration_seconds':
+        return row.duration_seconds == null ? -Infinity : Number(row.duration_seconds);
+      default:
+        return '';
+    }
+  }
+
+  const sortedResponses = (() => {
+    if (!sort.key) return responses;
+    const arr = [...responses];
+    arr.sort((a, b) => {
+      const va = sortValue(a, sort.key);
+      const vb = sortValue(b, sort.key);
+      let cmp;
+      if (typeof va === 'number' && typeof vb === 'number') {
+        cmp = va - vb;
+      } else {
+        cmp = String(va).localeCompare(String(vb), 'id-ID', { numeric: true });
+      }
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  })();
+
+  // Inline SVG sort indicator (ascending/descending chevron).
+  function SortIcon({ active, dir }) {
+    if (!active) {
+      // Neutral up/down indicator
+      return (
+        <svg
+          className="w-3.5 h-3.5 text-gray-300"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M8 9l4-4 4 4" />
+          <path d="M16 15l-4 4-4-4" />
+        </svg>
+      );
+    }
+    return (
+      <svg
+        className="w-3.5 h-3.5 text-blue-600"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {dir === 'asc' ? <path d="M18 15l-6-6-6 6" /> : <path d="M6 9l6 6 6-6" />}
+      </svg>
+    );
+  }
+
+  // Renders a sortable, keyboard-accessible table header cell.
+  function SortableTh({ sortKey, children, align = 'left' }) {
+    const active = sort.key === sortKey;
+    const ariaSort = active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+    return (
+      <th
+        scope="col"
+        aria-sort={ariaSort}
+        className={`px-5 py-3 font-medium text-gray-500 whitespace-nowrap ${align === 'right' ? 'text-right' : ''}`}
+      >
+        <button
+          type="button"
+          onClick={() => handleSort(sortKey)}
+          className={`inline-flex items-center gap-1 font-medium hover:text-gray-700 focus:outline-none focus:text-gray-700 ${active ? 'text-gray-700' : ''}`}
+        >
+          <span>{children}</span>
+          <SortIcon active={active} dir={sort.dir} />
+        </button>
+      </th>
+    );
   }
 
   function handleApplyFilter(e) {
@@ -367,7 +472,19 @@ function Responses() {
         <div className="bg-white rounded-xl shadow overflow-hidden">
           {appliedFilters === null ? (
             <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-sm gap-2">
-              <span className="text-3xl" aria-hidden="true">🔍</span>
+              <svg
+                className="w-10 h-10 text-gray-300"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
               <p>Pilih filter dan klik <strong className="text-gray-600">Terapkan Filter</strong> untuk melihat data.</p>
             </div>
           ) : loading ? (
@@ -400,24 +517,14 @@ function Responses() {
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-5 py-3 font-medium text-gray-500 whitespace-nowrap">
-                      No. Kuesioner
-                    </th>
-                    <th className="px-5 py-3 font-medium text-gray-500 whitespace-nowrap">
-                      TPD
-                    </th>
+                    <SortableTh sortKey="questionnaire_number">No. Kuesioner</SortableTh>
+                    <SortableTh sortKey="surveyor_name">TPD</SortableTh>
                     <th className="px-5 py-3 font-medium text-gray-500 whitespace-nowrap">
                       Judul Survei
                     </th>
-                    <th className="px-5 py-3 font-medium text-gray-500 whitespace-nowrap">
-                      Waktu Mulai
-                    </th>
-                    <th className="px-5 py-3 font-medium text-gray-500 whitespace-nowrap">
-                      Waktu Selesai
-                    </th>
-                    <th className="px-5 py-3 font-medium text-gray-500 whitespace-nowrap">
-                      Durasi
-                    </th>
+                    <SortableTh sortKey="start_time">Waktu Mulai</SortableTh>
+                    <SortableTh sortKey="end_time">Waktu Selesai</SortableTh>
+                    <SortableTh sortKey="duration_seconds">Durasi</SortableTh>
                     <th className="px-5 py-3 font-medium text-gray-500 whitespace-nowrap">
                       Geolokasi
                     </th>
@@ -432,7 +539,7 @@ function Responses() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {responses.map((response) => (
+                  {sortedResponses.map((response) => (
                     <tr
                       key={response.id}
                       className="hover:bg-gray-50 transition-colors"

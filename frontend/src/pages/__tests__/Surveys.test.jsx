@@ -16,6 +16,7 @@ import React from 'react';
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ToastProvider } from '../../components/Toast';
 import Surveys from '../Surveys.jsx';
 
 // ─── Mock api ─────────────────────────────────────────────────────────────────
@@ -81,7 +82,9 @@ const mockSurveys = [
 function renderPage() {
   return render(
     <MemoryRouter>
-      <Surveys />
+      <ToastProvider>
+        <Surveys />
+      </ToastProvider>
     </MemoryRouter>
   );
 }

@@ -1,9 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { SurveyStatusBadge, TemporalBadge } from '../components/SurveyBadges';
 import ViewToggle, { useViewMode } from '../components/ViewToggle';
 import SurveyCard from '../components/SurveyCard';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useToast } from '../components/Toast';
+import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
 
 // ─── Tipe / skala survei ────────────────────────────────────────────────────────
@@ -32,6 +35,19 @@ function Chevron({ open }) {
   return (
     <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+// Ikon folder (mengganti emoji 📁/📂 agar konsisten lintas platform)
+function FolderIcon({ open = false }) {
+  return (
+    <svg className="w-4 h-4 inline-block align-text-bottom mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      {open ? (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v1H7a2 2 0 00-1.94 1.515L3 19V7z" />
+      ) : (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+      )}
     </svg>
   );
 }
@@ -82,7 +98,7 @@ function FolderTree({ surveys, selected, onSelect }) {
             <div className="flex items-center">
               <button type="button" onClick={() => toggle(yKey)} className="p-1" aria-label={`Buka/tutup ${y}`}><Chevron open={yExp} /></button>
               <button type="button" onClick={() => onSelect(String(y), '', '')} className={itemCls(selected.year === String(y) && !selected.month)}>
-                📁 {y} <span className="text-xs text-gray-400">({yObj.count})</span>
+                <FolderIcon open={yExp} /> {y} <span className="text-xs text-gray-400">({yObj.count})</span>
               </button>
             </div>
             {yExp && months.map((m) => {
@@ -95,7 +111,7 @@ function FolderTree({ surveys, selected, onSelect }) {
                   <div className="flex items-center">
                     <button type="button" onClick={() => toggle(mKey)} className="p-1" aria-label={`Buka/tutup ${MONTH_NAMES[m]} ${y}`}><Chevron open={mExp} /></button>
                     <button type="button" onClick={() => onSelect(String(y), String(m + 1), '')} className={itemCls(selected.year === String(y) && selected.month === String(m + 1) && !selected.type)}>
-                      📂 {MONTH_NAMES[m]} <span className="text-xs text-gray-400">({mObj.count})</span>
+                      <FolderIcon open={mExp} /> {MONTH_NAMES[m]} <span className="text-xs text-gray-400">({mObj.count})</span>
                     </button>
                   </div>
                   {mExp && types.map((t) => (
@@ -134,6 +150,8 @@ function CreateSurveyModal({ onClose, onSaved }) {
   const [formError, setFormError] = useState(null);
   const [titleError, setTitleError] = useState('');
   const [dateError, setDateError] = useState('');
+  const dialogRef = useRef(null);
+  useModalA11y(true, onClose, dialogRef);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -179,8 +197,14 @@ function CreateSurveyModal({ onClose, onSaved }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-survey-modal-title"
+      onClick={onClose}
     >
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6"
+      >
         <h2
           id="create-survey-modal-title"
           className="text-lg font-semibold text-gray-800 mb-5"
@@ -336,6 +360,8 @@ function EditSurveyModal({ survey, onClose, onSaved }) {
   const [type, setType] = useState(survey.type || 'lainnya');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
+  const dialogRef = useRef(null);
+  useModalA11y(true, onClose, dialogRef);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -357,8 +383,8 @@ function EditSurveyModal({ survey, onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" onClick={onClose}>
+      <div ref={dialogRef} tabIndex={-1} onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-5">Edit Survei</h2>
         {formError && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{formError}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -403,6 +429,8 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState(null);
   const fileRef = React.useRef(null);
+  const dialogRef = useRef(null);
+  useModalA11y(true, onClose, dialogRef);
 
   function handleFileChange(e) {
     const f = e.target.files?.[0];
@@ -444,8 +472,8 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8" role="dialog" aria-modal="true">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8" role="dialog" aria-modal="true" onClick={onClose}>
+      <div ref={dialogRef} tabIndex={-1} onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Import Kuesioner</h2>
 
         {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
@@ -509,21 +537,21 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
  */
 function Surveys() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [viewMode, handleViewChange] = useViewMode('surveys_view_mode');
   const [surveys, setSurveys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
-  const [successMsg, setSuccessMsg] = useState(null);
-  const [actionError, setActionError] = useState(null);
 
   // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
 
-  // Inline confirmation states
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const [confirmDeactivateId, setConfirmDeactivateId] = useState(null);
+  // Destructive-action confirmation targets (shared ConfirmDialog)
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   // Clone state
   const [cloningId, setCloningId] = useState(null);
@@ -535,6 +563,10 @@ function Surveys() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterType, setFilterType] = useState('');
   const [explorerMode, setExplorerMode] = useState('list'); // 'list' | 'folder'
+
+  // Pagination state (client-side, ~25 per page)
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
 
   // ── Fetch surveys ───────────────────────────────────────────────────────────
   const fetchSurveys = useCallback(async () => {
@@ -558,22 +590,14 @@ function Surveys() {
     fetchSurveys();
   }, [fetchSurveys]);
 
-  // ── Auto-dismiss success message ────────────────────────────────────────────
-  useEffect(() => {
-    if (!successMsg) return;
-    const timer = setTimeout(() => setSuccessMsg(null), 4000);
-    return () => clearTimeout(timer);
-  }, [successMsg]);
-
   // ── Activate handler ────────────────────────────────────────────────────────
   async function handleActivate(survey) {
-    setActionError(null);
     try {
       await api.patch(`/surveys/${survey.id}/activate`);
-      setSuccessMsg(`Survei "${survey.title}" berhasil diaktifkan.`);
+      toast.success(`Survei "${survey.title}" berhasil diaktifkan.`);
       fetchSurveys();
     } catch (err) {
-      setActionError(
+      toast.error(
         err.response?.data?.message ||
           err.message ||
           'Gagal mengaktifkan survei.'
@@ -581,52 +605,55 @@ function Surveys() {
     }
   }
 
-  // ── Deactivate handler ──────────────────────────────────────────────────────
+  // ── Deactivate handler (dipicu dari ConfirmDialog) ──────────────────────────
   async function handleDeactivate(survey) {
-    setActionError(null);
+    setConfirmLoading(true);
     try {
       await api.patch(`/surveys/${survey.id}/deactivate`);
-      setSuccessMsg(`Survei "${survey.title}" berhasil dinonaktifkan.`);
-      setConfirmDeactivateId(null);
+      toast.success(`Survei "${survey.title}" berhasil dinonaktifkan.`);
+      setDeactivateTarget(null);
       fetchSurveys();
     } catch (err) {
-      setActionError(
+      toast.error(
         err.response?.data?.message ||
           err.message ||
           'Gagal menonaktifkan survei.'
       );
-      setConfirmDeactivateId(null);
+      setDeactivateTarget(null);
+    } finally {
+      setConfirmLoading(false);
     }
   }
 
-  // ── Delete handler ──────────────────────────────────────────────────────────
+  // ── Delete handler (dipicu dari ConfirmDialog) ──────────────────────────────
   async function handleDelete(survey) {
-    setActionError(null);
+    setConfirmLoading(true);
     try {
       await api.delete(`/surveys/${survey.id}`);
-      setSuccessMsg(`Survei "${survey.title}" berhasil dihapus.`);
-      setConfirmDeleteId(null);
+      toast.success(`Survei "${survey.title}" berhasil dihapus.`);
+      setDeleteTarget(null);
       fetchSurveys();
     } catch (err) {
-      setActionError(
+      toast.error(
         err.response?.data?.message ||
           err.message ||
           'Gagal menghapus survei.'
       );
-      setConfirmDeleteId(null);
+      setDeleteTarget(null);
+    } finally {
+      setConfirmLoading(false);
     }
   }
 
   // ── Clone handler ────────────────────────────────────────────────────────────
   async function handleClone(survey) {
     setCloningId(survey.id);
-    setActionError(null);
     try {
       const res = await api.post(`/surveys/${survey.id}/clone`);
-      setSuccessMsg(`Survei "${survey.title}" berhasil diduplikasi.`);
+      toast.success(`Survei "${survey.title}" berhasil diduplikasi.`);
       navigate(`/surveys/${res.data.id}/builder`);
     } catch (err) {
-      setActionError(err.response?.data?.error || err.message || 'Gagal menduplikasi survei.');
+      toast.error(err.response?.data?.error || err.message || 'Gagal menduplikasi survei.');
     } finally {
       setCloningId(null);
     }
@@ -643,9 +670,9 @@ function Surveys() {
       link.download = `kuesioner-${survey.title.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      setSuccessMsg(`Kuesioner "${survey.title}" berhasil diexport.`);
+      toast.success(`Kuesioner "${survey.title}" berhasil diexport.`);
     } catch (err) {
-      setActionError(err.response?.data?.error || 'Gagal export kuesioner.');
+      toast.error(err.response?.data?.error || 'Gagal export kuesioner.');
     }
   }
 
@@ -675,10 +702,21 @@ function Surveys() {
   // Get unique years from surveys for the dropdown
   const availableYears = [...new Set(surveys.map((s) => new Date(s.created_at).getFullYear()))].sort((a, b) => b - a);
 
+  // ── Pagination (client-side) ────────────────────────────────────────────────
+  const totalPages = Math.max(1, Math.ceil(filteredSurveys.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pagedSurveys = filteredSurveys.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // Reset ke halaman 1 saat filter/pencarian/folder berubah
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, filterStatus, filterType, filterYear, filterMonth]);
+
   // Kelompokkan survei (sudah terurut created_at DESC dari server) per Tahun · Bulan
   const surveyGroups = [];
   const groupIndex = {};
-  for (const s of filteredSurveys) {
+  for (const s of pagedSurveys) {
     const d = new Date(s.created_at);
     const key = `${d.getFullYear()} · ${MONTH_NAMES[d.getMonth()]}`;
     if (groupIndex[key] === undefined) {
@@ -803,33 +841,6 @@ function Surveys() {
           </span>
         </div>
 
-        {/* Success message */}
-        {successMsg && (
-          <div
-            className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm"
-            role="status"
-            aria-live="polite"
-          >
-            {successMsg}
-          </div>
-        )}
-
-        {/* Action error */}
-        {actionError && (
-          <div
-            className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm"
-            role="alert"
-          >
-            {actionError}
-            <button
-              className="ml-3 underline text-red-600 hover:text-red-800 text-xs"
-              onClick={() => setActionError(null)}
-            >
-              Tutup
-            </button>
-          </div>
-        )}
-
         {/* Table card */}
         <div className="bg-white rounded-xl shadow overflow-hidden flex">
           {explorerMode === 'folder' && (
@@ -888,12 +899,12 @@ function Surveys() {
                         onDeactivate={handleDeactivate}
                         onDelete={handleDelete}
                         cloningId={cloningId}
-                        confirmDeleteId={confirmDeleteId}
-                        onConfirmDelete={(id) => setConfirmDeleteId(id)}
-                        onCancelDelete={() => setConfirmDeleteId(null)}
-                        confirmDeactivateId={confirmDeactivateId}
-                        onConfirmDeactivate={(id) => setConfirmDeactivateId(id)}
-                        onCancelDeactivate={() => setConfirmDeactivateId(null)}
+                        confirmDeleteId={null}
+                        onConfirmDelete={() => setDeleteTarget(survey)}
+                        onCancelDelete={() => setDeleteTarget(null)}
+                        confirmDeactivateId={null}
+                        onConfirmDeactivate={() => setDeactivateTarget(survey)}
+                        onCancelDeactivate={() => setDeactivateTarget(null)}
                         formatDate={formatDate}
                       />
                     ))}
@@ -931,9 +942,6 @@ function Surveys() {
                         </td>
                       </tr>
                       {g.items.map((survey) => {
-                    const isConfirmingDelete = confirmDeleteId === survey.id;
-                    const isConfirmingDeactivate =
-                      confirmDeactivateId === survey.id;
                     const canDelete =
                       survey.status === 'draft' &&
                       (survey.response_count ?? 0) === 0;
@@ -1033,41 +1041,13 @@ function Surveys() {
                             )}
 
                             {survey.status === 'active' && (
-                              <>
-                                {isConfirmingDeactivate ? (
-                                  <span className="flex items-center gap-1.5">
-                                    <span className="text-xs text-gray-600">
-                                      Nonaktifkan?
-                                    </span>
-                                    <button
-                                      onClick={() => handleDeactivate(survey)}
-                                      className="px-2.5 py-1 text-xs font-medium text-white bg-yellow-500 hover:bg-yellow-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                                      aria-label={`Konfirmasi nonaktifkan ${survey.title}`}
-                                    >
-                                      Ya
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        setConfirmDeactivateId(null)
-                                      }
-                                      className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
-                                      aria-label="Batal nonaktifkan"
-                                    >
-                                      Batal
-                                    </button>
-                                  </span>
-                                ) : (
-                                  <button
-                                    onClick={() =>
-                                      setConfirmDeactivateId(survey.id)
-                                    }
-                                    className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                                    aria-label={`Nonaktifkan survei ${survey.title}`}
-                                  >
-                                    Nonaktifkan
-                                  </button>
-                                )}
-                              </>
+                              <button
+                                onClick={() => setDeactivateTarget(survey)}
+                                className="px-3 py-1.5 text-xs font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-300"
+                                aria-label={`Nonaktifkan survei ${survey.title}`}
+                              >
+                                Nonaktifkan
+                              </button>
                             )}
 
                             {survey.status === 'inactive' && (
@@ -1082,39 +1062,13 @@ function Surveys() {
 
                             {/* Delete (only draft with no responses) */}
                             {canDelete && (
-                              <>
-                                {isConfirmingDelete ? (
-                                  <span className="flex items-center gap-1.5">
-                                    <span className="text-xs text-gray-600">
-                                      Hapus?
-                                    </span>
-                                    <button
-                                      onClick={() => handleDelete(survey)}
-                                      className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                      aria-label={`Konfirmasi hapus ${survey.title}`}
-                                    >
-                                      Ya
-                                    </button>
-                                    <button
-                                      onClick={() => setConfirmDeleteId(null)}
-                                      className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
-                                      aria-label="Batal hapus"
-                                    >
-                                      Batal
-                                    </button>
-                                  </span>
-                                ) : (
-                                  <button
-                                    onClick={() =>
-                                      setConfirmDeleteId(survey.id)
-                                    }
-                                    className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                    aria-label={`Hapus survei ${survey.title}`}
-                                  >
-                                    Hapus
-                                  </button>
-                                )}
-                              </>
+                              <button
+                                onClick={() => setDeleteTarget(survey)}
+                                className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                                aria-label={`Hapus survei ${survey.title}`}
+                              >
+                                Hapus
+                              </button>
                             )}
                           </div>
                         </td>
@@ -1129,7 +1083,79 @@ function Surveys() {
           )}
           </div>
         </div>
+
+        {/* Pagination */}
+        {!loading && !fetchError && filteredSurveys.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-xs text-gray-500">
+              Menampilkan {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredSurveys.length)} dari {filteredSurveys.length} survei
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                aria-label="Halaman sebelumnya"
+              >
+                Sebelumnya
+              </button>
+              <span className="text-sm text-gray-600" aria-live="polite">
+                Halaman {currentPage} dari {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                aria-label="Halaman berikutnya"
+              >
+                Berikutnya
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Konfirmasi hapus survei */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Hapus survei?"
+        description={
+          deleteTarget ? (
+            <>
+              Survei <span className="font-semibold">"{deleteTarget.title}"</span> akan dihapus permanen.
+              Tindakan ini tidak dapat dibatalkan.
+            </>
+          ) : null
+        }
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        tone="danger"
+        loading={confirmLoading}
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Konfirmasi nonaktifkan survei */}
+      <ConfirmDialog
+        open={!!deactivateTarget}
+        title="Nonaktifkan survei?"
+        description={
+          deactivateTarget ? (
+            <>
+              Survei <span className="font-semibold">"{deactivateTarget.title}"</span> akan dinonaktifkan
+              dan tidak lagi dapat diisi oleh surveyor. Anda dapat mengaktifkannya kembali nanti.
+            </>
+          ) : null
+        }
+        confirmLabel="Nonaktifkan"
+        cancelLabel="Batal"
+        tone="danger"
+        loading={confirmLoading}
+        onConfirm={() => deactivateTarget && handleDeactivate(deactivateTarget)}
+        onCancel={() => setDeactivateTarget(null)}
+      />
 
       {/* Create Survey Modal */}
       {showCreateModal && (
@@ -1137,7 +1163,7 @@ function Surveys() {
           onClose={() => setShowCreateModal(false)}
           onSaved={() => {
             setShowCreateModal(false);
-            setSuccessMsg('Survei baru berhasil dibuat.');
+            toast.success('Survei baru berhasil dibuat.');
             fetchSurveys();
           }}
         />
@@ -1150,7 +1176,7 @@ function Surveys() {
           onClose={() => setEditTarget(null)}
           onSaved={() => {
             setEditTarget(null);
-            setSuccessMsg('Survei berhasil diperbarui.');
+            toast.success('Survei berhasil diperbarui.');
             fetchSurveys();
           }}
         />
@@ -1163,7 +1189,7 @@ function Surveys() {
           onClose={() => setShowImportModal(false)}
           onSuccess={(msg) => {
             setShowImportModal(false);
-            setSuccessMsg(msg);
+            toast.success(msg || 'Kuesioner berhasil diimport.');
             fetchSurveys();
           }}
         />

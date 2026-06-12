@@ -1,8 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastProvider } from './components/Toast';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import AdminUsers from './pages/AdminUsers';
 import UserManagement from './pages/UserManagement';
 import Surveyors from './pages/Surveyors';
 import Surveys from './pages/Surveys';
@@ -58,6 +58,7 @@ function ProtectedRoute({ children, role }) {
 function App() {
   return (
     <BrowserRouter>
+      <ToastProvider>
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
@@ -218,6 +219,7 @@ function App() {
           }
         />
       </Routes>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

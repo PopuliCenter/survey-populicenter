@@ -1,10 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Layout from '../components/Layout';
 import { StatusBadge, QuotaPanel } from '../components/SurveyorBadges';
 import ViewToggle, { useViewMode } from '../components/ViewToggle';
 import SurveyorCard from '../components/SurveyorCard';
 import BulkUploadModal from '../components/BulkUploadModal';
 import BulkAssignModal from '../components/BulkAssignModal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useToast } from '../components/Toast';
+import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
 
 // ─── Password Validation ──────────────────────────────────────────────────────
@@ -59,6 +62,9 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
   const [fieldErrors, setFieldErrors] = useState({});
 
   const isEdit = mode === 'edit';
+
+  const dialogRef = useRef(null);
+  useModalA11y(true, onClose, dialogRef);
 
   // Parse assigned numbers dari textarea (satu per baris atau koma-separated)
   function parseAssignedNumbers(text) {
@@ -174,8 +180,14 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="tpd-modal-title"
+      onClick={onClose}
     >
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 focus:outline-none"
+      >
         <h2
           id="tpd-modal-title"
           className="text-lg font-semibold text-gray-800 mb-5"
@@ -365,25 +377,31 @@ function Surveyors() {
     }
   })();
 
+  const toast = useToast();
+
   const [viewMode, handleViewChange] = useViewMode('surveyors_view_mode');
   const [tpdList, setTpdList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
-  const [successMsg, setSuccessMsg] = useState(null);
-  const [actionError, setActionError] = useState(null);
 
   // Modal state
   const [modalMode, setModalMode] = useState(null); // 'create' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
 
-  // Inline deactivate confirmation state: stores the TPD id being confirmed
-  const [confirmDeactivateId, setConfirmDeactivateId] = useState(null);
+  // Deactivate confirmation: stores the TPD object being confirmed
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [deactivating, setDeactivating] = useState(false);
 
-  // Inline delete confirmation state: stores the TPD id being confirmed for deletion
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  // Delete confirmation: stores the TPD object being confirmed for deletion
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Expanded quota panel: stores the TPD id whose quota panel is open
   const [expandedQuotaId, setExpandedQuotaId] = useState(null);
+
+  // Client-side pagination
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
 
   // Bulk upload / assign modal state
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
@@ -429,40 +447,34 @@ function Surveyors() {
     fetchSurveys();
   }, [fetchSurveyors, fetchSurveys]);
 
-  // ── Auto-dismiss success message ────────────────────────────────────────────
-  useEffect(() => {
-    if (!successMsg) return;
-    const timer = setTimeout(() => setSuccessMsg(null), 4000);
-    return () => clearTimeout(timer);
-  }, [successMsg]);
-
   // ── Deactivate handler ──────────────────────────────────────────────────────
   async function handleDeactivate(tpd) {
-    setActionError(null);
+    setDeactivating(true);
     try {
       await api.patch(`/surveyors/${tpd.id}/deactivate`);
-      setSuccessMsg(`Akun "${tpd.name}" berhasil dinonaktifkan.`);
-      setConfirmDeactivateId(null);
+      toast.success(`Akun "${tpd.name}" berhasil dinonaktifkan.`);
+      setDeactivateTarget(null);
       fetchSurveyors();
     } catch (err) {
-      setActionError(
+      toast.error(
         err.response?.data?.message ||
           err.message ||
           'Gagal menonaktifkan TPD.'
       );
-      setConfirmDeactivateId(null);
+      setDeactivateTarget(null);
+    } finally {
+      setDeactivating(false);
     }
   }
 
   // ── Activate handler ────────────────────────────────────────────────────────
   async function handleActivate(tpd) {
-    setActionError(null);
     try {
       await api.patch(`/surveyors/${tpd.id}/activate`);
-      setSuccessMsg(`Akun "${tpd.name}" berhasil diaktifkan kembali.`);
+      toast.success(`Akun "${tpd.name}" berhasil diaktifkan kembali.`);
       fetchSurveyors();
     } catch (err) {
-      setActionError(
+      toast.error(
         err.response?.data?.message ||
           err.message ||
           'Gagal mengaktifkan TPD.'
@@ -472,20 +484,22 @@ function Surveyors() {
 
   // ── Delete handler ──────────────────────────────────────────────────────────
   async function handleDeleteSurveyor(tpd) {
-    setActionError(null);
+    setDeleting(true);
     try {
       await api.delete(`/surveyors/${tpd.id}`);
-      setSuccessMsg(`Akun "${tpd.name}" berhasil dihapus.`);
-      setConfirmDeleteId(null);
+      toast.success(`Akun "${tpd.name}" berhasil dihapus.`);
+      setDeleteTarget(null);
       fetchSurveyors();
     } catch (err) {
-      setActionError(
+      toast.error(
         err.response?.data?.error ||
           err.response?.data?.message ||
           err.message ||
           'Gagal menghapus TPD.'
       );
-      setConfirmDeleteId(null);
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -524,6 +538,18 @@ function Surveyors() {
     return true;
   });
 
+  // ── Client-side pagination ──────────────────────────────────────────────────
+  const totalPages = Math.max(1, Math.ceil(filteredSurveyors.length / PAGE_SIZE));
+  // Clamp current page if the filtered set shrank (e.g. after delete/filter).
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const paginatedSurveyors = filteredSurveyors.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // Reset to page 1 whenever the search/filter changes.
+  useEffect(() => {
+    setPage(1);
+  }, [filterName, filterSurveyId, filterYear, filterMonth]);
+
   // Get unique years from TPD list for the dropdown
   const availableYears = [...new Set(tpdList.map((tpd) => new Date(tpd.created_at).getFullYear()))].sort((a, b) => b - a);
 
@@ -559,33 +585,6 @@ function Surveyors() {
             </button>
           </div>
         </div>
-
-        {/* Success message */}
-        {successMsg && (
-          <div
-            className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm"
-            role="status"
-            aria-live="polite"
-          >
-            {successMsg}
-          </div>
-        )}
-
-        {/* Action error */}
-        {actionError && (
-          <div
-            className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm"
-            role="alert"
-          >
-            {actionError}
-            <button
-              className="ml-3 underline text-red-600 hover:text-red-800 text-xs"
-              onClick={() => setActionError(null)}
-            >
-              Tutup
-            </button>
-          </div>
-        )}
 
         {/* Filter bar */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -685,7 +684,7 @@ function Surveyors() {
             </div>
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-              {filteredSurveyors.map((tpd) => (
+              {paginatedSurveyors.map((tpd) => (
                 <SurveyorCard
                   key={tpd.id}
                   surveyor={tpd}
@@ -694,12 +693,12 @@ function Surveyors() {
                   onActivate={handleActivate}
                   onDeactivate={handleDeactivate}
                   onDelete={handleDeleteSurveyor}
-                  confirmDeactivateId={confirmDeactivateId}
-                  onConfirmDeactivate={(id) => setConfirmDeactivateId(id)}
-                  onCancelDeactivate={() => setConfirmDeactivateId(null)}
-                  confirmDeleteId={confirmDeleteId}
-                  onConfirmDelete={(id) => setConfirmDeleteId(id)}
-                  onCancelDelete={() => setConfirmDeleteId(null)}
+                  confirmDeactivateId={null}
+                  onConfirmDeactivate={() => setDeactivateTarget(tpd)}
+                  onCancelDeactivate={() => setDeactivateTarget(null)}
+                  confirmDeleteId={null}
+                  onConfirmDelete={() => setDeleteTarget(tpd)}
+                  onCancelDelete={() => setDeleteTarget(null)}
                   expandedQuotaId={expandedQuotaId}
                   onToggleQuota={toggleQuotaPanel}
                   formatDate={formatDate}
@@ -726,8 +725,7 @@ function Surveyors() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filteredSurveyors.map((tpd) => {
-                    const isConfirming = confirmDeactivateId === tpd.id;
+                  {paginatedSurveyors.map((tpd) => {
                     const isQuotaExpanded = expandedQuotaId === tpd.id;
 
                     return (
@@ -789,37 +787,13 @@ function Surveyors() {
 
                               {/* Deactivate / Activate toggle */}
                               {tpd.is_active ? (
-                                <>
-                                  {isConfirming ? (
-                                    <span className="flex items-center gap-1.5">
-                                      <span className="text-xs text-gray-600">
-                                        Nonaktifkan?
-                                      </span>
-                                      <button
-                                        onClick={() => handleDeactivate(tpd)}
-                                        className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                        aria-label={`Konfirmasi nonaktifkan ${tpd.name}`}
-                                      >
-                                        Ya
-                                      </button>
-                                      <button
-                                        onClick={() => setConfirmDeactivateId(null)}
-                                        className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
-                                        aria-label="Batal nonaktifkan"
-                                      >
-                                        Batal
-                                      </button>
-                                    </span>
-                                  ) : (
-                                    <button
-                                      onClick={() => setConfirmDeactivateId(tpd.id)}
-                                      className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                      aria-label={`Nonaktifkan TPD ${tpd.name}`}
-                                    >
-                                      Nonaktifkan
-                                    </button>
-                                  )}
-                                </>
+                                <button
+                                  onClick={() => setDeactivateTarget(tpd)}
+                                  className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                                  aria-label={`Nonaktifkan TPD ${tpd.name}`}
+                                >
+                                  Nonaktifkan
+                                </button>
                               ) : (
                                 <button
                                   onClick={() => handleActivate(tpd)}
@@ -832,35 +806,13 @@ function Surveyors() {
 
                               {/* Delete button — only for admin role */}
                               {currentUser.role === 'admin' && (
-                                <>
-                                  {confirmDeleteId === tpd.id ? (
-                                    <span className="flex items-center gap-1.5">
-                                      <span className="text-xs text-gray-600">Hapus permanen?</span>
-                                      <button
-                                        onClick={() => handleDeleteSurveyor(tpd)}
-                                        className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                        aria-label={`Konfirmasi hapus ${tpd.name}`}
-                                      >
-                                        Ya, Hapus
-                                      </button>
-                                      <button
-                                        onClick={() => setConfirmDeleteId(null)}
-                                        className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
-                                        aria-label="Batal hapus"
-                                      >
-                                        Batal
-                                      </button>
-                                    </span>
-                                  ) : (
-                                    <button
-                                      onClick={() => setConfirmDeleteId(tpd.id)}
-                                      className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                      aria-label={`Hapus TPD ${tpd.name}`}
-                                    >
-                                      Hapus
-                                    </button>
-                                  )}
-                                </>
+                                <button
+                                  onClick={() => setDeleteTarget(tpd)}
+                                  className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                                  aria-label={`Hapus TPD ${tpd.name}`}
+                                >
+                                  Hapus
+                                </button>
                               )}
                             </div>
                           </td>
@@ -882,6 +834,36 @@ function Surveyors() {
             </div>
           )}
         </div>
+
+        {/* Pagination controls */}
+        {!loading && !fetchError && filteredSurveyors.length > 0 && (
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-xs text-gray-500">
+              Menampilkan {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredSurveyors.length)} dari {filteredSurveyors.length} TPD
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                aria-label="Halaman sebelumnya"
+              >
+                Sebelumnya
+              </button>
+              <span className="text-sm text-gray-600" aria-live="polite">
+                Halaman {currentPage} dari {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                aria-label="Halaman berikutnya"
+              >
+                Berikutnya
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal */}
@@ -895,10 +877,11 @@ function Surveyors() {
             setEditTarget(null);
           }}
           onSaved={() => {
+            const wasEdit = modalMode === 'edit';
             setModalMode(null);
             setEditTarget(null);
-            setSuccessMsg(
-              modalMode === 'edit'
+            toast.success(
+              wasEdit
                 ? 'Data TPD berhasil diperbarui.'
                 : 'TPD baru berhasil dibuat.'
             );
@@ -912,7 +895,7 @@ function Surveyors() {
         open={bulkUploadOpen}
         onClose={() => setBulkUploadOpen(false)}
         onSuccess={() => {
-          setSuccessMsg('TPD berhasil diupload secara massal.');
+          toast.success('TPD berhasil diupload secara massal.');
           fetchSurveyors();
         }}
       />
@@ -923,9 +906,43 @@ function Surveyors() {
         surveys={surveys}
         onClose={() => setBulkAssignOpen(false)}
         onSuccess={() => {
-          setSuccessMsg('Penugasan TPD berhasil diupload.');
+          toast.success('Penugasan TPD berhasil diupload.');
           fetchSurveyors();
         }}
+      />
+
+      {/* Deactivate confirmation */}
+      <ConfirmDialog
+        open={!!deactivateTarget}
+        title="Nonaktifkan TPD?"
+        description={
+          deactivateTarget
+            ? `Akun "${deactivateTarget.name}" akan dinonaktifkan dan tidak dapat login hingga diaktifkan kembali. Anda bisa mengaktifkannya lagi nanti.`
+            : ''
+        }
+        confirmLabel="Nonaktifkan"
+        cancelLabel="Batal"
+        tone="danger"
+        loading={deactivating}
+        onConfirm={() => deactivateTarget && handleDeactivate(deactivateTarget)}
+        onCancel={() => setDeactivateTarget(null)}
+      />
+
+      {/* Permanent delete confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Hapus TPD permanen?"
+        description={
+          deleteTarget
+            ? `Akun "${deleteTarget.name}" akan dihapus secara permanen beserta data terkaitnya. Tindakan ini tidak dapat dibatalkan.`
+            : ''
+        }
+        confirmLabel="Ya, Hapus"
+        cancelLabel="Batal"
+        tone="danger"
+        loading={deleting}
+        onConfirm={() => deleteTarget && handleDeleteSurveyor(deleteTarget)}
+        onCancel={() => setDeleteTarget(null)}
       />
     </Layout>
   );

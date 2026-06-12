@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import SkipLogicEditor from '../components/SkipLogicEditor';
 import ValidationRulesEditor from '../components/ValidationRulesEditor';
+import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -833,6 +834,8 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
   const [textError, setTextError] = useState('');
+  const dialogRef = useRef(null);
+  useModalA11y(true, onClose, dialogRef);
 
   const isChoiceType = CHOICE_TYPES.includes(type);
 
@@ -913,8 +916,14 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
       role="dialog"
       aria-modal="true"
       aria-labelledby="question-modal-title"
+      onClick={onClose}
     >
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-6">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-6"
+      >
         <h2
           id="question-modal-title"
           className="text-lg font-semibold text-gray-800 mb-5"
