@@ -51,6 +51,12 @@ const ICON_PATHS = {
   logout: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1',
 };
 
+// Preferensi sidebar dipertahankan antar-navigasi. Layout di-mount ulang tiap
+// halaman (tiap rute membungkus dirinya dengan <Layout>), jadi tanpa ini pilihan
+// buka/tutup pengguna akan ter-reset setiap pindah fitur.
+const SIDEBAR_PREF_KEY = 'dashboard_sidebar_open';
+const isDesktopViewport = () => typeof window !== 'undefined' && window.innerWidth >= 768;
+
 function Icon({ name, className = 'w-5 h-5' }) {
   const d = ICON_PATHS[name];
   if (!d) return null;
@@ -98,8 +104,23 @@ function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Bug #1: state untuk toggle sidebar di mobile — default tertutup di layar kecil, terbuka di >= md
-  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
+  // State sidebar: di layar kecil (<768) selalu mulai TERTUTUP agar konten tidak
+  // tertutup overlay saat membuka fitur baru; di desktop pakai preferensi tersimpan.
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (!isDesktopViewport()) return false;
+    try {
+      const saved = localStorage.getItem(SIDEBAR_PREF_KEY);
+      return saved === null ? true : saved === '1';
+    } catch {
+      return true;
+    }
+  });
+
+  // Ubah state + simpan preferensi agar bertahan saat pindah halaman.
+  const setSidebar = (open) => {
+    setSidebarOpen(open);
+    try { localStorage.setItem(SIDEBAR_PREF_KEY, open ? '1' : '0'); } catch { /* ignore */ }
+  };
 
   // Read user info from localStorage
   let user = null;
@@ -133,7 +154,7 @@ function Layout({ children }) {
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-black/40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setSidebar(false)}
           aria-hidden="true"
         />
       )}
@@ -171,6 +192,7 @@ function Layout({ children }) {
                 <li key={path}>
                   <Link
                     to={path}
+                    onClick={() => { if (!isDesktopViewport()) setSidebar(false); }}
                     title={!sidebarOpen ? label : undefined}
                     className={`flex items-center rounded-xl text-sm font-medium transition-colors ${
                       sidebarOpen ? 'gap-3 px-3 py-2.5' : 'justify-center px-2 py-2.5'
@@ -221,7 +243,7 @@ function Layout({ children }) {
         <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
           {/* Tombol toggle sidebar */}
           <button
-            onClick={() => setSidebarOpen((v) => !v)}
+            onClick={() => setSidebar(!sidebarOpen)}
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 flex-shrink-0"
             aria-label={sidebarOpen ? 'Sembunyikan sidebar' : 'Tampilkan sidebar'}
             aria-expanded={sidebarOpen}
