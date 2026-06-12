@@ -68,7 +68,17 @@ function AudioRecorderPanel({ audioRecorder, onAudioReady }) {
         role="alert"
         aria-live="assertive"
       >
-        Izin mikrofon diperlukan untuk merekam audio
+        <p className="font-medium">Izin mikrofon diperlukan untuk merekam audio.</p>
+        <p className="mt-1 text-xs text-red-600">
+          Jika sebelumnya ditolak, aktifkan izin Mikrofon untuk aplikasi ini di Pengaturan HP, lalu coba lagi.
+        </p>
+        <button
+          type="button"
+          onClick={startRecording}
+          className="mt-2 min-h-[40px] px-4 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          Coba Lagi
+        </button>
       </div>
     );
   }

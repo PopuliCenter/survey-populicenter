@@ -25,9 +25,11 @@ import { validateAnswer } from '../../utils/answerValidation';
 import { cacheSurvey, getCachedSurvey, enqueueResponse, saveMediaFile } from '../../utils/storage';
 import { compressIfNeeded } from '../../utils/imageCompressor';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
+import ConfirmSheet from '../../components/ConfirmSheet';
 import AudioRecorderPanel from '../components/AudioRecorderPanel';
 import PhotoCapturePanel from '../components/PhotoCapturePanel';
 import SignaturePadCanvas from '../components/SignaturePadCanvas';
+import { addBackButtonListener } from '../../utils/capacitorBridge';
 
 // ─── Field Tools Settings ─────────────────────────────────────────────────────
 
@@ -41,6 +43,47 @@ const DEFAULT_FIELD_TOOLS = {
   photo_mode: 'required',
   gps_mode: 'required',
 };
+
+// ─── Draft autosave ───────────────────────────────────────────────────────────
+// Simpan jawaban yang sedang diisi ke localStorage agar tidak hilang bila app
+// ditutup Android / crash / ter-navigasi tak sengaja. Media (audio/foto/ttd)
+// tidak ikut di-draft (tersimpan terpisah saat submit). Draft dihapus setelah
+// submit berhasil atau saat pengguna menekan "Mulai Baru".
+const DRAFT_PREFIX = 'survey_draft_';
+
+function draftKey(surveyId) {
+  return `${DRAFT_PREFIX}${surveyId}`;
+}
+
+/** Apakah map jawaban berisi konten bermakna (bukan sekadar field kosong). */
+function answersHaveContent(answers) {
+  return Object.values(answers || {}).some((v) => {
+    if (v == null) return false;
+    if (typeof v === 'string') return v.trim() !== '';
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === 'object') return Object.keys(v).length > 0;
+    return true;
+  });
+}
+
+function saveDraft(surveyId, answers) {
+  try {
+    localStorage.setItem(draftKey(surveyId), JSON.stringify({ answers, savedAt: Date.now() }));
+  } catch { /* storage penuh / tidak tersedia — abaikan */ }
+}
+
+function loadDraft(surveyId) {
+  try {
+    const raw = localStorage.getItem(draftKey(surveyId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.answers ? parsed : null;
+  } catch { return null; }
+}
+
+function clearDraft(surveyId) {
+  try { localStorage.removeItem(draftKey(surveyId)); } catch { /* abaikan */ }
+}
 
 // ─── Wilayah Indonesia ────────────────────────────────────────────────────────
 
@@ -316,11 +359,16 @@ function GpsStatusPanel({ mode, startGeo, searching, onRefresh }) {
     );
     message = 'Mencari sinyal GPS… boleh lanjut mengisi, lokasi diambil otomatis. Pastikan di luar ruangan.';
   } else {
+    // Bedakan "izin ditolak / tidak tersedia" dari "belum dapat fix" — solusinya beda:
+    // izin ditolak harus dibuka di Pengaturan, bukan sekadar keluar ruangan.
+    const denied = !!(startGeo && startGeo.status && startGeo.status !== 'available');
     tone = 'bg-amber-50 border-amber-200 text-amber-700';
     icon = (
       <svg className="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" /></svg>
     );
-    message = 'Lokasi GPS belum didapat. Pastikan di luar ruangan, lalu ambil lokasi.';
+    message = denied
+      ? 'Lokasi tidak tersedia. Pastikan izin lokasi untuk aplikasi ini aktif di Pengaturan HP, lalu tekan "Coba Lagi".'
+      : 'Lokasi GPS belum didapat. Pastikan di luar ruangan, lalu ambil lokasi.';
   }
 
   return (
@@ -777,15 +825,18 @@ function MatrixField({ question, answer, onChange, hasError }) {
                     )}
                   </td>
                   {columns.map((col) => (
-                    <td key={col} className="text-center p-2 border-b border-gray-100">
-                      <input
-                        type="radio"
-                        name={`matrix_${question.id}_${row}`}
-                        checked={value[row] === col}
-                        onChange={() => handleSelect(row, col)}
-                        className="accent-blue-600 w-5 h-5"
-                        aria-label={`${row}: ${col}`}
-                      />
+                    <td key={col} className="text-center px-1 py-0.5 border-b border-gray-100">
+                      {/* Seluruh sel jadi area ketuk (≥44px) agar mudah di lapangan */}
+                      <label className="flex items-center justify-center min-h-[44px] cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`matrix_${question.id}_${row}`}
+                          checked={value[row] === col}
+                          onChange={() => handleSelect(row, col)}
+                          className="accent-blue-600 w-6 h-6"
+                          aria-label={`${row}: ${col}`}
+                        />
+                      </label>
                     </td>
                   ))}
                 </tr>
@@ -816,7 +867,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
           {displayOptions.map((opt) => (
             <label
               key={opt.value}
-              className="flex items-center gap-2 cursor-pointer rounded-xl px-3 py-2 transition-colors hover:bg-gray-50"
+              className="flex items-center gap-3 cursor-pointer rounded-xl px-3 min-h-[48px] transition-colors hover:bg-gray-50 active:bg-gray-100"
             >
               <input
                 type="radio"
@@ -824,21 +875,21 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                 value={opt.value}
                 checked={answer === opt.value || (answer && answer.startsWith && answer.startsWith('__other__:') && opt.value === '__other__')}
                 onChange={() => onChange(opt.value)}
-                className="accent-blue-600"
+                className="accent-blue-600 w-5 h-5 flex-shrink-0"
               />
-              <span className="text-sm text-gray-800">{opt.label}</span>
+              <span className="text-base text-gray-800">{opt.label}</span>
             </label>
           ))}
           {question.allow_other && (
             <div className="space-y-1">
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-3 cursor-pointer min-h-[44px]">
                 <input
                   type="radio"
                   name={`q_${question.id}`}
                   value="__other__"
                   checked={answer && answer.startsWith && answer.startsWith('__other__:')}
                   onChange={() => onChange('__other__:')}
-                  className="accent-blue-600"
+                  className="accent-blue-600 w-5 h-5 flex-shrink-0"
                 />
                 <span className="text-sm text-gray-700">Lainnya</span>
               </label>
@@ -869,7 +920,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
             return (
               <label
                 key={opt.value}
-                className="flex items-center gap-2 cursor-pointer rounded-xl px-3 py-2 transition-colors hover:bg-gray-50"
+                className="flex items-center gap-3 cursor-pointer rounded-xl px-3 min-h-[48px] transition-colors hover:bg-gray-50 active:bg-gray-100"
               >
                 <input
                   type="checkbox"
@@ -883,9 +934,9 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                       onChange(current.filter((v) => v !== opt.value));
                     }
                   }}
-                  className="accent-blue-600"
+                  className="accent-blue-600 w-5 h-5 flex-shrink-0"
                 />
-                <span className="text-sm text-gray-800">{opt.label}</span>
+                <span className="text-base text-gray-800">{opt.label}</span>
               </label>
             );
           })}
@@ -895,7 +946,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
             const otherChecked = !!otherEntry;
             return (
               <div className="space-y-1">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-3 cursor-pointer min-h-[44px]">
                   <input
                     type="checkbox"
                     checked={otherChecked}
@@ -906,7 +957,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                         onChange(currentArr.filter((v) => !v.startsWith('__other__:')));
                       }
                     }}
-                    className="accent-blue-600"
+                    className="accent-blue-600 w-5 h-5 flex-shrink-0"
                   />
                   <span className="text-sm text-gray-700">Lainnya</span>
                 </label>
@@ -1153,6 +1204,11 @@ function SurveyForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [mediaUploadMessage, setMediaUploadMessage] = useState('');
+
+  // ─── Exit guard & draft state ───────────────────────────────────────────────
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const draftRestoredRef = useRef(false);
 
   // ─── Randomised display options (stable per mount) ──────────────────────────
   // We compute shuffled options once when questions load and keep them stable
@@ -1748,6 +1804,9 @@ function SurveyForm() {
         }
         await Promise.all(offlineMediaSaves);
 
+        // Sukses tersimpan ke antrian — hapus draft.
+        clearDraft(id);
+
         // Navigate to success page with offline flag
         navigate(`/surveyor/survey/${id}/success`, {
           state: { offline: true, survey_id: id },
@@ -1848,6 +1907,9 @@ function SurveyForm() {
 
       const { questionnaire_number } = res.data;
 
+      // Sukses terkirim — hapus draft.
+      clearDraft(id);
+
       // 6. Navigate to success page (Requirement 13.3)
       navigate(`/surveyor/survey/${id}/success`, {
         state: { questionnaire_number, survey_id: id },
@@ -1900,6 +1962,82 @@ function SurveyForm() {
     fieldToolsSettings,
   ]);
 
+  // ─── Exit guard: cegah kehilangan data saat keluar form ─────────────────────
+  const hasUnsavedContent = useCallback(() => {
+    const anyMedia =
+      !!audioRecorder.audioBlob ||
+      audioRecorder.status === 'recording' ||
+      audioRecorder.status === 'paused' ||
+      photoCapture.photos.length > 0 ||
+      !signaturePad.isEmpty;
+    return answersHaveContent(answers) || anyMedia;
+  }, [answers, audioRecorder.audioBlob, audioRecorder.status, photoCapture.photos.length, signaturePad.isEmpty]);
+
+  // Keluar form: konfirmasi bila ada data belum dikirim (draft tetap disimpan).
+  const handleBackClick = useCallback(() => {
+    if (hasUnsavedContent()) {
+      setShowExitConfirm(true);
+    } else {
+      clearDraft(id);
+      navigate('/surveyor');
+    }
+  }, [hasUnsavedContent, id, navigate]);
+
+  const handleConfirmExit = useCallback(() => {
+    // Draft sengaja TIDAK dihapus agar bisa dilanjutkan nanti.
+    setShowExitConfirm(false);
+    navigate('/surveyor');
+  }, [navigate]);
+
+  // Hapus draft & mulai dari awal (dipicu dari banner "Draft dipulihkan").
+  const handleDiscardDraft = useCallback(() => {
+    clearDraft(id);
+    setAnswers(applyPreselectedNumber(questions, buildEmptyAnswers(questions)));
+    setDraftRestored(false);
+  }, [id, questions]);
+
+  // Tombol back Android — daftarkan listener sekali, baca logic terkini via ref.
+  const exitGuardRef = useRef(() => {});
+  exitGuardRef.current = handleBackClick;
+  useEffect(() => {
+    let cleanup = () => {};
+    addBackButtonListener(() => { exitGuardRef.current(); return true; })
+      .then((fn) => { cleanup = fn; });
+    return () => cleanup();
+  }, []);
+
+  // Cegah refresh/close browser saat ada data belum dikirim (web).
+  useEffect(() => {
+    function handleBeforeUnload(e) {
+      if (hasUnsavedContent()) { e.preventDefault(); e.returnValue = ''; return ''; }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedContent]);
+
+  // ─── Draft autosave & restore ───────────────────────────────────────────────
+  // Pulihkan draft sekali setelah pertanyaan dimuat.
+  useEffect(() => {
+    if (draftRestoredRef.current) return;
+    if (loading || questions.length === 0) return;
+    draftRestoredRef.current = true;
+    const draft = loadDraft(id);
+    if (draft && answersHaveContent(draft.answers)) {
+      setAnswers((prev) => ({ ...prev, ...draft.answers }));
+      setDraftRestored(true);
+    }
+  }, [loading, questions.length, id]);
+
+  // Simpan draft (debounced) saat jawaban berubah; hapus bila kosong.
+  useEffect(() => {
+    if (loading || questions.length === 0 || !draftRestoredRef.current) return;
+    const t = setTimeout(() => {
+      if (answersHaveContent(answers)) saveDraft(id, answers);
+      else clearDraft(id);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [answers, loading, questions.length, id]);
+
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -1939,8 +2077,8 @@ function SurveyForm() {
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
           <button
-            onClick={() => navigate('/surveyor')}
-            className="text-gray-500 hover:text-gray-700 transition-colors"
+            onClick={handleBackClick}
+            className="text-gray-500 hover:text-gray-700 transition-colors p-1 -ml-1"
             aria-label="Kembali ke daftar survei"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2002,6 +2140,30 @@ function SurveyForm() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        {/* Banner draft dipulihkan */}
+        {draftRestored && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 flex items-center justify-between gap-3">
+            <span className="text-sm text-blue-800">Draft jawaban sebelumnya dipulihkan.</span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleDiscardDraft}
+                className="text-xs font-semibold text-blue-700 hover:text-blue-900 underline"
+              >
+                Mulai Baru
+              </button>
+              <button
+                type="button"
+                onClick={() => setDraftRestored(false)}
+                className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                aria-label="Tutup pemberitahuan draft"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ─── Scroll mode (all questions on one page) ─────────────────── */}
         {formMode === 'scroll' ? (
           <>
@@ -2144,11 +2306,12 @@ function SurveyForm() {
               </div>
             )}
 
-            <div className="pb-8">
+            {/* Tombol simpan — sticky di bawah, mudah dijangkau jempol */}
+            <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent">
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
               >
                 {submitting ? (
                   <>
@@ -2240,8 +2403,8 @@ function SurveyForm() {
                 >
                   {/* Question label */}
                   <div className="mb-3">
-                    <p className="text-sm font-medium text-gray-800">
-                      <span className="text-gray-400 mr-1">{currentStep + 1}.</span>
+                    <p className="text-base font-semibold text-gray-900 leading-relaxed">
+                      <span className="text-gray-500 mr-1">{currentStep + 1}.</span>
                       {question.text}
                       {question.is_required && (
                         <span className="text-red-500 ml-1" aria-label="wajib diisi">*</span>
@@ -2371,15 +2534,15 @@ function SurveyForm() {
               </div>
             )}
 
-            {/* ─── Navigation buttons ──────────────────────────────────────── */}
+            {/* ─── Navigation buttons (sticky bottom bar) ──────────────────── */}
             {totalSteps > 0 && (
-              <div className="flex items-center gap-3 pb-8">
+              <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-3 bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent">
                 {/* Back button */}
                 <button
                   type="button"
                   onClick={handleBack}
                   disabled={isFirstStep}
-                  className="flex-1 bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-xl transition-colors hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 bg-white border border-gray-300 text-gray-700 font-semibold py-3.5 px-6 rounded-xl transition-colors hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Kembali
                 </button>
@@ -2390,7 +2553,7 @@ function SurveyForm() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={submitting}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
                   >
                     {submitting ? (
                       <>
@@ -2405,7 +2568,7 @@ function SurveyForm() {
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors shadow-lg shadow-blue-600/20"
                   >
                     Selanjutnya
                   </button>
@@ -2417,6 +2580,18 @@ function SurveyForm() {
         </>
         )}
       </main>
+
+      {/* Konfirmasi keluar saat ada data belum dikirim */}
+      <ConfirmSheet
+        open={showExitConfirm}
+        iconType="warning"
+        title="Keluar dari pengisian?"
+        description="Jawaban yang sudah diisi tetap tersimpan sebagai draft di perangkat ini dan bisa dilanjutkan nanti. Rekaman audio, foto, dan tanda tangan tidak ikut tersimpan."
+        confirmLabel="Keluar"
+        cancelLabel="Lanjut Mengisi"
+        onConfirm={handleConfirmExit}
+        onCancel={() => setShowExitConfirm(false)}
+      />
     </div>
   );
 }
