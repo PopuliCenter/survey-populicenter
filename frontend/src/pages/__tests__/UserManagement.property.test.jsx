@@ -219,11 +219,10 @@ describe('Property 7: Confirmation dialog menampilkan nama user yang akan dihapu
             expect(screen.queryByText(/memuat daftar/i)).not.toBeInTheDocument();
           });
 
-          // Find and click the "Hapus" button for this user
-          const hapusButtons = screen.getAllByRole('button', { name: /hapus/i });
-          const hapusBtn = hapusButtons.find(
-            (btn) => !btn.disabled && btn.textContent?.trim() === 'Hapus'
-          );
+          // Find and click the "Hapus" icon button for this user (aria-label
+          // diawali "Hapus "; tombol disabled "Tidak dapat menghapus…" dikecualikan)
+          const hapusButtons = screen.getAllByRole('button', { name: /^hapus /i });
+          const hapusBtn = hapusButtons.find((btn) => !btn.disabled);
 
           expect(hapusBtn).toBeDefined();
           fireEvent.click(hapusBtn);

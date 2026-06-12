@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Layout from '../components/Layout';
+import IconButton from '../components/IconButton';
 import api from '../services/api';
 
 // ─── Tab Configuration ────────────────────────────────────────────────────────
@@ -618,98 +619,88 @@ function UserManagement() {
 
                         {/* Actions */}
                         <td className="px-5 py-3">
-                          <div className="flex items-center justify-end gap-2">
-                            {/* Edit button */}
-                            <button
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Edit */}
+                            <IconButton
+                              icon="edit"
+                              variant="primary"
+                              label={`Edit ${activeTab?.label.toLowerCase()} ${user.name}`}
                               onClick={() => {
                                 setEditTarget(user);
                                 setModalMode('edit');
                               }}
-                              className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
-                              aria-label={`Edit ${activeTab?.label.toLowerCase()} ${user.name}`}
-                            >
-                              Edit
-                            </button>
+                            />
 
-                            {/* Deactivate / confirm — only for active accounts */}
+                            {/* Nonaktifkan — hanya akun aktif & bukan diri sendiri */}
                             {user.is_active && !isSelf && (
-                              <>
-                                {isConfirming ? (
-                                  <span className="flex items-center gap-1.5">
-                                    <span className="text-xs text-gray-600">
-                                      Nonaktifkan?
-                                    </span>
-                                    <button
-                                      onClick={() => handleDeactivate(user)}
-                                      className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                      aria-label={`Konfirmasi nonaktifkan ${user.name}`}
-                                    >
-                                      Ya
-                                    </button>
-                                    <button
-                                      onClick={() => setConfirmDeactivateId(null)}
-                                      className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
-                                      aria-label="Batal nonaktifkan"
-                                    >
-                                      Batal
-                                    </button>
-                                  </span>
-                                ) : (
+                              isConfirming ? (
+                                <span className="flex items-center gap-1.5">
+                                  <span className="text-xs text-gray-600">Nonaktifkan?</span>
                                   <button
-                                    onClick={() => setConfirmDeactivateId(user.id)}
-                                    className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                    aria-label={`Nonaktifkan ${activeTab?.label.toLowerCase()} ${user.name}`}
+                                    onClick={() => handleDeactivate(user)}
+                                    className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                                    aria-label={`Konfirmasi nonaktifkan ${user.name}`}
                                   >
-                                    Nonaktifkan
+                                    Ya
                                   </button>
-                                )}
-                              </>
+                                  <button
+                                    onClick={() => setConfirmDeactivateId(null)}
+                                    className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                                    aria-label="Batal nonaktifkan"
+                                  >
+                                    Batal
+                                  </button>
+                                </span>
+                              ) : (
+                                <IconButton
+                                  icon="deactivate"
+                                  variant="danger"
+                                  label={`Nonaktifkan ${activeTab?.label.toLowerCase()} ${user.name}`}
+                                  onClick={() => setConfirmDeactivateId(user.id)}
+                                />
+                              )
                             )}
 
-                            {/* Self-deactivation prevention */}
+                            {/* Tidak dapat menonaktifkan akun sendiri */}
                             {user.is_active && isSelf && (
-                              <span
-                                className="px-3 py-1.5 text-xs font-medium text-gray-400 bg-gray-50 rounded-md cursor-not-allowed"
-                                title="Tidak dapat menonaktifkan akun sendiri"
-                                aria-label="Tidak dapat menonaktifkan akun sendiri"
-                              >
-                                Nonaktifkan
-                              </span>
+                              <IconButton
+                                icon="deactivate"
+                                variant="default"
+                                label="Tidak dapat menonaktifkan akun sendiri"
+                                onClick={() => {}}
+                                disabled
+                              />
                             )}
 
-                            {/* Delete button — only for admin role */}
+                            {/* Hapus — admin only */}
                             {currentUser.role === 'admin' && (
-                              <>
-                                {confirmDeleteId === user.id ? (
-                                  <span className="flex items-center gap-1.5">
-                                    <span className="text-xs text-gray-600">Hapus permanen?</span>
-                                    <button
-                                      onClick={() => handleDelete(user)}
-                                      className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                      aria-label={`Konfirmasi hapus ${user.name}`}
-                                    >
-                                      Ya, Hapus
-                                    </button>
-                                    <button
-                                      onClick={() => setConfirmDeleteId(null)}
-                                      className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
-                                      aria-label="Batal hapus"
-                                    >
-                                      Batal
-                                    </button>
-                                  </span>
-                                ) : (
+                              confirmDeleteId === user.id ? (
+                                <span className="flex items-center gap-1.5">
+                                  <span className="text-xs text-gray-600">Hapus permanen?</span>
                                   <button
-                                    onClick={() => !isSelf && setConfirmDeleteId(user.id)}
-                                    disabled={isSelf}
-                                    title={isSelf ? 'Tidak dapat menghapus akun sendiri' : undefined}
-                                    className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                    aria-label={`Hapus ${activeTab?.label.toLowerCase()} ${user.name}`}
+                                    onClick={() => handleDelete(user)}
+                                    className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                                    aria-label={`Konfirmasi hapus ${user.name}`}
                                   >
-                                    Hapus
+                                    Ya, Hapus
                                   </button>
-                                )}
-                              </>
+                                  <button
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                                    aria-label="Batal hapus"
+                                  >
+                                    Batal
+                                  </button>
+                                </span>
+                              ) : (
+                                <IconButton
+                                  icon="trash"
+                                  variant="danger"
+                                  label={isSelf ? 'Tidak dapat menghapus akun sendiri' : `Hapus ${activeTab?.label.toLowerCase()} ${user.name}`}
+                                  onClick={() => !isSelf && setConfirmDeleteId(user.id)}
+                                  disabled={isSelf}
+                                />
+                              )
                             )}
                           </div>
                         </td>

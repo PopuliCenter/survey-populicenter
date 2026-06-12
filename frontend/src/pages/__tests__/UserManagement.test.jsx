@@ -244,7 +244,7 @@ describe('Form modal — supervisor role', () => {
 // ─── Self-deactivation prevention ────────────────────────────────────────────
 
 describe('Self-deactivation prevention', () => {
-  test('tombol Nonaktifkan dinonaktifkan (span) untuk akun sendiri', async () => {
+  test('kontrol Nonaktifkan dinonaktifkan untuk akun sendiri', async () => {
     setUser('admin', '1');
     api.get.mockResolvedValue({ data: mockAdmins }); // mockAdmins[0].id === '1'
     renderPage();
@@ -253,18 +253,18 @@ describe('Self-deactivation prevention', () => {
       expect(screen.getByText('Admin One')).toBeInTheDocument();
     });
 
-    // The self row should have a span (not a button) for Nonaktifkan
+    // Baris akun sendiri: tombol ikon nonaktifkan disabled dengan label penjelas
     const selfRow = screen.getByText('Admin One').closest('tr');
-    const nonaktifkanSpan = selfRow.querySelector('span[title="Tidak dapat menonaktifkan akun sendiri"]');
-    expect(nonaktifkanSpan).toBeInTheDocument();
+    const nonaktifkanBtn = selfRow.querySelector('button[aria-label="Tidak dapat menonaktifkan akun sendiri"]');
+    expect(nonaktifkanBtn).toBeInTheDocument();
+    expect(nonaktifkanBtn).toBeDisabled();
 
-    // The other row should have a button
+    // Admin Two nonaktif → tidak ada kontrol tsb
     const otherRow = screen.getByText('Admin Two').closest('tr');
-    // Admin Two is inactive, so no Nonaktifkan button at all
-    expect(otherRow.querySelector('span[title="Tidak dapat menonaktifkan akun sendiri"]')).not.toBeInTheDocument();
+    expect(otherRow.querySelector('button[aria-label="Tidak dapat menonaktifkan akun sendiri"]')).not.toBeInTheDocument();
   });
 
-  test('span self-deactivation memiliki title yang benar', async () => {
+  test('kontrol self-deactivation memiliki aria-label yang benar', async () => {
     setUser('admin', '1');
     api.get.mockResolvedValue({ data: mockAdmins });
     renderPage();
@@ -274,9 +274,9 @@ describe('Self-deactivation prevention', () => {
     });
 
     const selfRow = screen.getByText('Admin One').closest('tr');
-    const span = selfRow.querySelector('span[title="Tidak dapat menonaktifkan akun sendiri"]');
-    expect(span).toHaveAttribute('title', 'Tidak dapat menonaktifkan akun sendiri');
-    expect(span).toHaveAttribute('aria-label', 'Tidak dapat menonaktifkan akun sendiri');
+    const btn = selfRow.querySelector('button[aria-label="Tidak dapat menonaktifkan akun sendiri"]');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute('aria-label', 'Tidak dapat menonaktifkan akun sendiri');
   });
 });
 
@@ -452,7 +452,7 @@ describe('Delete user functionality', () => {
     expect(screen.queryByRole('button', { name: /hapus/i })).not.toBeInTheDocument();
   });
 
-  test('tombol "Hapus" disabled untuk baris currentUser (self) dengan title yang benar', async () => {
+  test('tombol "Hapus" disabled untuk baris currentUser (self) dengan label penjelas', async () => {
     setUser('admin', '1'); // id 1 matches mockAdmins[0]
     api.get.mockResolvedValue({ data: mockAdmins });
     renderPage();
@@ -462,10 +462,10 @@ describe('Delete user functionality', () => {
     });
 
     const selfRow = screen.getByText('Admin One').closest('tr');
-    const hapusBtn = selfRow.querySelector('button[aria-label*="Hapus admin Admin One"]');
+    const hapusBtn = selfRow.querySelector('button[aria-label="Tidak dapat menghapus akun sendiri"]');
     expect(hapusBtn).toBeInTheDocument();
     expect(hapusBtn).toBeDisabled();
-    expect(hapusBtn).toHaveAttribute('title', 'Tidak dapat menghapus akun sendiri');
+    expect(hapusBtn).toHaveAttribute('aria-label', 'Tidak dapat menghapus akun sendiri');
   });
 
   test('klik tombol "Hapus" menampilkan confirmation inline dengan nama user', async () => {
