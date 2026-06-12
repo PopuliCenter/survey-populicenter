@@ -25,6 +25,7 @@ import IconButton from './IconButton';
  */
 function SurveyorCard({
   surveyor,
+  responseCount,
   currentUser,
   onEdit,
   onActivate,
@@ -67,7 +68,7 @@ function SurveyorCard({
         </div>
         <div>
           <span className="block text-gray-400">Responden</span>
-          <span className="font-medium text-gray-700">{surveyor.response_count ?? 0}</span>
+          <span className="font-medium text-gray-700">{responseCount ?? surveyor.response_count ?? 0}</span>
         </div>
         <div>
           <span className="block text-gray-400">Bergabung</span>

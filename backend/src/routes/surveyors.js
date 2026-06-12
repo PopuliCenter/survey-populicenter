@@ -228,6 +228,30 @@ router.get('/', async (req, res, next) => {
       });
     }
 
+    // Jumlah responden per (TPD, survei) — untuk tampilan drill-in per survei,
+    // agar kolom "Jumlah Responden" mencerminkan survei yang dipilih, BUKAN total
+    // global. Dihitung tanpa filter status survei (termasuk survei nonaktif).
+    let perSurveyCounts = {}; // key `${surveyor_id}::${survey_id}` -> jumlah
+    if (surveyorIds.length > 0) {
+      const rows = await Response.findAll({
+        where: {
+          surveyor_id: { [Op.in]: surveyorIds },
+          end_time: { [Op.ne]: null },
+          questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+        },
+        attributes: [
+          'surveyor_id',
+          'survey_id',
+          [Response.sequelize.fn('COUNT', Response.sequelize.col('id')), 'count'],
+        ],
+        group: ['surveyor_id', 'survey_id'],
+        raw: true,
+      });
+      rows.forEach((r) => {
+        perSurveyCounts[`${r.surveyor_id}::${r.survey_id}`] = parseInt(r.count, 10);
+      });
+    }
+
     // Ambil penugasan survei (kuota) tiap TPD agar frontend bisa mengelompokkan
     // / menyaring TPD per survei dan menghitung jumlah TPD per survei.
     let quotasBySurveyor = {};
@@ -239,7 +263,11 @@ router.get('/', async (req, res, next) => {
       });
       for (const q of allQuotas) {
         if (!quotasBySurveyor[q.surveyor_id]) quotasBySurveyor[q.surveyor_id] = [];
-        quotasBySurveyor[q.surveyor_id].push({ survey_id: q.survey_id, quota: q.quota });
+        quotasBySurveyor[q.surveyor_id].push({
+          survey_id: q.survey_id,
+          quota: q.quota,
+          response_count: perSurveyCounts[`${q.surveyor_id}::${q.survey_id}`] || 0,
+        });
       }
     }
 

@@ -576,6 +576,16 @@ function Surveyors() {
   }
   const selectedSurvey = surveys.find((s) => s.id === filterSurveyId) || null;
   const showLanding = projectView && !filterSurveyId;
+
+  // Jumlah responden yang ditampilkan: saat drill-in ke satu survei, pakai angka
+  // PER SURVEI itu (dari quota.response_count); selain itu pakai total global.
+  const responseCountFor = (tpd) => {
+    if (filterSurveyId && Array.isArray(tpd.quotas)) {
+      const q = tpd.quotas.find((x) => x.survey_id === filterSurveyId);
+      return q?.response_count ?? 0;
+    }
+    return tpd.response_count ?? 0;
+  };
   const visibleSurveys = surveys.filter(
     (s) => !surveySearch || (s.title || '').toLowerCase().includes(surveySearch.toLowerCase())
   );
@@ -826,6 +836,7 @@ function Surveyors() {
                 <SurveyorCard
                   key={tpd.id}
                   surveyor={tpd}
+                  responseCount={responseCountFor(tpd)}
                   currentUser={currentUser}
                   onEdit={(s) => { setEditTarget(s); setModalMode('edit'); }}
                   onActivate={handleActivate}
@@ -884,9 +895,9 @@ function Surveyors() {
                             <StatusBadge isActive={tpd.is_active} />
                           </td>
 
-                          {/* Response Count */}
+                          {/* Response Count (per survei saat drill-in) */}
                           <td className="px-5 py-3 text-gray-600">
-                            {tpd.response_count ?? 0}
+                            {responseCountFor(tpd)}
                           </td>
 
                           {/* Joined Date */}
