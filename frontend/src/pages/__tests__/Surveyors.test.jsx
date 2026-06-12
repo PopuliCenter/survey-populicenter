@@ -2,20 +2,21 @@
  * Unit Tests for Surveyors page — Delete surveyor functionality
  *
  * Tests:
- *   - Tombol "Hapus" muncul untuk setiap baris ketika currentUser.role === 'admin'
+ *   - Tombol "Hapus TPD" muncul untuk setiap baris ketika currentUser.role === 'admin'
  *   - Tombol "Hapus" tidak muncul ketika currentUser.role === 'supervisor'
- *   - Klik tombol "Hapus" menampilkan confirmation inline dengan nama surveyor
- *   - Klik "Batal" menutup confirmation tanpa memanggil api.delete
+ *   - Klik "Hapus" menampilkan ConfirmDialog dengan nama TPD
+ *   - Klik "Batal" menutup dialog tanpa memanggil api.delete
  *   - Klik "Ya, Hapus" memanggil api.delete('/surveyors/{id}')
- *   - Setelah sukses — pesan sukses muncul, list di-refresh
+ *   - Setelah sukses — toast sukses muncul, list di-refresh
  *
  * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 7.2, 7.3, 7.5
  */
 
 import React from 'react';
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ToastProvider } from '../../components/Toast';
 import Surveyors from '../Surveyors.jsx';
 
 // ─── Mock api ─────────────────────────────────────────────────────────────────
@@ -55,7 +56,9 @@ function setUser(role, id = '1') {
 function renderPage() {
   return render(
     <MemoryRouter>
-      <Surveyors />
+      <ToastProvider>
+        <Surveyors />
+      </ToastProvider>
     </MemoryRouter>
   );
 }
@@ -82,8 +85,8 @@ describe('Delete surveyor functionality', () => {
       expect(screen.getByText('Surveyor One')).toBeInTheDocument();
     });
 
-    // Both rows should have a "Hapus" button
-    const hapusButtons = screen.getAllByRole('button', { name: /hapus surveyor/i });
+    // Both rows should have a "Hapus TPD" button
+    const hapusButtons = screen.getAllByRole('button', { name: /hapus tpd/i });
     expect(hapusButtons).toHaveLength(2);
   });
 
@@ -95,10 +98,10 @@ describe('Delete surveyor functionality', () => {
       expect(screen.getByText('Surveyor One')).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole('button', { name: /hapus surveyor/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /hapus tpd/i })).not.toBeInTheDocument();
   });
 
-  test('klik tombol "Hapus" menampilkan confirmation inline dengan nama surveyor', async () => {
+  test('klik "Hapus" menampilkan ConfirmDialog dengan nama TPD', async () => {
     setUser('admin', '99');
     renderPage();
 
@@ -106,17 +109,15 @@ describe('Delete surveyor functionality', () => {
       expect(screen.getByText('Surveyor One')).toBeInTheDocument();
     });
 
-    const hapusBtn = screen.getByRole('button', { name: /hapus surveyor surveyor one/i });
-    fireEvent.click(hapusBtn);
+    fireEvent.click(screen.getByRole('button', { name: /hapus tpd surveyor one/i }));
 
-    await waitFor(() => {
-      expect(screen.getByText('Hapus permanen?')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /konfirmasi hapus surveyor one/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /batal hapus/i })).toBeInTheDocument();
-    });
+    const dialog = await screen.findByRole('dialog', { name: /hapus tpd permanen/i });
+    expect(within(dialog).getByText(/Akun "Surveyor One" akan dihapus secara permanen/i)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /ya, hapus/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Batal' })).toBeInTheDocument();
   });
 
-  test('klik "Batal" menutup confirmation tanpa memanggil api.delete', async () => {
+  test('klik "Batal" menutup dialog tanpa memanggil api.delete', async () => {
     setUser('admin', '99');
     renderPage();
 
@@ -124,16 +125,13 @@ describe('Delete surveyor functionality', () => {
       expect(screen.getByText('Surveyor One')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /hapus surveyor surveyor one/i }));
+    fireEvent.click(screen.getByRole('button', { name: /hapus tpd surveyor one/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /hapus tpd permanen/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Batal' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /batal hapus/i })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /batal hapus/i }));
-
-    await waitFor(() => {
-      expect(screen.queryByText('Hapus permanen?')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: /hapus tpd permanen/i })).not.toBeInTheDocument();
     });
 
     expect(api.delete).not.toHaveBeenCalled();
@@ -148,20 +146,17 @@ describe('Delete surveyor functionality', () => {
       expect(screen.getByText('Surveyor One')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /hapus surveyor surveyor one/i }));
+    fireEvent.click(screen.getByRole('button', { name: /hapus tpd surveyor one/i }));
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /konfirmasi hapus surveyor one/i })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /konfirmasi hapus surveyor one/i }));
+    const dialog = await screen.findByRole('dialog', { name: /hapus tpd permanen/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /ya, hapus/i }));
 
     await waitFor(() => {
       expect(api.delete).toHaveBeenCalledWith('/surveyors/1');
     });
   });
 
-  test('setelah sukses — pesan sukses muncul, list di-refresh', async () => {
+  test('setelah sukses — toast sukses muncul, list di-refresh', async () => {
     setUser('admin', '99');
     api.delete.mockResolvedValue({ data: { message: 'Akun Surveyor One berhasil dihapus' } });
     renderPage();
@@ -172,13 +167,10 @@ describe('Delete surveyor functionality', () => {
 
     const initialGetCallCount = api.get.mock.calls.length;
 
-    fireEvent.click(screen.getByRole('button', { name: /hapus surveyor surveyor one/i }));
+    fireEvent.click(screen.getByRole('button', { name: /hapus tpd surveyor one/i }));
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /konfirmasi hapus surveyor one/i })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /konfirmasi hapus surveyor one/i }));
+    const dialog = await screen.findByRole('dialog', { name: /hapus tpd permanen/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /ya, hapus/i }));
 
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent(/berhasil dihapus/i);

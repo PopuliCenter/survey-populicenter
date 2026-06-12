@@ -64,5 +64,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test-setup.js'],
     include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
+    // Property-based tests (fast-check) berat secara CPU; di bawah paralelisme
+    // suite penuh, timeout default 5s bisa terlampaui. Beri headroom.
+    testTimeout: 20000,
+    hookTimeout: 20000,
   },
 });

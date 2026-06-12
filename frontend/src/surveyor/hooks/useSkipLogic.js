@@ -142,8 +142,9 @@ function computeHiddenQuestions(questions, answers) {
           }
         }
 
-        // Once a rule fires for this question, stop checking other rules for it
-        break;
+        // Jangan break: bila satu pertanyaan punya beberapa rule jump yang
+        // sama-sama menyala (mis. jump ke q3 DAN ke q4), terapkan SEMUANYA
+        // (union range) sehingga lompatan terjauh ikut berlaku.
       }
     }
   }

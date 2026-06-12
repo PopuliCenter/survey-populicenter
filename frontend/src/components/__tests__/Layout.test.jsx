@@ -65,7 +65,8 @@ describe('getNavItemsForRole', () => {
     expect(paths).toContain('/reports');
     expect(paths).toContain('/map');
     expect(paths).toContain('/audit-log');
-    expect(items).toHaveLength(8);
+    expect(paths).toContain('/cleanup');
+    expect(items).toHaveLength(9);
   });
 
   test('returns supervisor nav items for supervisor role', () => {
@@ -86,11 +87,11 @@ describe('getNavItemsForRole', () => {
   test('returns viewer nav items for viewer role', () => {
     const items = getNavItemsForRole('viewer');
     const paths = items.map((i) => i.path);
-    expect(paths).toContain('/reports');
-    expect(paths).toContain('/map');
+    expect(paths).toContain('/dashboard');
     expect(paths).toContain('/responses');
-    // Must NOT contain items beyond viewer scope
-    expect(paths).not.toContain('/dashboard');
+    expect(paths).toContain('/map');
+    // Bug #4: viewer tanpa Survei & Laporan; juga tanpa item admin
+    expect(paths).not.toContain('/reports');
     expect(paths).not.toContain('/surveys');
     expect(paths).not.toContain('/surveyors');
     expect(paths).not.toContain('/users');
@@ -167,11 +168,11 @@ describe('Layout — supervisor role', () => {
 });
 
 describe('Layout — viewer role', () => {
-  test('menampilkan hanya Reports, Map, dan Responses untuk viewer', () => {
+  test('menampilkan Dashboard, Peta, dan Data Responden untuk viewer', () => {
     setUser('viewer');
     renderLayout();
 
-    expect(screen.getByText('Laporan')).toBeInTheDocument();
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Peta')).toBeInTheDocument();
     expect(screen.getByText('Data Responden')).toBeInTheDocument();
   });
@@ -180,8 +181,8 @@ describe('Layout — viewer role', () => {
     setUser('viewer');
     renderLayout();
 
-    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     expect(screen.queryByText('Survei')).not.toBeInTheDocument();
+    expect(screen.queryByText('Laporan')).not.toBeInTheDocument();
     expect(screen.queryByText('Manajemen TPD')).not.toBeInTheDocument();
     expect(screen.queryByText('Manajemen Pengguna')).not.toBeInTheDocument();
     expect(screen.queryByText('Log Audit')).not.toBeInTheDocument();

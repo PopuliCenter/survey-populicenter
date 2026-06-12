@@ -27,6 +27,8 @@ vi.mock('../../../services/api', () => ({
 vi.mock('../../../surveyor/hooks/useGeolocation', () => ({
   default: () => ({
     getLocation: vi.fn().mockResolvedValue({ status: 'available', lat: -6.2, lng: 106.8 }),
+    // watchLocation(cb) => Promise<() => void> — agar efek GPS tidak crash saat mount.
+    watchLocation: vi.fn().mockResolvedValue(() => {}),
   }),
 }));
 
@@ -50,8 +52,9 @@ vi.mock('../../../surveyor/hooks/useSyncManager', () => ({
   }),
 }));
 
-// Mock offlineDB (uses IndexedDB which is unavailable in jsdom)
-vi.mock('../../../utils/offlineDB', () => ({
+// Mock storage abstraction (SurveyForm imports from utils/storage, yang memilih
+// IndexedDB/SQLite saat runtime — keduanya tidak tersedia di jsdom).
+vi.mock('../../../utils/storage', () => ({
   cacheSurvey: vi.fn().mockResolvedValue(undefined),
   getCachedSurvey: vi.fn().mockResolvedValue(null),
   enqueueResponse: vi.fn().mockResolvedValue(1),
