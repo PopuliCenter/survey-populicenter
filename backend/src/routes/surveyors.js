@@ -228,6 +228,21 @@ router.get('/', async (req, res, next) => {
       });
     }
 
+    // Ambil penugasan survei (kuota) tiap TPD agar frontend bisa mengelompokkan
+    // / menyaring TPD per survei dan menghitung jumlah TPD per survei.
+    let quotasBySurveyor = {};
+    if (surveyorIds.length > 0) {
+      const allQuotas = await SurveyorQuota.findAll({
+        where: { surveyor_id: { [Op.in]: surveyorIds } },
+        attributes: ['surveyor_id', 'survey_id', 'quota'],
+        raw: true,
+      });
+      for (const q of allQuotas) {
+        if (!quotasBySurveyor[q.surveyor_id]) quotasBySurveyor[q.surveyor_id] = [];
+        quotasBySurveyor[q.surveyor_id].push({ survey_id: q.survey_id, quota: q.quota });
+      }
+    }
+
     const result = surveyors.map((s) => ({
       id: s.id,
       name: s.name,
@@ -235,6 +250,7 @@ router.get('/', async (req, res, next) => {
       is_active: s.is_active,
       created_at: s.created_at,
       response_count: responseCounts[s.id] || 0,
+      quotas: quotasBySurveyor[s.id] || [],
     }));
 
     res.json(result);
