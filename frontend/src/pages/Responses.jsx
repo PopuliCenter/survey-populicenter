@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import ReviewStatusBadge from '../components/ReviewStatusBadge';
+import IconButton from '../components/IconButton';
 import api from '../services/api';
 
 // ─── Geo Status Badge ─────────────────────────────────────────────────────────
@@ -592,14 +593,15 @@ function Responses() {
                       )}
 
                       {/* Actions */}
-                      <td className="px-5 py-3 text-right">
-                        <button
-                          onClick={() => navigate(`/responses/${response.id}`)}
-                          className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
-                          aria-label={`Lihat detail responden ${response.questionnaire_number}`}
-                        >
-                          Lihat Detail
-                        </button>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center justify-end">
+                          <IconButton
+                            icon="view"
+                            variant="primary"
+                            label={`Lihat detail responden ${response.questionnaire_number}`}
+                            onClick={() => navigate(`/responses/${response.id}`)}
+                          />
+                        </div>
                       </td>
                     </tr>
                   ))}

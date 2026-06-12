@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import SkipLogicEditor from '../components/SkipLogicEditor';
 import ValidationRulesEditor from '../components/ValidationRulesEditor';
+import IconButton from '../components/IconButton';
 import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
 
@@ -1668,52 +1669,41 @@ function SurveyBuilder() {
                           {/* Actions */}
                           <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                             {/* Reorder up */}
-                            <button
-                              onClick={() =>
-                                handleReorder(question.id, 'up')
-                              }
+                            <IconButton
+                              icon="moveUp"
+                              variant="default"
+                              label={`Pindah pertanyaan ${index + 1} ke atas`}
+                              onClick={() => handleReorder(question.id, 'up')}
                               disabled={isFirst}
-                              className="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
-                              aria-label={`Pindah pertanyaan ${index + 1} ke atas`}
-                              title="Pindah ke atas"
-                            >
-                              ↑
-                            </button>
+                            />
 
                             {/* Reorder down */}
-                            <button
-                              onClick={() =>
-                                handleReorder(question.id, 'down')
-                              }
+                            <IconButton
+                              icon="moveDown"
+                              variant="default"
+                              label={`Pindah pertanyaan ${index + 1} ke bawah`}
+                              onClick={() => handleReorder(question.id, 'down')}
                               disabled={isLast}
-                              className="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
-                              aria-label={`Pindah pertanyaan ${index + 1} ke bawah`}
-                              title="Pindah ke bawah"
-                            >
-                              ↓
-                            </button>
+                            />
 
                             {/* Edit */}
-                            <button
+                            <IconButton
+                              icon="edit"
+                              variant="primary"
+                              label={`Edit pertanyaan ${index + 1}`}
                               onClick={() => {
                                 setEditTarget(question);
                                 setModalMode('edit');
                               }}
-                              className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
-                              aria-label={`Edit pertanyaan ${index + 1}`}
-                            >
-                              Edit
-                            </button>
+                            />
 
                             {/* Duplicate (#3) */}
-                            <button
+                            <IconButton
+                              icon="duplicate"
+                              variant="success"
+                              label={`Duplikat pertanyaan ${index + 1}`}
                               onClick={() => handleDuplicateQuestion(question)}
-                              className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
-                              aria-label={`Duplikat pertanyaan ${index + 1}`}
-                              title="Duplikat pertanyaan"
-                            >
-                              Duplikat
-                            </button>
+                            />
 
                             {/* Delete with confirmation */}
                             {isConfirmingDelete ? (
@@ -1739,15 +1729,12 @@ function SurveyBuilder() {
                                 </button>
                               </span>
                             ) : (
-                              <button
-                                onClick={() =>
-                                  setConfirmDeleteId(question.id)
-                                }
-                                className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
-                                aria-label={`Hapus pertanyaan ${index + 1}`}
-                              >
-                                Hapus
-                              </button>
+                              <IconButton
+                                icon="trash"
+                                variant="danger"
+                                label={`Hapus pertanyaan ${index + 1}`}
+                                onClick={() => setConfirmDeleteId(question.id)}
+                              />
                             )}
                           </div>
                         </div>
