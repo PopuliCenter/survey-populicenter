@@ -400,8 +400,9 @@ function Surveyors() {
   // Expanded quota panel: stores the TPD id whose quota panel is open
   const [expandedQuotaId, setExpandedQuotaId] = useState(null);
 
-  // Client-side pagination
-  const PAGE_SIZE = 25;
+  // Client-side pagination — jumlah baris per halaman bisa dipilih TPD admin
+  const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 150];
+  const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
 
   // Bulk upload / assign modal state
@@ -540,16 +541,16 @@ function Surveyors() {
   });
 
   // ── Client-side pagination ──────────────────────────────────────────────────
-  const totalPages = Math.max(1, Math.ceil(filteredSurveyors.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredSurveyors.length / pageSize));
   // Clamp current page if the filtered set shrank (e.g. after delete/filter).
   const currentPage = Math.min(page, totalPages);
-  const pageStart = (currentPage - 1) * PAGE_SIZE;
-  const paginatedSurveyors = filteredSurveyors.slice(pageStart, pageStart + PAGE_SIZE);
+  const pageStart = (currentPage - 1) * pageSize;
+  const paginatedSurveyors = filteredSurveyors.slice(pageStart, pageStart + pageSize);
 
-  // Reset to page 1 whenever the search/filter changes.
+  // Reset to page 1 whenever the search/filter atau jumlah baris per halaman berubah.
   useEffect(() => {
     setPage(1);
-  }, [filterName, filterSurveyId, filterYear, filterMonth]);
+  }, [filterName, filterSurveyId, filterYear, filterMonth, pageSize]);
 
   // Get unique years from TPD list for the dropdown
   const availableYears = [...new Set(tpdList.map((tpd) => new Date(tpd.created_at).getFullYear()))].sort((a, b) => b - a);
@@ -830,9 +831,26 @@ function Surveyors() {
         {/* Pagination controls */}
         {!loading && !fetchError && filteredSurveyors.length > 0 && (
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <span className="text-xs text-gray-500">
-              Menampilkan {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredSurveyors.length)} dari {filteredSurveyors.length} TPD
-            </span>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-xs text-gray-500">
+                Menampilkan {pageStart + 1}–{Math.min(pageStart + pageSize, filteredSurveyors.length)} dari {filteredSurveyors.length} TPD
+              </span>
+              {/* Pemilih jumlah baris per halaman */}
+              <label className="flex items-center gap-1.5 text-xs text-gray-500">
+                Tampilkan
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="border border-gray-300 rounded-md px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
+                  aria-label="Jumlah TPD per halaman"
+                >
+                  {PAGE_SIZE_OPTIONS.map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+                / halaman
+              </label>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
