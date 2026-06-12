@@ -380,7 +380,7 @@ function SurveyList() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
-        <div className="max-w-3xl mx-auto px-4 py-3">
+        <div className="max-w-3xl mx-auto px-screen py-3">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <h1 className="text-lg font-bold text-gray-900">Daftar Survei</h1>
@@ -466,7 +466,7 @@ function SurveyList() {
       </header>
 
       {/* Main content */}
-      <main className="max-w-3xl mx-auto px-4 py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      <main className="max-w-3xl mx-auto px-screen py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         {loading && (
           <div className="flex items-center justify-center py-16">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />

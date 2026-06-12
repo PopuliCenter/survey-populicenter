@@ -13,3 +13,19 @@
 }
 .animate-sheet-up { animation: sheet-up 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
 .animate-backdrop-in { animation: backdrop-in 0.2s ease-out; }
+
+/* ── Padding horizontal "aman layar" ──────────────────────────────────────────
+   Memberi margin yang lega (≥20px) DAN menghormati area aman perangkat
+   (notch / tepi layar melengkung) lewat env(safe-area-inset-*). Mencegah teks
+   mepet ke tepi layar di Android. Aman di HP datar (inset = 0 → tetap 20px). */
+@layer utilities {
+  .px-screen {
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+    padding-right: max(1.25rem, env(safe-area-inset-right));
+  }
+  /* Negatif penyeimbang untuk bar full-bleed agar tetap selaras dengan .px-screen */
+  .-mx-screen {
+    margin-left: calc(-1 * max(1.25rem, env(safe-area-inset-left)));
+    margin-right: calc(-1 * max(1.25rem, env(safe-area-inset-right)));
+  }
+}

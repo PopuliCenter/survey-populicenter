@@ -46,7 +46,7 @@ function SubmitSuccess() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-screen">
       <div className="bg-white rounded-2xl shadow-md border border-gray-200 max-w-md w-full p-8 text-center">
         {/* Icon — different for offline vs online */}
         {offline ? (

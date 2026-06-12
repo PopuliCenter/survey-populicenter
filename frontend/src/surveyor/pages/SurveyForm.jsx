@@ -2051,7 +2051,7 @@ function SurveyForm() {
 
   if (loadingError) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-screen">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md w-full text-center">
           <p className="text-red-700 text-sm mb-4">{loadingError}</p>
           <button
@@ -2075,7 +2075,7 @@ function SurveyForm() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
+        <div className="max-w-2xl mx-auto px-screen py-4 flex items-center gap-3">
           <button
             onClick={handleBackClick}
             className="text-gray-500 hover:text-gray-700 transition-colors p-1 -ml-1"
@@ -2103,7 +2103,7 @@ function SurveyForm() {
 
         {/* Progress indicator — only in wizard mode */}
         {formMode === 'wizard' && totalSteps > 0 && !showOverview && (
-          <div className="max-w-2xl mx-auto px-4 pb-2">
+          <div className="max-w-2xl mx-auto px-screen pb-2">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-medium text-gray-600">
                 Pertanyaan {currentStep + 1} dari {totalSteps}
@@ -2126,7 +2126,7 @@ function SurveyForm() {
         )}
 
         {/* Audio recorder panel — sticky in header */}
-        <div className="max-w-2xl mx-auto px-4 pb-2">
+        <div className="max-w-2xl mx-auto px-screen pb-2">
           {fieldToolsSettings.audio_mode !== 'disabled' && (
             <div>
               <div className="flex items-center gap-1 mb-1">
@@ -2139,7 +2139,7 @@ function SurveyForm() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-2xl mx-auto px-screen py-6 space-y-6">
         {/* Banner draft dipulihkan */}
         {draftRestored && (
           <div className="bg-primary-50 border border-primary-200 rounded-lg px-3 py-2.5 flex items-center justify-between gap-3">
@@ -2307,7 +2307,7 @@ function SurveyForm() {
             )}
 
             {/* Tombol simpan — sticky di bawah, mudah dijangkau jempol */}
-            <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent">
+            <div className="sticky bottom-0 -mx-screen px-screen pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent">
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
@@ -2536,7 +2536,7 @@ function SurveyForm() {
 
             {/* ─── Navigation buttons (sticky bottom bar) ──────────────────── */}
             {totalSteps > 0 && (
-              <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-3 bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent">
+              <div className="sticky bottom-0 -mx-screen px-screen pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-3 bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent">
                 {/* Back button */}
                 <button
                   type="button"
