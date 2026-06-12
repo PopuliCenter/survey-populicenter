@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Layout from '../components/Layout';
 import { StatusBadge, QuotaPanel } from '../components/SurveyorBadges';
+import { SurveyStatusBadge } from '../components/SurveyBadges';
 import ViewToggle, { useViewMode } from '../components/ViewToggle';
 import SurveyorCard from '../components/SurveyorCard';
 import BulkUploadModal from '../components/BulkUploadModal';
@@ -405,6 +406,11 @@ function Surveyors() {
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
 
+  // Organisasi per survei (Opsi C): tampilkan landing pemilih survei dulu.
+  // Set default ke false bila kelak ingin kembali ke daftar datar (Opsi B).
+  const [projectView, setProjectView] = useState(true);
+  const [surveySearch, setSurveySearch] = useState('');
+
   // Bulk upload / assign modal state
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
@@ -555,6 +561,25 @@ function Surveyors() {
   // Get unique years from TPD list for the dropdown
   const availableYears = [...new Set(tpdList.map((tpd) => new Date(tpd.created_at).getFullYear()))].sort((a, b) => b - a);
 
+  // ── Organisasi per survei (Opsi C) ──────────────────────────────────────────
+  // Hitung jumlah TPD unik yang ditugaskan ke tiap survei (lewat kuota).
+  const tpdCountBySurvey = {};
+  for (const tpd of tpdList) {
+    if (!Array.isArray(tpd.quotas)) continue;
+    const seen = new Set();
+    for (const q of tpd.quotas) {
+      if (q.survey_id && !seen.has(q.survey_id)) {
+        seen.add(q.survey_id);
+        tpdCountBySurvey[q.survey_id] = (tpdCountBySurvey[q.survey_id] || 0) + 1;
+      }
+    }
+  }
+  const selectedSurvey = surveys.find((s) => s.id === filterSurveyId) || null;
+  const showLanding = projectView && !filterSurveyId;
+  const visibleSurveys = surveys.filter(
+    (s) => !surveySearch || (s.title || '').toLowerCase().includes(surveySearch.toLowerCase())
+  );
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <Layout>
@@ -588,6 +613,107 @@ function Surveyors() {
           </div>
         </div>
 
+        {/* Sub-header: breadcrumb (mode per survei) / kembali ke pengelompokan */}
+        {projectView && filterSurveyId && selectedSurvey && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => { setFilterSurveyId(''); setFilterName(''); }}
+              className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-800"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              Semua Survei
+            </button>
+            <span className="text-gray-300" aria-hidden="true">/</span>
+            <span className="text-sm font-semibold text-gray-800">{selectedSurvey.title}</span>
+            <SurveyStatusBadge status={selectedSurvey.status} />
+          </div>
+        )}
+        {!projectView && (
+          <div>
+            <button
+              onClick={() => { setProjectView(true); setFilterSurveyId(''); }}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-800"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+              </svg>
+              Kelompokkan per survei
+            </button>
+          </div>
+        )}
+
+        {showLanding ? (
+          /* ── Landing: pilih survei dulu (Opsi C) ── */
+          <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-700">Pilih Survei</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Pilih survei untuk melihat & mengelola TPD yang ditugaskan padanya.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={surveySearch}
+                  onChange={(e) => setSurveySearch(e.target.value)}
+                  placeholder="Cari survei…"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 w-52"
+                  aria-label="Cari survei"
+                />
+                <button
+                  onClick={() => setProjectView(false)}
+                  className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
+                >
+                  Lihat semua TPD
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center h-48 text-gray-400 text-sm" role="status" aria-live="polite">
+                Memuat…
+              </div>
+            ) : visibleSurveys.length === 0 ? (
+              <div className="bg-white rounded-xl shadow flex items-center justify-center h-40 text-gray-400 text-sm">
+                {surveys.length === 0 ? 'Belum ada survei.' : 'Tidak ada survei yang cocok.'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {visibleSurveys.map((s) => {
+                  const count = tpdCountBySurvey[s.id] || 0;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => { setFilterSurveyId(s.id); setFilterName(''); }}
+                      className="text-left bg-white rounded-xl shadow border border-gray-100 hover:shadow-md hover:border-primary-200 transition p-5 flex flex-col gap-3 focus:outline-none focus:ring-2 focus:ring-primary-400"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-sm font-semibold text-gray-800 line-clamp-2">{s.title}</h3>
+                        <SurveyStatusBadge status={s.status} />
+                      </div>
+                      <div className="mt-auto flex items-center justify-between">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-medium">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                          </svg>
+                          {count} TPD
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs text-primary-600 font-medium">
+                          Kelola
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+        <>
         {/* Filter bar */}
         <div className="flex items-center gap-3 flex-wrap">
           <input
@@ -598,17 +724,19 @@ function Surveyors() {
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 w-56"
             aria-label="Cari nama atau email TPD"
           />
-          <select
-            value={filterSurveyId}
-            onChange={(e) => setFilterSurveyId(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
-            aria-label="Filter berdasarkan survei"
-          >
-            <option value="">Semua Survei</option>
-            {surveys.map((s) => (
-              <option key={s.id} value={s.id}>{s.title}</option>
-            ))}
-          </select>
+          {!projectView && (
+            <select
+              value={filterSurveyId}
+              onChange={(e) => setFilterSurveyId(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+              aria-label="Filter berdasarkan survei"
+            >
+              <option value="">Semua Survei</option>
+              {surveys.map((s) => (
+                <option key={s.id} value={s.id}>{s.title}</option>
+              ))}
+            </select>
+          )}
           <select
             value={filterYear}
             onChange={(e) => setFilterYear(e.target.value)}
@@ -873,6 +1001,8 @@ function Surveyors() {
               </button>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
 

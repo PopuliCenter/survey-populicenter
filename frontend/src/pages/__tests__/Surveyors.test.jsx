@@ -54,13 +54,18 @@ function setUser(role, id = '1') {
 }
 
 function renderPage() {
-  return render(
+  const result = render(
     <MemoryRouter>
       <ToastProvider>
         <Surveyors />
       </ToastProvider>
     </MemoryRouter>
   );
+  // Halaman default ke landing "per survei" (Opsi C). Untuk menguji baris TPD,
+  // langsung beralih ke daftar datar semua TPD via tombol "Lihat semua TPD".
+  const allBtn = screen.queryByRole('button', { name: /lihat semua tpd/i });
+  if (allBtn) fireEvent.click(allBtn);
+  return result;
 }
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
