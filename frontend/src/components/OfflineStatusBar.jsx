@@ -37,10 +37,10 @@ function OfflineStatusBar({ isOnline, isSyncing, pendingCount }) {
       <div
         role="status"
         aria-live="polite"
-        className="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-3 py-1"
+        className="flex items-center gap-1.5 text-xs font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-3 py-1"
       >
         <svg
-          className="animate-spin h-3 w-3 text-blue-600"
+          className="animate-spin h-3 w-3 text-primary-600"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"

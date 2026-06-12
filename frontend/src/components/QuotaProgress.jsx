@@ -45,7 +45,7 @@ function QuotaProgress({ filled = 0, quota = null, showLabel = true }) {
         >
           <div
             className={`h-2 rounded-full transition-all duration-300 ${
-              targetMet ? 'bg-green-500' : 'bg-blue-500'
+              targetMet ? 'bg-green-500' : 'bg-primary-500'
             }`}
             style={{ width: `${percentage}%` }}
           />

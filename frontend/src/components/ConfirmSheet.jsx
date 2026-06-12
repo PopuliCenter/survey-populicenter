@@ -40,7 +40,7 @@ function ConfirmSheet({
   if (!open) return null;
 
   const icon = iconType === 'exit' ? (
-    <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-7 h-7 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
     </svg>
   ) : (
@@ -48,7 +48,7 @@ function ConfirmSheet({
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" />
     </svg>
   );
-  const iconWrap = iconType === 'exit' ? 'bg-blue-100' : 'bg-amber-100';
+  const iconWrap = iconType === 'exit' ? 'bg-primary-100' : 'bg-amber-100';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label={title}>

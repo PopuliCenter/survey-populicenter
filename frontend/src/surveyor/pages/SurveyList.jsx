@@ -388,7 +388,7 @@ function SurveyList() {
                 <p className="text-xs text-gray-500 mt-0.5 truncate">
                   Halo, <span className="font-medium text-gray-700">{user.name || user.email}</span>
                   <span className="text-gray-300"> · </span>
-                  Diisi sesi ini: <span className="font-semibold text-blue-700">{sessionCount}</span>
+                  Diisi sesi ini: <span className="font-semibold text-primary-700">{sessionCount}</span>
                 </p>
               )}
             </div>
@@ -428,7 +428,7 @@ function SurveyList() {
               <button
                 onClick={handleDownloadAll}
                 disabled={downloading}
-                className="min-h-[44px] shrink-0 inline-flex items-center gap-1.5 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl disabled:opacity-50 transition-colors"
+                className="min-h-[44px] shrink-0 inline-flex items-center gap-1.5 px-4 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl disabled:opacity-50 transition-colors"
               >
                 {downloading ? (
                   <>
@@ -452,12 +452,12 @@ function SurveyList() {
 
           {/* Upload pending indicator */}
           {pendingCount > 0 && (
-            <div className="mt-2 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
-              <svg className="animate-spin h-4 w-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24">
+            <div className="mt-2 flex items-center gap-2 bg-primary-50 border border-primary-200 rounded-xl px-3 py-2">
+              <svg className="animate-spin h-4 w-4 text-primary-600 shrink-0" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
-              <span className="text-xs text-blue-700 font-medium">
+              <span className="text-xs text-primary-700 font-medium">
                 {isSyncing ? 'Mengunggah data...' : `${pendingCount} data menunggu diunggah`}
               </span>
             </div>
@@ -469,7 +469,7 @@ function SurveyList() {
       <main className="max-w-3xl mx-auto px-4 py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         {loading && (
           <div className="flex items-center justify-center py-16">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
             <span className="ml-3 text-gray-500">Memuat survei…</span>
           </div>
         )}
@@ -542,7 +542,7 @@ function SurveyList() {
                 : !temporal.canStart
                   ? 'bg-gray-300'
                   : isOfflineReady
-                    ? 'bg-blue-500'
+                    ? 'bg-primary-500'
                     : 'bg-amber-400';
 
               return (
@@ -640,7 +640,7 @@ function SurveyList() {
                                 uploading: { row: 'bg-amber-50', badge: 'bg-amber-100 text-amber-800', icon: '↑', iconCls: 'text-amber-600 animate-pulse', label: 'Sedang mengunggah data' },
                                 pending: { row: 'bg-amber-50/60', badge: 'bg-amber-100 text-amber-800', icon: '⏳', iconCls: 'text-amber-600', label: 'Menunggu upload' },
                                 failed: { row: 'bg-red-50', badge: 'bg-red-100 text-red-800', icon: '✕', iconCls: 'text-red-600', label: 'Gagal upload — perlu ditinjau' },
-                                ready: { row: 'bg-white hover:bg-blue-50', badge: 'bg-blue-100 text-blue-700', icon: '○', iconCls: 'text-blue-500', label: 'Belum diisi — ketuk untuk mengisi' },
+                                ready: { row: 'bg-white hover:bg-primary-50', badge: 'bg-primary-100 text-primary-700', icon: '○', iconCls: 'text-primary-500', label: 'Belum diisi — ketuk untuk mengisi' },
                                 not_downloaded: { row: 'bg-white', badge: 'bg-gray-100 text-gray-500', icon: '○', iconCls: 'text-gray-400', label: 'Belum diisi' },
                               }[status];
                               const clickable = (status === 'ready' || status === 'not_downloaded') && temporal.canStart && !targetMet;
@@ -688,7 +688,7 @@ function SurveyList() {
                       disabled={!temporal.canStart || targetMet}
                       className={`mt-4 w-full min-h-[48px] text-base font-semibold px-5 rounded-xl transition-colors ${
                         temporal.canStart && !targetMet
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                          ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-sm'
                           : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                       }`}
                       aria-label={

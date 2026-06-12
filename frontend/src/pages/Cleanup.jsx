@@ -7,7 +7,7 @@ function StatCard({ title, count, description, color = 'gray' }) {
     gray: 'bg-gray-50 border-gray-200 text-gray-700',
     yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
     red: 'bg-red-50 border-red-200 text-red-700',
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
+    blue: 'bg-primary-50 border-primary-200 text-primary-700',
   };
   return (
     <div className={`rounded-lg border p-4 ${colors[color]}`}>
@@ -245,7 +245,7 @@ function Cleanup() {
         {/* Manual Cleanup: Responses */}
         <div className="bg-white rounded-xl shadow p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+            <span className="w-2 h-2 rounded-full bg-primary-500"></span>
             Pembersihan Manual — Respons
           </h2>
           <p className="text-xs text-gray-500">
@@ -262,7 +262,7 @@ function Cleanup() {
                 id="cleanup-survey"
                 value={filterSurveyId}
                 onChange={(e) => { setFilterSurveyId(e.target.value); setPreviewCount(null); }}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               >
                 <option value="">Semua Survei</option>
                 {surveys.map((s) => (
@@ -279,7 +279,7 @@ function Cleanup() {
                 id="cleanup-year"
                 value={filterYear}
                 onChange={(e) => { setFilterYear(e.target.value); setPreviewCount(null); }}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               >
                 <option value="">— Pilih Tahun —</option>
                 {yearOptions.map((y) => (
@@ -297,7 +297,7 @@ function Cleanup() {
                 value={filterMonth}
                 onChange={(e) => { setFilterMonth(e.target.value); setPreviewCount(null); }}
                 disabled={!filterYear}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50"
               >
                 <option value="">Semua Bulan</option>
                 {months.map((m) => (
@@ -311,7 +311,7 @@ function Cleanup() {
             <button
               onClick={handlePreview}
               disabled={(!filterSurveyId && !filterYear) || previewLoading}
-              className="px-4 py-2 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {previewLoading ? 'Menghitung…' : 'Preview Jumlah'}
             </button>
@@ -379,7 +379,7 @@ function Cleanup() {
                 id="audit-year"
                 value={auditYear}
                 onChange={(e) => setAuditYear(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               >
                 <option value="">— Pilih Tahun —</option>
                 {yearOptions.map((y) => (
@@ -397,7 +397,7 @@ function Cleanup() {
                 value={auditMonth}
                 onChange={(e) => setAuditMonth(e.target.value)}
                 disabled={!auditYear}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50"
               >
                 <option value="">Semua Bulan</option>
                 {months.map((m) => (

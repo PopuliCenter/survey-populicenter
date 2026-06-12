@@ -13,7 +13,7 @@ import api from '../services/api';
 function JobStatusBadge({ status }) {
   const map = {
     pending: 'bg-yellow-100 text-yellow-700',
-    processing: 'bg-blue-100 text-blue-700',
+    processing: 'bg-primary-100 text-primary-700',
     completed: 'bg-green-100 text-green-700',
     failed: 'bg-red-100 text-red-700',
   };
@@ -384,7 +384,7 @@ function Reports() {
                   id="export-tpd"
                   value={selectedTpdId}
                   onChange={(e) => setSelectedTpdId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                 >
                   <option value="">Semua TPD</option>
                   {tpdList.map((sv) => (
@@ -411,7 +411,7 @@ function Reports() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               />
             </div>
 
@@ -427,7 +427,7 @@ function Reports() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               />
             </div>
 
@@ -442,7 +442,7 @@ function Reports() {
                 id="export-status"
                 value={responseStatus}
                 onChange={(e) => setResponseStatus(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               >
                 <option value="committed">Sukses (Ter-commit)</option>
                 <option value="pending">Pending</option>
@@ -525,7 +525,7 @@ function Reports() {
               type="button"
               onClick={() => handleExport('csv')}
               disabled={exportingXlsx || exportingCsv}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
               aria-label="Ekspor data ke format CSV"
             >
               {exportingCsv ? (
@@ -623,9 +623,9 @@ function Reports() {
         )}
 
         {/* Info card */}
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-blue-800 mb-1">Informasi Ekspor</h3>
-          <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+        <div className="bg-primary-50 border border-primary-100 rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-primary-800 mb-1">Informasi Ekspor</h3>
+          <ul className="text-xs text-primary-700 space-y-1 list-disc list-inside">
             <li>
               File ekspor mencakup semua kolom metadata: ID responden, nama TPD,
               tanggal &amp; waktu pengisian, nomor kuesioner, timestamp mulai/selesai,

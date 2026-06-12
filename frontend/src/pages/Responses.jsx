@@ -227,7 +227,7 @@ function Responses() {
     }
     return (
       <svg
-        className="w-3.5 h-3.5 text-blue-600"
+        className="w-3.5 h-3.5 text-primary-600"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -318,7 +318,7 @@ function Responses() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="mis. 0001 atau SK-20260528-0001"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               />
             </div>
 
@@ -334,7 +334,7 @@ function Responses() {
                 id="filter-survey"
                 value={selectedSurveyId}
                 onChange={(e) => setSelectedSurveyId(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               >
                 <option value="">Semua Survei</option>
                 {surveys.map((s) => (
@@ -358,7 +358,7 @@ function Responses() {
                 id="filter-surveyor"
                 value={selectedSurveyorId}
                 onChange={(e) => setSelectedSurveyorId(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               >
                 <option value="">Semua TPD</option>
                 {tpdList.map((sv) => (
@@ -382,7 +382,7 @@ function Responses() {
                 id="filter-geo-status"
                 value={geoStatusFilter}
                 onChange={(e) => setGeoStatusFilter(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               >
                 <option value="">Semua Status</option>
                 <option value="available">Tersedia</option>
@@ -405,7 +405,7 @@ function Responses() {
                   id="filter-review-status"
                   value={reviewStatusFilter}
                   onChange={(e) => setReviewStatusFilter(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                 >
                   <option value="">Semua</option>
                   <option value="unreviewed">Unreviewed</option>
@@ -428,7 +428,7 @@ function Responses() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               />
             </div>
 
@@ -445,7 +445,7 @@ function Responses() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               />
             </div>
 
@@ -453,7 +453,7 @@ function Responses() {
             <div className="flex items-end gap-2">
               <button
                 type="submit"
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
               >
                 Terapkan Filter
               </button>
@@ -503,7 +503,7 @@ function Responses() {
               <p className="text-red-600 text-sm">{fetchError}</p>
               <button
                 onClick={() => appliedFilters && fetchResponses(appliedFilters)}
-                className="text-sm text-blue-600 underline hover:text-blue-800"
+                className="text-sm text-primary-600 underline hover:text-primary-800"
               >
                 Coba lagi
               </button>
@@ -595,7 +595,7 @@ function Responses() {
                       <td className="px-5 py-3 text-right">
                         <button
                           onClick={() => navigate(`/responses/${response.id}`)}
-                          className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
                           aria-label={`Lihat detail responden ${response.questionnaire_number}`}
                         >
                           Lihat Detail

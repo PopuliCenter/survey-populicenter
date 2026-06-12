@@ -157,7 +157,7 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
             <button
               type="button"
               onClick={downloadTemplate}
-              className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 underline focus:outline-none focus:ring-2 focus:ring-blue-300 rounded"
+              className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-800 underline focus:outline-none focus:ring-2 focus:ring-primary-300 rounded"
             >
               Download template CSV
             </button>
@@ -177,7 +177,7 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
                 accept=".csv,.xlsx"
                 onChange={handleFileChange}
                 disabled={uploading}
-                className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 focus:outline-none"
+                className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 focus:outline-none"
                 aria-describedby="bulk-upload-file-hint"
               />
               <p id="bulk-upload-file-hint" className="mt-1 text-xs text-gray-400">
@@ -229,7 +229,7 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
                 type="button"
                 onClick={handleUpload}
                 disabled={!file || uploading}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
               >
                 {uploading ? 'Mengupload…' : 'Upload'}
               </button>

@@ -119,7 +119,7 @@ function MapView() {
                   id="filter-survey"
                   value={surveyId}
                   onChange={(e) => setSurveyId(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                 >
                   <option value="">— Pilih Survei —</option>
                   {surveys.map((s) => (
@@ -138,7 +138,7 @@ function MapView() {
                     id="filter-tpd"
                     value={tpdId}
                     onChange={(e) => setTpdId(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                   >
                     <option value="">Semua TPD</option>
                     {tpdList.map((sv) => (
@@ -158,7 +158,7 @@ function MapView() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                 />
               </div>
 
@@ -172,7 +172,7 @@ function MapView() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                 />
               </div>
 
@@ -181,7 +181,7 @@ function MapView() {
                 <button
                   type="submit"
                   disabled={loading || !surveyId}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
                 >
                   {loading ? 'Memuat…' : 'Tampilkan'}
                 </button>

@@ -125,7 +125,7 @@ describe('ResponseDetail — rating_scale display', () => {
 
     // Badge with value 7
     const badge = screen.getByText('7');
-    expect(badge.className).toContain('bg-blue-600');
+    expect(badge.className).toContain('bg-primary-600');
     expect(screen.getByText('dari 10')).toBeInTheDocument();
   });
 

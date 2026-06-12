@@ -42,7 +42,7 @@ export function TemporalBadge({ startDate, endDate }) {
 
   if (startDate && new Date(startDate) > now) {
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary-100 text-primary-700">
         Akan Datang
       </span>
     );

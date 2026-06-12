@@ -68,21 +68,21 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
         key={s.id}
         type="button"
         onClick={() => onChange(isSelected ? '' : s.id)}
-        className={`text-left p-3 rounded-lg border-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+        className={`text-left p-3 rounded-lg border-2 transition-all focus:outline-none focus:ring-2 focus:ring-primary-400 ${
           isSelected
-            ? 'border-blue-500 bg-blue-50 shadow-sm'
+            ? 'border-primary-500 bg-primary-50 shadow-sm'
             : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
         }`}
         aria-pressed={isSelected}
         title={s.title}
       >
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-sm ${
-          isSelected ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500'
+          isSelected ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-500'
         }`}>
           📋
         </div>
         <p className={`text-xs font-medium leading-tight line-clamp-2 ${
-          isSelected ? 'text-blue-700' : 'text-gray-700'
+          isSelected ? 'text-primary-700' : 'text-gray-700'
         }`}>
           {s.title}
         </p>
@@ -112,8 +112,8 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
           <button
             type="button"
             onClick={() => setViewMode('list')}
-            className={`p-1 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-blue-400 ${
-              viewMode === 'list' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'
+            className={`p-1 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-primary-400 ${
+              viewMode === 'list' ? 'text-primary-600 bg-primary-50' : 'text-gray-400 hover:text-gray-600'
             }`}
             aria-label="Tampilan list"
             title="Tampilan list"
@@ -125,8 +125,8 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
           <button
             type="button"
             onClick={() => setViewMode('grid')}
-            className={`p-1 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-blue-400 ${
-              viewMode === 'grid' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'
+            className={`p-1 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-primary-400 ${
+              viewMode === 'grid' ? 'text-primary-600 bg-primary-50' : 'text-gray-400 hover:text-gray-600'
             }`}
             aria-label="Tampilan grid"
             title="Tampilan grid"
@@ -143,7 +143,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
         >
           <option value="">— Pilih Survei —</option>
           {surveys.map((s) => (
@@ -161,18 +161,18 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
             value={gridSearch}
             onChange={(e) => setGridSearch(e.target.value)}
             placeholder="Cari survei…"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
 
           {/* Selected indicator */}
           {selectedSurvey && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary-50 border border-primary-200 rounded-lg text-xs text-primary-700">
               <span>Terpilih:</span>
               <span className="font-medium truncate">{selectedSurvey.title}</span>
               <button
                 type="button"
                 onClick={() => onChange('')}
-                className="ml-auto text-blue-400 hover:text-blue-600 focus:outline-none"
+                className="ml-auto text-primary-400 hover:text-primary-600 focus:outline-none"
                 aria-label="Hapus pilihan survei"
               >
                 ✕
@@ -186,7 +186,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
               <button
                 type="button"
                 onClick={() => { setOpenYear(null); setOpenMonth(null); }}
-                className="hover:text-blue-600 focus:outline-none"
+                className="hover:text-primary-600 focus:outline-none"
               >
                 Semua
               </button>
@@ -194,7 +194,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
               <button
                 type="button"
                 onClick={() => setOpenMonth(null)}
-                className={`hover:text-blue-600 focus:outline-none ${openMonth === null ? 'text-gray-800 font-medium' : ''}`}
+                className={`hover:text-primary-600 focus:outline-none ${openMonth === null ? 'text-gray-800 font-medium' : ''}`}
               >
                 {openYear}
               </button>
@@ -255,9 +255,9 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
                         key={month}
                         type="button"
                         onClick={() => handleMonthClick(month)}
-                        className="text-left p-3 rounded-lg border-2 border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className="text-left p-3 rounded-lg border-2 border-gray-200 bg-white hover:border-primary-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-400"
                       >
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-sm bg-blue-100 text-blue-600">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-sm bg-primary-100 text-primary-600">
                           📂
                         </div>
                         <p className="text-xs font-semibold text-gray-800">{MONTH_NAMES[month]}</p>

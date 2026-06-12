@@ -180,7 +180,7 @@ function IndonesiaRegionField({ question, answer = {}, onChange, hasError }) {
     return <p className="text-sm text-gray-500">Memuat data wilayah Indonesia…</p>;
   }
 
-  const selectClass = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed';
+  const selectClass = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed';
 
   return (
     <div className={`${hasError ? 'p-2 rounded-lg border border-red-400 bg-red-50' : ''}`}>
@@ -353,9 +353,9 @@ function GpsStatusPanel({ mode, startGeo, searching, onRefresh }) {
     );
     message = `Lokasi terkunci${accuracyText}`;
   } else if (searching) {
-    tone = 'bg-blue-50 border-blue-200 text-blue-700';
+    tone = 'bg-primary-50 border-primary-200 text-primary-700';
     icon = (
-      <svg className="animate-spin w-5 h-5 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
+      <svg className="animate-spin w-5 h-5 text-primary-600 shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
     );
     message = 'Mencari sinyal GPS… boleh lanjut mengisi, lokasi diambil otomatis. Pastikan di luar ruangan.';
   } else {
@@ -463,10 +463,10 @@ function RatingScaleField({ question, answer, onChange, hasError }) {
               key={val}
               type="button"
               onClick={() => onChange(String(val))}
-              className={`w-10 h-10 rounded-lg text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+              className={`w-10 h-10 rounded-lg text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 ${
                 isSelected
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-primary-100 hover:text-primary-700'
               }`}
               aria-label={`Pilih nilai ${val}`}
               aria-pressed={isSelected}
@@ -513,7 +513,7 @@ function PhoneNumberField({ question, answer, onChange, hasError }) {
         onChange={handleChange}
         maxLength={max_length}
         placeholder="Masukkan nomor telepon"
-        className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors ${
+        className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 transition-colors ${
           hasError ? 'border-red-400 bg-red-50' : 'border-gray-300'
         }`}
         aria-label={`Nomor telepon untuk: ${question.text}`}
@@ -555,7 +555,7 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
             {availableNumbers.length} dari {assignedNumbers.length} nomor tersedia
           </span>
           {!isOnline && (
-            <span className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+            <span className="text-xs font-medium text-primary-600 bg-primary-50 border border-primary-200 rounded-full px-2 py-0.5">
               📱 Data offline
             </span>
           )}
@@ -568,7 +568,7 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
             const isSelected = answer === num;
             let badgeClass, icon, label;
             if (isSelected) {
-              badgeClass = 'bg-blue-100 text-blue-800 border-blue-400 ring-2 ring-blue-400 shadow-sm';
+              badgeClass = 'bg-primary-100 text-primary-800 border-primary-400 ring-2 ring-primary-400 shadow-sm';
               icon = '●';
               label = 'Terpilih';
             } else if (isUsed) {
@@ -576,7 +576,7 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
               icon = '✓';
               label = 'Sudah diisi';
             } else {
-              badgeClass = 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-300 cursor-pointer';
+              badgeClass = 'bg-white text-gray-700 border-gray-300 hover:bg-primary-50 hover:border-primary-300 cursor-pointer';
               icon = '○';
               label = 'Belum diisi — ketuk untuk memilih';
             }
@@ -603,7 +603,7 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
             <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Sudah diisi
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> Terpilih
+            <span className="w-2.5 h-2.5 rounded-full bg-primary-500 inline-block" /> Terpilih
           </span>
           <span className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block" /> Tersedia
@@ -664,7 +664,7 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
         onChange={handleChange}
         maxLength={max_length || undefined}
         placeholder="Masukkan nomor kuesioner"
-        className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors ${
+        className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 transition-colors ${
           hasError || availability === 'taken' ? 'border-red-400 bg-red-50' : 'border-gray-300'
         }`}
         aria-label={`Nomor kuesioner untuk: ${question.text}`}
@@ -702,7 +702,7 @@ function DatePickerField({ question, answer, onChange, hasError }) {
   const { min_date, max_date } = config;
 
   const baseInputClass =
-    'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors';
+    'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 transition-colors';
   const errorBorder = hasError ? 'border-red-400 bg-red-50' : 'border-gray-300';
 
   // Check if the current value is out of range
@@ -740,7 +740,7 @@ function DatePickerField({ question, answer, onChange, hasError }) {
  */
 function TimePickerField({ question, answer, onChange, hasError }) {
   const baseInputClass =
-    'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors';
+    'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 transition-colors';
   const errorBorder = hasError ? 'border-red-400 bg-red-50' : 'border-gray-300';
 
   return (
@@ -833,7 +833,7 @@ function MatrixField({ question, answer, onChange, hasError }) {
                           name={`matrix_${question.id}_${row}`}
                           checked={value[row] === col}
                           onChange={() => handleSelect(row, col)}
-                          className="accent-blue-600 w-6 h-6"
+                          className="accent-primary-600 w-6 h-6"
                           aria-label={`${row}: ${col}`}
                         />
                       </label>
@@ -857,7 +857,7 @@ function MatrixField({ question, answer, onChange, hasError }) {
  */
 function QuestionField({ question, answer, onChange, hasError, displayOptions, surveyId, isOnline, assignedNumbers, usedNumbers }) {
   const baseInputClass =
-    'w-full border rounded-lg px-3 py-2 text-base leading-6 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors';
+    'w-full border rounded-lg px-3 py-2 text-base leading-6 focus:outline-none focus:ring-2 focus:ring-primary-400 transition-colors';
   const errorBorder = hasError ? 'border-red-400 bg-red-50' : 'border-gray-300';
 
   switch (question.type) {
@@ -875,7 +875,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                 value={opt.value}
                 checked={answer === opt.value || (answer && answer.startsWith && answer.startsWith('__other__:') && opt.value === '__other__')}
                 onChange={() => onChange(opt.value)}
-                className="accent-blue-600 w-5 h-5 flex-shrink-0"
+                className="accent-primary-600 w-5 h-5 flex-shrink-0"
               />
               <span className="text-base text-gray-800">{opt.label}</span>
             </label>
@@ -889,7 +889,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                   value="__other__"
                   checked={answer && answer.startsWith && answer.startsWith('__other__:')}
                   onChange={() => onChange('__other__:')}
-                  className="accent-blue-600 w-5 h-5 flex-shrink-0"
+                  className="accent-primary-600 w-5 h-5 flex-shrink-0"
                 />
                 <span className="text-sm text-gray-700">Lainnya</span>
               </label>
@@ -902,7 +902,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                   value={answer.replace('__other__:', '')}
                   onChange={(e) => onChange(`__other__:${e.target.value.toUpperCase()}`)}
                   placeholder="Ketik jawaban lainnya…"
-                  className="ml-6 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="ml-6 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                   style={{ textTransform: 'uppercase' }}
                   autoFocus
                 />
@@ -934,7 +934,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                       onChange(current.filter((v) => v !== opt.value));
                     }
                   }}
-                  className="accent-blue-600 w-5 h-5 flex-shrink-0"
+                  className="accent-primary-600 w-5 h-5 flex-shrink-0"
                 />
                 <span className="text-base text-gray-800">{opt.label}</span>
               </label>
@@ -957,7 +957,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                         onChange(currentArr.filter((v) => !v.startsWith('__other__:')));
                       }
                     }}
-                    className="accent-blue-600 w-5 h-5 flex-shrink-0"
+                    className="accent-primary-600 w-5 h-5 flex-shrink-0"
                   />
                   <span className="text-sm text-gray-700">Lainnya</span>
                 </label>
@@ -975,7 +975,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                       onChange(updated);
                     }}
                     placeholder="Ketik jawaban lainnya…"
-                    className="ml-6 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="ml-6 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                     style={{ textTransform: 'uppercase' }}
                     autoFocus
                   />
@@ -1054,7 +1054,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
             type="file"
             accept="image/jpeg,image/png,image/webp"
             onChange={(e) => onChange(e.target.files?.[0] || null)}
-            className={`block text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 ${hasError ? 'border border-red-400 rounded-lg p-1 bg-red-50' : ''}`}
+            className={`block text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 ${hasError ? 'border border-red-400 rounded-lg p-1 bg-red-50' : ''}`}
           />
           {hasError && (
             <p className="text-xs text-red-500 mt-1">Foto wajib diunggah</p>
@@ -2043,7 +2043,7 @@ function SurveyForm() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
         <span className="ml-3 text-gray-500">Memuat survei…</span>
       </div>
     );
@@ -2056,7 +2056,7 @@ function SurveyForm() {
           <p className="text-red-700 text-sm mb-4">{loadingError}</p>
           <button
             onClick={() => navigate('/surveyor')}
-            className="text-sm text-blue-600 underline"
+            className="text-sm text-primary-600 underline"
           >
             Kembali ke Daftar Survei
           </button>
@@ -2090,7 +2090,7 @@ function SurveyForm() {
               {survey?.title || 'Formulir Survei'}
             </h1>
             {currentQuestionnaireNumber ? (
-              <span className="inline-flex items-center gap-1 mt-0.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+              <span className="inline-flex items-center gap-1 mt-0.5 text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-2 py-0.5">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 Kuesioner No. {currentQuestionnaireNumber}
               </span>
@@ -2111,14 +2111,14 @@ function SurveyForm() {
               <button
                 type="button"
                 onClick={() => setShowOverview(true)}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                className="text-xs text-primary-600 hover:text-primary-800 font-medium transition-colors"
               >
                 Lihat Semua
               </button>
             </div>
             <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
               <div
-                className="h-full bg-blue-600 transition-all duration-300"
+                className="h-full bg-primary-600 transition-all duration-300"
                 style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
               />
             </div>
@@ -2142,20 +2142,20 @@ function SurveyForm() {
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Banner draft dipulihkan */}
         {draftRestored && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 flex items-center justify-between gap-3">
-            <span className="text-sm text-blue-800">Draft jawaban sebelumnya dipulihkan.</span>
+          <div className="bg-primary-50 border border-primary-200 rounded-lg px-3 py-2.5 flex items-center justify-between gap-3">
+            <span className="text-sm text-primary-800">Draft jawaban sebelumnya dipulihkan.</span>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={handleDiscardDraft}
-                className="text-xs font-semibold text-blue-700 hover:text-blue-900 underline"
+                className="text-xs font-semibold text-primary-700 hover:text-primary-900 underline"
               >
                 Mulai Baru
               </button>
               <button
                 type="button"
                 onClick={() => setDraftRestored(false)}
-                className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                className="text-xs font-medium text-primary-600 hover:text-primary-800"
                 aria-label="Tutup pemberitahuan draft"
               >
                 Tutup
@@ -2195,7 +2195,7 @@ function SurveyForm() {
                 <div
                   key={question.id}
                   id={`question-${question.id}`}
-                  className={`bg-white rounded-xl border border-gray-200 border-l-4 border-l-blue-400 p-5 shadow-sm hover:shadow-md transition-all duration-150 ${
+                  className={`bg-white rounded-xl border border-gray-200 border-l-4 border-l-primary-400 p-5 shadow-sm hover:shadow-md transition-all duration-150 ${
                     hasError ? 'border-red-400 border-l-red-500' : ''
                   }`}
                 >
@@ -2234,13 +2234,13 @@ function SurveyForm() {
                           type="file"
                           accept="image/jpeg,image/png,image/webp"
                           onChange={(e) => handlePhotoChange(question.id, e.target.files?.[0] || null)}
-                          className={`block text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 ${
+                          className={`block text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 ${
                             hasError ? 'border border-red-400 rounded-lg p-1 bg-red-50' : ''
                           }`}
                           disabled={uploadingPhoto[question.id]}
                         />
                         {uploadingPhoto[question.id] && (
-                          <p className="text-xs text-blue-500 mt-1">Mengunggah foto…</p>
+                          <p className="text-xs text-primary-500 mt-1">Mengunggah foto…</p>
                         )}
                         {photoPaths[question.id] && !uploadingPhoto[question.id] && (
                           <p className="text-xs text-green-600 mt-1">✓ Foto berhasil diunggah</p>
@@ -2311,7 +2311,7 @@ function SurveyForm() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
+                className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-primary-300 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary-600/20"
               >
                 {submitting ? (
                   <>
@@ -2335,7 +2335,7 @@ function SurveyForm() {
               <button
                 type="button"
                 onClick={() => setShowOverview(false)}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                className="text-xs text-primary-600 hover:text-primary-800 font-medium transition-colors"
               >
                 Kembali ke Pertanyaan
               </button>
@@ -2362,8 +2362,8 @@ function SurveyForm() {
                     key={question.id}
                     type="button"
                     onClick={() => handleGoToStep(index)}
-                    className={`bg-white rounded-xl border p-3 shadow-sm text-left transition-colors hover:border-blue-400 hover:shadow-md ${
-                      index === currentStep ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
+                    className={`bg-white rounded-xl border p-3 shadow-sm text-left transition-colors hover:border-primary-400 hover:shadow-md ${
+                      index === currentStep ? 'border-primary-500 ring-2 ring-primary-200' : 'border-gray-200'
                     }`}
                   >
                     <div className="flex items-start justify-between mb-1">
@@ -2427,13 +2427,13 @@ function SurveyForm() {
                           type="file"
                           accept="image/jpeg,image/png,image/webp"
                           onChange={(e) => handlePhotoChange(question.id, e.target.files?.[0] || null)}
-                          className={`block text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 ${
+                          className={`block text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 ${
                             hasError ? 'border border-red-400 rounded-lg p-1 bg-red-50' : ''
                           }`}
                           disabled={uploadingPhoto[question.id]}
                         />
                         {uploadingPhoto[question.id] && (
-                          <p className="text-xs text-blue-500 mt-1">Mengunggah foto…</p>
+                          <p className="text-xs text-primary-500 mt-1">Mengunggah foto…</p>
                         )}
                         {photoPaths[question.id] && !uploadingPhoto[question.id] && (
                           <p className="text-xs text-green-600 mt-1">✓ Foto berhasil diunggah</p>
@@ -2526,8 +2526,8 @@ function SurveyForm() {
                   </div>
                 )}
                 {mediaUploadMessage && (
-                  <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                    <span className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-700" />
+                  <div className="flex items-center gap-2 rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-primary-700">
+                    <span className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-700" />
                     <span>{mediaUploadMessage}</span>
                   </div>
                 )}
@@ -2553,7 +2553,7 @@ function SurveyForm() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={submitting}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
+                    className="flex-1 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-300 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary-600/20"
                   >
                     {submitting ? (
                       <>
@@ -2568,7 +2568,7 @@ function SurveyForm() {
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors shadow-lg shadow-blue-600/20"
+                    className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors shadow-lg shadow-primary-600/20"
                   >
                     Selanjutnya
                   </button>

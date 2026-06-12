@@ -95,11 +95,11 @@ function SubmitSuccess() {
         {/* Questionnaire number — only shown for online submissions (Requirement 13.3) */}
         {!offline && (
           questionnaire_number ? (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl px-6 py-4 mb-8 inline-block w-full">
-              <p className="text-xs text-blue-500 uppercase tracking-wide font-medium mb-1">
+            <div className="bg-primary-50 border border-primary-200 rounded-xl px-6 py-4 mb-8 inline-block w-full">
+              <p className="text-xs text-primary-500 uppercase tracking-wide font-medium mb-1">
                 Nomor Kuesioner
               </p>
-              <p className="text-2xl font-bold text-blue-700 tracking-wider">
+              <p className="text-2xl font-bold text-primary-700 tracking-wider">
                 {questionnaire_number}
               </p>
             </div>
@@ -124,7 +124,7 @@ function SubmitSuccess() {
           {/* Primary: fill next respondent — Requirement 9.2, 9.3 */}
           <button
             onClick={handleNextRespondent}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+            className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
           >
             Isi Responden Berikutnya
           </button>

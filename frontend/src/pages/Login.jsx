@@ -77,7 +77,7 @@ function Login() {
           className="h-32 w-auto mx-auto mb-5 object-contain drop-shadow-lg"
         />
         <h1 className="text-2xl font-bold text-white">Selamat Datang</h1>
-        <p className="text-sm text-blue-100 mt-1">Masuk untuk mulai survei</p>
+        <p className="text-sm text-primary-100 mt-1">Masuk untuk mulai survei</p>
       </div>
 
       {/* Form card */}
@@ -110,7 +110,7 @@ function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nama@email.com"
-                className="w-full h-12 pl-11 pr-3 bg-gray-100 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                className="w-full h-12 pl-11 pr-3 bg-gray-100 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-400 focus:outline-none"
                 aria-required="true"
               />
             </div>
@@ -133,7 +133,7 @@ function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-12 pl-11 pr-11 bg-gray-100 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                className="w-full h-12 pl-11 pr-11 bg-gray-100 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary-400 focus:outline-none"
                 aria-required="true"
               />
               <button
@@ -160,14 +160,14 @@ function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-1 mt-1"
+            className="w-full h-12 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-1 mt-1"
           >
             {loading ? 'Memproses...' : 'Masuk'}
           </button>
         </form>
       </div>
 
-      <p className="text-center text-[11px] text-blue-100 mt-6">© {new Date().getFullYear()} Populi Center</p>
+      <p className="text-center text-[11px] text-primary-100 mt-6">© {new Date().getFullYear()} Populi Center</p>
 
       {/* Bottom sheet — Konfirmasi Keluar Aplikasi */}
       <ConfirmSheet

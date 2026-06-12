@@ -176,7 +176,7 @@ function Layout({ children }) {
                       sidebarOpen ? 'gap-3 px-3 py-2.5' : 'justify-center px-2 py-2.5'
                     } ${
                       isActive
-                        ? 'bg-blue-600 text-white shadow-sm'
+                        ? 'bg-primary-600 text-white shadow-sm'
                         : 'text-slate-300 hover:bg-white/5 hover:text-white'
                     }`}
                     aria-current={isActive ? 'page' : undefined}
@@ -194,7 +194,7 @@ function Layout({ children }) {
         {/* Profil pengguna + logout */}
         {user && (
           <div className={`border-t border-white/10 ${sidebarOpen ? 'p-3 flex items-center gap-3' : 'p-2 flex flex-col items-center gap-2'}`}>
-            <div className="w-9 h-9 rounded-full bg-blue-500/20 text-blue-300 font-bold flex items-center justify-center text-sm flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-primary-500/20 text-primary-300 font-bold flex items-center justify-center text-sm flex-shrink-0">
               {getInitials(user)}
             </div>
             {sidebarOpen && (

@@ -39,7 +39,7 @@ function ConditionRow({ condition, questionIndex, condIndex, questions, onUpdate
         <select
           value={condition.question_id}
           onChange={(e) => onUpdate(questionIndex, condIndex, 'question_id', e.target.value)}
-          className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white max-w-[180px]"
+          className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white max-w-[180px]"
           aria-label="Pilih pertanyaan sumber"
         >
           <option value="">— pilih —</option>
@@ -57,7 +57,7 @@ function ConditionRow({ condition, questionIndex, condIndex, questions, onUpdate
         <select
           value={condition.operator}
           onChange={(e) => onUpdate(questionIndex, condIndex, 'operator', e.target.value)}
-          className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+          className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
           aria-label="Pilih operator"
         >
           {OPERATORS.map((op) => (
@@ -73,7 +73,7 @@ function ConditionRow({ condition, questionIndex, condIndex, questions, onUpdate
           <select
             value={condition.value}
             onChange={(e) => onUpdate(questionIndex, condIndex, 'value', e.target.value)}
-            className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white max-w-[160px]"
+            className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white max-w-[160px]"
             aria-label="Pilih nilai kondisi"
           >
             <option value="">— pilih jawaban —</option>
@@ -87,7 +87,7 @@ function ConditionRow({ condition, questionIndex, condIndex, questions, onUpdate
             value={condition.value}
             onChange={(e) => onUpdate(questionIndex, condIndex, 'value', e.target.value)}
             placeholder="ketik nilai..."
-            className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 w-28"
+            className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary-400 w-28"
             aria-label="Masukkan nilai kondisi"
           />
         )}
@@ -245,7 +245,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
   return (
     <div className="space-y-3">
       {/* Penjelasan singkat */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700">
+      <div className="bg-primary-50 border border-primary-200 rounded-lg px-3 py-2 text-xs text-primary-700">
         <strong>Skip Logic</strong> memungkinkan surveyor melompati pertanyaan tertentu berdasarkan jawaban sebelumnya.
         Contoh: Jika jawaban pertanyaan 1 adalah "Ya", langsung lompat ke pertanyaan 5.
       </div>
@@ -321,7 +321,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
                   <button
                     type="button"
                     onClick={() => addCondition(ruleIndex)}
-                    className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 px-2 py-1 hover:bg-blue-50 rounded transition-colors"
+                    className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1 px-2 py-1 hover:bg-primary-50 rounded transition-colors"
                   >
                     <span aria-hidden="true">+</span> Tambah kondisi DAN
                   </button>
@@ -333,7 +333,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
                   <select
                     value={rule.target_question_id}
                     onChange={(e) => updateTarget(ruleIndex, e.target.value)}
-                    className="border border-gray-300 rounded-md px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-full max-w-xs"
+                    className="border border-gray-300 rounded-md px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white w-full max-w-xs"
                     aria-label="Pilih pertanyaan tujuan lompatan"
                   >
                     <option value="">— pilih pertanyaan tujuan —</option>
@@ -366,7 +366,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
       <button
         type="button"
         onClick={addRule}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
       >
         <span aria-hidden="true">+</span> Tambah Aturan Lompat
       </button>

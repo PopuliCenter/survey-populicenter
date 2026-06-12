@@ -49,7 +49,7 @@ function ViewToggle({ viewMode, onViewChange }) {
         type="button"
         className={`p-2 transition-colors ${
           viewMode === 'table'
-            ? 'bg-blue-100 text-blue-700'
+            ? 'bg-primary-100 text-primary-700'
             : 'bg-gray-50 text-gray-400 hover:text-gray-600'
         }`}
         onClick={() => onViewChange('table')}
@@ -74,7 +74,7 @@ function ViewToggle({ viewMode, onViewChange }) {
         type="button"
         className={`p-2 transition-colors ${
           viewMode === 'grid'
-            ? 'bg-blue-100 text-blue-700'
+            ? 'bg-primary-100 text-primary-700'
             : 'bg-gray-50 text-gray-400 hover:text-gray-600'
         }`}
         onClick={() => onViewChange('grid')}

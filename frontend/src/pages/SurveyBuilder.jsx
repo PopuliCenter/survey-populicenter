@@ -108,7 +108,7 @@ function OptionsEditor({ options, onChange }) {
             value={opt.value}
             onChange={(e) => updateOption(index, 'value', e.target.value)}
             placeholder="Nilai"
-            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-28"
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 w-28"
             aria-label={`Nilai opsi ${index + 1}`}
           />
           <input
@@ -116,7 +116,7 @@ function OptionsEditor({ options, onChange }) {
             value={opt.label}
             onChange={(e) => updateOption(index, 'label', e.target.value)}
             placeholder="Label tampilan"
-            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 flex-1"
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 flex-1"
             aria-label={`Label opsi ${index + 1}`}
           />
           <button
@@ -132,7 +132,7 @@ function OptionsEditor({ options, onChange }) {
       <button
         type="button"
         onClick={addOption}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
       >
         <span aria-hidden="true">+</span> Tambah Opsi
       </button>
@@ -177,7 +177,7 @@ function RatingConfigEditor({ config, onChange }) {
             max={9}
             value={min}
             onChange={(e) => update('min', parseInt(e.target.value, 10) || 1)}
-            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Nilai minimum rating"
           />
         </div>
@@ -191,7 +191,7 @@ function RatingConfigEditor({ config, onChange }) {
             max={10}
             value={max}
             onChange={(e) => update('max', parseInt(e.target.value, 10) || 5)}
-            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Nilai maksimum rating"
           />
         </div>
@@ -202,7 +202,7 @@ function RatingConfigEditor({ config, onChange }) {
           <select
             value={display}
             onChange={(e) => update('display', e.target.value)}
-            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
             aria-label="Mode tampilan rating"
           >
             <option value="stars">Bintang (Stars)</option>
@@ -227,7 +227,7 @@ function RatingConfigEditor({ config, onChange }) {
               value={labels.min || ''}
               onChange={(e) => updateLabel('min', e.target.value)}
               placeholder="Sangat Tidak Puas"
-              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               aria-label="Label nilai minimum"
             />
           </div>
@@ -238,7 +238,7 @@ function RatingConfigEditor({ config, onChange }) {
               value={labels.max || ''}
               onChange={(e) => updateLabel('max', e.target.value)}
               placeholder="Sangat Puas"
-              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               aria-label="Label nilai maksimum"
             />
           </div>
@@ -272,7 +272,7 @@ function PhoneConfigEditor({ config, onChange }) {
             max={20}
             value={min_length}
             onChange={(e) => update('min_length', parseInt(e.target.value, 10) || 1)}
-            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Panjang minimum digit"
           />
         </div>
@@ -284,7 +284,7 @@ function PhoneConfigEditor({ config, onChange }) {
             max={20}
             value={max_length}
             onChange={(e) => update('max_length', parseInt(e.target.value, 10) || 13)}
-            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Panjang maksimum digit"
           />
         </div>
@@ -320,7 +320,7 @@ function UniqueIdConfigEditor({ config, onChange }) {
             max={50}
             value={min_length}
             onChange={(e) => update('min_length', parseInt(e.target.value, 10) || 1)}
-            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Panjang minimum digit"
           />
         </div>
@@ -332,7 +332,7 @@ function UniqueIdConfigEditor({ config, onChange }) {
             max={50}
             value={max_length}
             onChange={(e) => update('max_length', parseInt(e.target.value, 10) || 20)}
-            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Panjang maksimum digit"
           />
         </div>
@@ -375,7 +375,7 @@ function DateConfigEditor({ config, onChange }) {
             type="date"
             value={min_date}
             onChange={(e) => update('min_date', e.target.value)}
-            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Tanggal minimum"
           />
         </div>
@@ -387,7 +387,7 @@ function DateConfigEditor({ config, onChange }) {
             type="date"
             value={max_date}
             onChange={(e) => update('max_date', e.target.value)}
-            className={`border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+            className={`border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${
               hasValidationError ? 'border-red-400' : 'border-gray-300'
             }`}
             aria-label="Tanggal maksimum"
@@ -481,7 +481,7 @@ function MatrixConfigEditor({ config, onChange }) {
               value={row}
               onChange={(e) => updateRow(index, e.target.value)}
               placeholder={`Baris ${index + 1}`}
-              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 flex-1"
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 flex-1"
               aria-label={`Baris ${index + 1}`}
             />
             <button
@@ -513,7 +513,7 @@ function MatrixConfigEditor({ config, onChange }) {
               value={col}
               onChange={(e) => updateColumn(index, e.target.value)}
               placeholder={`Kolom ${index + 1}`}
-              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 flex-1"
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 flex-1"
               aria-label={`Kolom ${index + 1}`}
             />
             <button
@@ -691,7 +691,7 @@ function FieldToolsSettingsSection({ settings, onChange }) {
                     value={value}
                     checked={settings[key] === value}
                     onChange={() => onChange(key, value)}
-                    className="accent-blue-600 focus:ring-2 focus:ring-blue-400"
+                    className="accent-primary-600 focus:ring-2 focus:ring-primary-400"
                   />
                   {modeLabel}
                 </label>
@@ -730,7 +730,7 @@ function DatePickerSection({ startDate, endDate, onStartDateChange, onEndDateCha
             type="datetime-local"
             value={startDate}
             onChange={(e) => onStartDateChange(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Tanggal mulai survei"
           />
         </div>
@@ -743,7 +743,7 @@ function DatePickerSection({ startDate, endDate, onStartDateChange, onEndDateCha
             type="datetime-local"
             value={endDate}
             onChange={(e) => onEndDateChange(e.target.value)}
-            className={`border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+            className={`border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${
               dateError ? 'border-red-400' : 'border-gray-300'
             }`}
             aria-label="Tanggal berakhir survei"
@@ -955,7 +955,7 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={3}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none ${
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 resize-none ${
                 textError ? 'border-red-400' : 'border-gray-300'
               }`}
               aria-describedby={textError ? 'question-text-error' : undefined}
@@ -981,7 +981,7 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
               id="question-type"
               value={type}
               onChange={(e) => handleTypeChange(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
             >
               {QUESTION_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -1031,8 +1031,8 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
               role="switch"
               aria-checked={isRequired}
               onClick={() => setIsRequired((v) => !v)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                isRequired ? 'bg-blue-600' : 'bg-gray-300'
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 ${
+                isRequired ? 'bg-primary-600' : 'bg-gray-300'
               }`}
               aria-label="Pertanyaan wajib diisi"
             >
@@ -1062,8 +1062,8 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
                   role="switch"
                   aria-checked={randomizeOptions}
                   onClick={() => setRandomizeOptions((v) => !v)}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                    randomizeOptions ? 'bg-blue-600' : 'bg-gray-300'
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 ${
+                    randomizeOptions ? 'bg-primary-600' : 'bg-gray-300'
                   }`}
                   aria-label="Acak urutan pilihan jawaban"
                 >
@@ -1085,8 +1085,8 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
                   role="switch"
                   aria-checked={allowOther}
                   onClick={() => setAllowOther((v) => !v)}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                    allowOther ? 'bg-blue-600' : 'bg-gray-300'
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 ${
+                    allowOther ? 'bg-primary-600' : 'bg-gray-300'
                   }`}
                   aria-label="Tambah opsi Lainnya"
                 >
@@ -1133,7 +1133,7 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               {submitting
                 ? 'Menyimpan…'
@@ -1441,7 +1441,7 @@ function SurveyBuilder() {
         <div>
           <button
             onClick={() => navigate('/surveys')}
-            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 transition-colors focus:outline-none focus:underline"
+            className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-800 transition-colors focus:outline-none focus:underline"
             aria-label="Kembali ke daftar survei"
           >
             <span aria-hidden="true">←</span> Kembali ke Daftar Survei
@@ -1464,7 +1464,7 @@ function SurveyBuilder() {
             <p className="text-red-600 text-sm">{fetchError}</p>
             <button
               onClick={fetchSurvey}
-              className="text-sm text-blue-600 underline hover:text-blue-800"
+              className="text-sm text-primary-600 underline hover:text-primary-800"
             >
               Coba lagi
             </button>
@@ -1490,7 +1490,7 @@ function SurveyBuilder() {
                     setEditTarget(null);
                     setModalMode('create');
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
                 >
                   <span aria-hidden="true">+</span> Tambah Pertanyaan
                 </button>
@@ -1511,7 +1511,7 @@ function SurveyBuilder() {
               <button
                 onClick={handleSaveDates}
                 disabled={savingDates || !!dateError}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 shrink-0 self-start mt-8"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 shrink-0 self-start mt-8"
               >
                 {savingDates ? 'Menyimpan…' : 'Simpan Periode'}
               </button>
@@ -1528,7 +1528,7 @@ function SurveyBuilder() {
               <button
                 onClick={handleSaveFieldTools}
                 disabled={savingFieldTools}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 shrink-0 self-start mt-8"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 shrink-0 self-start mt-8"
               >
                 {savingFieldTools ? 'Menyimpan…' : 'Simpan Pengaturan'}
               </button>
@@ -1542,9 +1542,9 @@ function SurveyBuilder() {
                   type="button"
                   onClick={() => handleSaveFormMode('wizard')}
                   disabled={savingFormMode}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 ${
                     formMode === 'wizard'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-primary-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -1554,9 +1554,9 @@ function SurveyBuilder() {
                   type="button"
                   onClick={() => handleSaveFormMode('scroll')}
                   disabled={savingFormMode}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 ${
                     formMode === 'scroll'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-primary-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -1607,7 +1607,7 @@ function SurveyBuilder() {
                       setEditTarget(null);
                       setModalMode('create');
                     }}
-                    className="text-blue-600 underline hover:text-blue-800 text-sm"
+                    className="text-primary-600 underline hover:text-primary-800 text-sm"
                   >
                     Tambah pertanyaan pertama
                   </button>
@@ -1627,7 +1627,7 @@ function SurveyBuilder() {
                       >
                         <div className="flex items-start gap-4">
                           {/* Order number */}
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-semibold">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-semibold">
                             {index + 1}
                           </div>
 
@@ -1699,7 +1699,7 @@ function SurveyBuilder() {
                                 setEditTarget(question);
                                 setModalMode('edit');
                               }}
-                              className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+                              className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
                               aria-label={`Edit pertanyaan ${index + 1}`}
                             >
                               Edit

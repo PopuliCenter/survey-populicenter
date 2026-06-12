@@ -215,7 +215,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${fieldErrors.name ? 'border-red-400' : 'border-gray-300'}`}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${fieldErrors.name ? 'border-red-400' : 'border-gray-300'}`}
               autoComplete="name"
               aria-invalid={!!fieldErrors.name}
             />
@@ -232,7 +232,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${fieldErrors.email ? 'border-red-400' : 'border-gray-300'}`}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${fieldErrors.email ? 'border-red-400' : 'border-gray-300'}`}
               autoComplete="email"
               aria-invalid={!!fieldErrors.email}
             />
@@ -251,7 +251,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${fieldErrors.password ? 'border-red-400' : 'border-gray-300'}`}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${fieldErrors.password ? 'border-red-400' : 'border-gray-300'}`}
               autoComplete="new-password"
               aria-invalid={!!fieldErrors.password}
             />
@@ -269,7 +269,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
               id="tpd-survey"
               value={surveyId}
               onChange={(e) => { setSurveyId(e.target.value); setAssignedNumbersText(''); }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
             >
               <option value="">— Pilih survei —</option>
               {(surveys || []).map((s) => (
@@ -296,7 +296,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                   value={quota}
                   onChange={(e) => setQuota(e.target.value)}
                   placeholder="Contoh: 10"
-                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${fieldErrors.quota ? 'border-red-400' : 'border-gray-300'}`}
+                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${fieldErrors.quota ? 'border-red-400' : 'border-gray-300'}`}
                   aria-invalid={!!fieldErrors.quota}
                 />
                 <p className="mt-1 text-xs text-gray-400">Jumlah maksimum kuesioner yang boleh diisi TPD untuk survei ini</p>
@@ -315,7 +315,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                   onChange={(e) => setAssignedNumbersText(e.target.value)}
                   rows={4}
                   placeholder={'Masukkan nomor kuesioner, satu per baris atau pisahkan dengan koma:\n001\n002\n003\natau: 001, 002, 003'}
-                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono resize-none ${fieldErrors.assignedNumbers ? 'border-red-400' : 'border-gray-300'}`}
+                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 font-mono resize-none ${fieldErrors.assignedNumbers ? 'border-red-400' : 'border-gray-300'}`}
                   aria-invalid={!!fieldErrors.assignedNumbers}
                 />
                 <p className="mt-1 text-xs text-gray-400">
@@ -323,7 +323,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                   Kosongkan jika tidak ingin menentukan nomor spesifik.
                 </p>
                 {assignedNumbersText.trim() && (
-                  <p className="mt-1 text-xs text-blue-600">
+                  <p className="mt-1 text-xs text-primary-600">
                     {parseAssignedNumbers(assignedNumbersText)?.length || 0} nomor kuesioner akan ditugaskan
                   </p>
                 )}
@@ -345,7 +345,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               {submitting ? 'Menyimpan…' : isEdit ? 'Simpan Perubahan' : 'Buat TPD'}
             </button>
@@ -579,7 +579,7 @@ function Surveyors() {
                 setEditTarget(null);
                 setModalMode('create');
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               <span aria-hidden="true">+</span> Tambah TPD
             </button>
@@ -593,13 +593,13 @@ function Surveyors() {
             value={filterName}
             onChange={(e) => setFilterName(e.target.value)}
             placeholder="Cari nama / email TPD…"
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-56"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 w-56"
             aria-label="Cari nama atau email TPD"
           />
           <select
             value={filterSurveyId}
             onChange={(e) => setFilterSurveyId(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Filter berdasarkan survei"
           >
             <option value="">Semua Survei</option>
@@ -610,7 +610,7 @@ function Surveyors() {
           <select
             value={filterYear}
             onChange={(e) => setFilterYear(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Filter tahun bergabung"
           >
             <option value="">Semua Tahun</option>
@@ -621,7 +621,7 @@ function Surveyors() {
           <select
             value={filterMonth}
             onChange={(e) => setFilterMonth(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Filter bulan bergabung"
           >
             <option value="">Semua Bulan</option>
@@ -669,7 +669,7 @@ function Surveyors() {
               <p className="text-red-600 text-sm">{fetchError}</p>
               <button
                 onClick={fetchSurveyors}
-                className="text-sm text-blue-600 underline hover:text-blue-800"
+                className="text-sm text-primary-600 underline hover:text-primary-800"
               >
                 Coba lagi
               </button>
@@ -779,7 +779,7 @@ function Surveyors() {
                                   setEditTarget(tpd);
                                   setModalMode('edit');
                                 }}
-                                className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
                                 aria-label={`Edit TPD ${tpd.name}`}
                               >
                                 Edit

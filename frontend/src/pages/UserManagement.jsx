@@ -189,7 +189,7 @@ function UserFormModal({ mode, initial, tabKey, currentUserRole, onClose, onSave
                   id="user-role"
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                 >
                   {roleOptions.map(opt => (
                     <option key={opt.key} value={opt.key}>
@@ -224,7 +224,7 @@ function UserFormModal({ mode, initial, tabKey, currentUserRole, onClose, onSave
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${
                 fieldErrors.name ? 'border-red-400' : 'border-gray-300'
               }`}
               autoComplete="name"
@@ -251,7 +251,7 @@ function UserFormModal({ mode, initial, tabKey, currentUserRole, onClose, onSave
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${
                 fieldErrors.email ? 'border-red-400' : 'border-gray-300'
               }`}
               autoComplete="email"
@@ -286,7 +286,7 @@ function UserFormModal({ mode, initial, tabKey, currentUserRole, onClose, onSave
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${
                 fieldErrors.password ? 'border-red-400' : 'border-gray-300'
               }`}
               autoComplete="new-password"
@@ -316,7 +316,7 @@ function UserFormModal({ mode, initial, tabKey, currentUserRole, onClose, onSave
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               {submitting ? 'Menyimpan…' : isEdit ? 'Simpan Perubahan' : 'Buat Akun'}
             </button>
@@ -484,7 +484,7 @@ function UserManagement() {
               setEditTarget(null);
               setModalMode('create');
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
           >
             <span aria-hidden="true">+</span> Tambah
           </button>
@@ -499,9 +499,9 @@ function UserManagement() {
                 <button
                   key={tab.key}
                   onClick={() => handleTabChange(tab.key)}
-                  className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 ${
+                  className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-1 ${
                     isActive
-                      ? 'border-blue-600 text-blue-700'
+                      ? 'border-primary-600 text-primary-700'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                   aria-current={isActive ? 'page' : undefined}
@@ -558,7 +558,7 @@ function UserManagement() {
               <p className="text-red-600 text-sm">{fetchError}</p>
               <button
                 onClick={fetchUsers}
-                className="text-sm text-blue-600 underline hover:text-blue-800"
+                className="text-sm text-primary-600 underline hover:text-primary-800"
               >
                 Coba lagi
               </button>
@@ -597,7 +597,7 @@ function UserManagement() {
                         <td className="px-5 py-3 font-medium text-gray-800">
                           {user.name}
                           {isSelf && (
-                            <span className="ml-2 text-xs text-blue-500 font-normal">
+                            <span className="ml-2 text-xs text-primary-500 font-normal">
                               (Anda)
                             </span>
                           )}
@@ -625,7 +625,7 @@ function UserManagement() {
                                 setEditTarget(user);
                                 setModalMode('edit');
                               }}
-                              className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+                              className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
                               aria-label={`Edit ${activeTab?.label.toLowerCase()} ${user.name}`}
                             >
                               Edit

@@ -11,7 +11,7 @@ import api from '../services/api';
 
 // ─── Tipe / skala survei ────────────────────────────────────────────────────────
 const SURVEY_TYPES = [
-  { value: 'nasional', label: 'Nasional', badge: 'bg-blue-100 text-blue-700' },
+  { value: 'nasional', label: 'Nasional', badge: 'bg-primary-100 text-primary-700' },
   { value: 'daerah', label: 'Daerah', badge: 'bg-emerald-100 text-emerald-700' },
   { value: 'lainnya', label: 'Lainnya', badge: 'bg-gray-100 text-gray-600' },
 ];
@@ -77,14 +77,14 @@ function FolderTree({ surveys, selected, onSelect }) {
     tree[y].months[m].types[t] = (tree[y].months[m].types[t] || 0) + 1;
   }
   const years = Object.keys(tree).map(Number).sort((a, b) => b - a);
-  const itemCls = (active) => `flex-1 text-left px-2 py-1.5 rounded-lg truncate ${active ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50 text-gray-700'}`;
+  const itemCls = (active) => `flex-1 text-left px-2 py-1.5 rounded-lg truncate ${active ? 'bg-primary-50 text-primary-700 font-medium' : 'hover:bg-gray-50 text-gray-700'}`;
 
   return (
     <aside className="w-56 shrink-0 border-r border-gray-100 p-2 overflow-auto text-sm" style={{ maxHeight: '70vh' }} aria-label="Navigasi folder survei">
       <button
         type="button"
         onClick={() => onSelect('', '', '')}
-        className={`w-full text-left px-2 py-1.5 rounded-lg mb-1 ${!selected.year ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50 text-gray-700'}`}
+        className={`w-full text-left px-2 py-1.5 rounded-lg mb-1 ${!selected.year ? 'bg-primary-50 text-primary-700 font-medium' : 'hover:bg-gray-50 text-gray-700'}`}
       >
         Semua Survei <span className="text-xs text-gray-400">({surveys.length})</span>
       </button>
@@ -119,7 +119,7 @@ function FolderTree({ surveys, selected, onSelect }) {
                       key={t}
                       type="button"
                       onClick={() => onSelect(String(y), String(m + 1), t)}
-                      className={`block w-full text-left pl-9 pr-2 py-1.5 rounded-lg truncate ${selected.year === String(y) && selected.month === String(m + 1) && selected.type === t ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50 text-gray-600'}`}
+                      className={`block w-full text-left pl-9 pr-2 py-1.5 rounded-lg truncate ${selected.year === String(y) && selected.month === String(m + 1) && selected.type === t ? 'bg-primary-50 text-primary-700 font-medium' : 'hover:bg-gray-50 text-gray-600'}`}
                     >
                       {typeLabel(t)} <span className="text-xs text-gray-400">({mObj.types[t]})</span>
                     </button>
@@ -235,7 +235,7 @@ function CreateSurveyModal({ onClose, onSaved }) {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${
                 titleError ? 'border-red-400' : 'border-gray-300'
               }`}
               aria-describedby={titleError ? 'survey-title-error' : undefined}
@@ -263,7 +263,7 @@ function CreateSurveyModal({ onClose, onSaved }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 resize-none"
             />
           </div>
 
@@ -276,7 +276,7 @@ function CreateSurveyModal({ onClose, onSaved }) {
               id="survey-type"
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               {SURVEY_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -299,7 +299,7 @@ function CreateSurveyModal({ onClose, onSaved }) {
                   type="datetime-local"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                 />
               </div>
               <div>
@@ -314,7 +314,7 @@ function CreateSurveyModal({ onClose, onSaved }) {
                   type="datetime-local"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className={`border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                  className={`border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${
                     dateError ? 'border-red-400' : 'border-gray-300'
                   }`}
                   aria-describedby={dateError ? 'survey-date-error' : undefined}
@@ -342,7 +342,7 @@ function CreateSurveyModal({ onClose, onSaved }) {
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               {submitting ? 'Menyimpan…' : 'Buat Survei'}
             </button>
@@ -393,17 +393,17 @@ function EditSurveyModal({ survey, onClose, onSaved }) {
               Judul <span className="text-red-500">*</span>
             </label>
             <input id="edit-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" autoFocus />
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" autoFocus />
           </div>
           <div>
             <label htmlFor="edit-desc" className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
             <textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 resize-none" />
           </div>
           <div>
             <label htmlFor="edit-type" className="block text-sm font-medium text-gray-700 mb-1">Tipe Survei</label>
             <select id="edit-type" value={type} onChange={(e) => setType(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
               {SURVEY_TYPES.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
             </select>
           </div>
@@ -411,7 +411,7 @@ function EditSurveyModal({ survey, onClose, onSaved }) {
             <button type="button" onClick={onClose} disabled={submitting}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Batal</button>
             <button type="submit" disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg">
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg">
               {submitting ? 'Menyimpan…' : 'Simpan'}
             </button>
           </div>
@@ -482,7 +482,7 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Survei Tujuan <span className="text-red-500">*</span></label>
             <select value={targetSurveyId} onChange={(e) => setTargetSurveyId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400">
               <option value="">— Pilih survei —</option>
               {surveys.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.status})</option>)}
             </select>
@@ -491,7 +491,7 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">File JSON Kuesioner</label>
             <input ref={fileRef} type="file" accept=".json" onChange={handleFileChange}
-              className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
             <p className="mt-1 text-xs text-gray-400">Upload file .json hasil export kuesioner</p>
           </div>
 
@@ -514,7 +514,7 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Batal</button>
             <button onClick={handleImport} disabled={!targetSurveyId || !preview || importing}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg">
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg">
               {importing ? 'Mengimport…' : `Import ${preview?.questions?.length || 0} Pertanyaan`}
             </button>
           </div>
@@ -737,7 +737,7 @@ function Surveys() {
             <button
               type="button"
               onClick={() => setExplorerMode((m) => (m === 'folder' ? 'list' : 'folder'))}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${explorerMode === 'folder' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${explorerMode === 'folder' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100'}`}
               aria-pressed={explorerMode === 'folder'}
               title="Tampilan folder"
             >
@@ -755,7 +755,7 @@ function Surveys() {
             </button>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               <span aria-hidden="true">+</span> Buat Survei
             </button>
@@ -773,14 +773,14 @@ function Surveys() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari judul survei…"
-              className="w-56 border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-56 border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               aria-label="Cari survei"
             />
           </div>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Filter status"
           >
             <option value="">Semua Status</option>
@@ -791,7 +791,7 @@ function Surveys() {
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Filter tipe survei"
           >
             <option value="">Semua Tipe</option>
@@ -800,7 +800,7 @@ function Surveys() {
           <select
             value={filterYear}
             onChange={(e) => setFilterYear(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Filter tahun"
           >
             <option value="">Semua Tahun</option>
@@ -811,7 +811,7 @@ function Surveys() {
           <select
             value={filterMonth}
             onChange={(e) => setFilterMonth(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label="Filter bulan"
           >
             <option value="">Semua Bulan</option>
@@ -867,7 +867,7 @@ function Surveys() {
               <p className="text-red-600 text-sm">{fetchError}</p>
               <button
                 onClick={fetchSurveys}
-                className="text-sm text-blue-600 underline hover:text-blue-800"
+                className="text-sm text-primary-600 underline hover:text-primary-800"
               >
                 Coba lagi
               </button>
@@ -993,7 +993,7 @@ function Surveys() {
                             {/* Builder button */}
                             <button
                               onClick={() => navigate(`/surveys/${survey.id}/builder`)}
-                              className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+                              className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
                               aria-label={`Buka builder untuk survei ${survey.title}`}
                             >
                               Builder

@@ -62,7 +62,7 @@ function formatTimestamp(isoString) {
 function actionBadgeClass(action) {
   if (!action) return 'bg-gray-100 text-gray-700';
   if (action.startsWith('LOGIN') || action.startsWith('LOGOUT')) {
-    return 'bg-blue-100 text-blue-700';
+    return 'bg-primary-100 text-primary-700';
   }
   if (action.startsWith('CREATE')) return 'bg-green-100 text-green-700';
   if (action.startsWith('UPDATE')) return 'bg-yellow-100 text-yellow-700';
@@ -174,7 +174,7 @@ function AuditLog() {
                 name="action"
                 value={filters.action}
                 onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 {ACTION_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -194,7 +194,7 @@ function AuditLog() {
                 name="entity_type"
                 value={filters.entity_type}
                 onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 {ENTITY_TYPE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -216,7 +216,7 @@ function AuditLog() {
                 value={filters.user_id}
                 onChange={handleFilterChange}
                 placeholder="UUID pengguna..."
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
 
@@ -231,7 +231,7 @@ function AuditLog() {
                 type="date"
                 value={filters.start_date}
                 onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
 
@@ -246,7 +246,7 @@ function AuditLog() {
                 type="date"
                 value={filters.end_date}
                 onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
 
@@ -254,7 +254,7 @@ function AuditLog() {
             <div className="flex items-end gap-2">
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
               >
                 Cari
               </button>
@@ -398,7 +398,7 @@ function AuditLog() {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page <= 1}
-                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500"
                   aria-label="Halaman sebelumnya"
                 >
                   ← Sebelumnya
@@ -406,7 +406,7 @@ function AuditLog() {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page >= pagination.total_pages}
-                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500"
                   aria-label="Halaman berikutnya"
                 >
                   Berikutnya →

@@ -94,7 +94,7 @@ function ServerConfig() {
         </div>
 
         {/* Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-700">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg px-4 py-3 text-xs text-primary-700">
           Masukkan alamat server backend untuk menghubungkan aplikasi.
           Hubungi administrator untuk mendapatkan URL server.
         </div>
@@ -110,7 +110,7 @@ function ServerConfig() {
             value={serverUrl}
             onChange={(e) => { setServerUrl(e.target.value); setTestResult(null); }}
             placeholder="https://survey.populicenter.com"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
             autoComplete="url"
           />
           <p className="mt-1 text-xs text-gray-400">
@@ -135,14 +135,14 @@ function ServerConfig() {
           <button
             onClick={handleTestConnection}
             disabled={!serverUrl.trim() || testing}
-            className="w-full px-4 py-2.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+            className="w-full px-4 py-2.5 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
           >
             {testing ? 'Menguji koneksi…' : 'Tes Koneksi'}
           </button>
           <button
             onClick={handleSave}
             disabled={!serverUrl.trim() || testResult !== 'success'}
-            className="w-full px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full px-4 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
           >
             Simpan & Lanjutkan
           </button>

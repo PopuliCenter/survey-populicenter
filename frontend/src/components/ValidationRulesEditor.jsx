@@ -62,7 +62,7 @@ function ValidationRulesEditor({ questionType, validation, onChange }) {
         aria-expanded={expanded}
         aria-controls={panelId}
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded px-1 py-0.5"
+        className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-400 rounded px-1 py-0.5"
       >
         <span
           aria-hidden="true"
@@ -90,7 +90,7 @@ function ValidationRulesEditor({ questionType, validation, onChange }) {
                     type="number"
                     value={current.min_value ?? ''}
                     onChange={(e) => handleNumberChange('min_value', e.target.value)}
-                    className="w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                     aria-label="Nilai minimum validasi"
                     placeholder="Min"
                   />
@@ -105,7 +105,7 @@ function ValidationRulesEditor({ questionType, validation, onChange }) {
                     type="number"
                     value={current.max_value ?? ''}
                     onChange={(e) => handleNumberChange('max_value', e.target.value)}
-                    className="w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                     aria-label="Nilai maksimum validasi"
                     placeholder="Max"
                   />
@@ -126,7 +126,7 @@ function ValidationRulesEditor({ questionType, validation, onChange }) {
                     type="number"
                     value={current.min_length ?? ''}
                     onChange={(e) => handleIntegerChange('min_length', e.target.value)}
-                    className="w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                     aria-label="Panjang minimum validasi"
                     placeholder="Min"
                     min={1}
@@ -143,7 +143,7 @@ function ValidationRulesEditor({ questionType, validation, onChange }) {
                     type="number"
                     value={current.max_length ?? ''}
                     onChange={(e) => handleIntegerChange('max_length', e.target.value)}
-                    className="w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                     aria-label="Panjang maksimum validasi"
                     placeholder="Max"
                     min={1}
@@ -164,7 +164,7 @@ function ValidationRulesEditor({ questionType, validation, onChange }) {
                 type="text"
                 value={current.pattern ?? ''}
                 onChange={(e) => update('pattern', e.target.value || null)}
-                className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                 aria-label="Pola regex validasi"
                 placeholder="Contoh: ^\d{16}$ untuk NIK"
               />
@@ -185,7 +185,7 @@ function ValidationRulesEditor({ questionType, validation, onChange }) {
                 }}
                 maxLength={500}
                 rows={2}
-                className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 resize-none"
                 aria-label="Pesan error kustom"
                 placeholder="Pesan error yang ditampilkan saat validasi gagal"
               />

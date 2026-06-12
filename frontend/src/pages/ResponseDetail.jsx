@@ -74,7 +74,7 @@ function AnswerCard({ answer, index }) {
           <img
             src={src}
             alt={`Foto jawaban pertanyaan ${index + 1}`}
-            className="max-w-[200px] rounded-lg border border-gray-200 mt-1 hover:border-blue-400 transition-colors"
+            className="max-w-[200px] rounded-lg border border-gray-200 mt-1 hover:border-primary-400 transition-colors"
             loading="lazy"
           />
         </a>
@@ -135,7 +135,7 @@ function AnswerCard({ answer, index }) {
       // display === 'numbers'
       return (
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-blue-600 text-white text-sm font-bold">
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary-600 text-white text-sm font-bold">
             {numVal}
           </span>
           <span className="text-sm text-gray-500">dari {max}</span>
@@ -193,7 +193,7 @@ function AnswerCard({ answer, index }) {
                       <td
                         key={col}
                         className={`border border-gray-200 px-3 py-2 text-center ${
-                          isSelected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-300'
+                          isSelected ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-gray-300'
                         }`}
                       >
                         {isSelected ? '✓' : ''}
@@ -257,7 +257,7 @@ function AnswerCard({ answer, index }) {
           <span className="text-gray-400 mr-2">{index + 1}.</span>
           {answer.question_text || '(Pertanyaan tidak tersedia)'}
         </p>
-        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-700">
           {typeLabel[answer.question_type] || answer.question_type}
         </span>
       </div>
@@ -364,7 +364,7 @@ function ResponseDetail() {
         {/* Back button */}
         <button
           onClick={() => navigate('/responses')}
-          className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 transition-colors focus:outline-none focus:underline"
+          className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-800 transition-colors focus:outline-none focus:underline"
           aria-label="Kembali ke daftar responden"
         >
           <span aria-hidden="true">←</span> Kembali ke Daftar Responden
@@ -386,7 +386,7 @@ function ResponseDetail() {
             <p className="text-red-600 text-sm">{fetchError}</p>
             <button
               onClick={() => navigate('/responses')}
-              className="text-sm text-blue-600 underline hover:text-blue-800"
+              className="text-sm text-primary-600 underline hover:text-primary-800"
             >
               Kembali ke daftar
             </button>
@@ -528,7 +528,7 @@ function ResponseDetail() {
                         {response.photo_paths.map((path, idx) => (
                           <a key={idx} href={mediaUrl(path)} target="_blank" rel="noopener noreferrer" className="block">
                             <img src={mediaUrl(path)} alt={`Foto dokumentasi ${idx + 1}`}
-                              className="w-32 h-32 object-cover rounded-lg border border-gray-200 hover:border-blue-400 transition-colors" loading="lazy" />
+                              className="w-32 h-32 object-cover rounded-lg border border-gray-200 hover:border-primary-400 transition-colors" loading="lazy" />
                           </a>
                         ))}
                       </div>
@@ -559,7 +559,7 @@ function ResponseDetail() {
                         id="review-status"
                         value={reviewStatus}
                         onChange={(e) => setReviewStatus(e.target.value)}
-                        className="w-full sm:w-64 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className="w-full sm:w-64 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                       >
                         <option value="unreviewed">Unreviewed</option>
                         <option value="flagged">Flagged</option>
@@ -580,7 +580,7 @@ function ResponseDetail() {
                         onChange={(e) => setReviewNote(e.target.value)}
                         rows={3}
                         placeholder="Tambahkan catatan review (opsional)"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 resize-y"
                       />
                     </div>
 
@@ -600,7 +600,7 @@ function ResponseDetail() {
                       <button
                         onClick={handleSaveReview}
                         disabled={saving}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {saving ? 'Menyimpan…' : 'Simpan Review'}
                       </button>

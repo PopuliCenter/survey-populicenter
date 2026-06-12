@@ -274,7 +274,7 @@ function Dashboard() {
           <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <p className="text-sm text-gray-500">{dataScopeLabel}</p>
-            <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+            <span className="inline-flex items-center rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
               {selectedSurvey ? 'Survei terpilih' : 'Semua survei aktif'}
             </span>
           </div>
@@ -283,7 +283,7 @@ function Dashboard() {
         {/* ── Summary stat cards ── */}
         <section aria-label="Statistik ringkasan">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <StatCard title="Survei Aktif" value={stats?.activeSurveys} iconName="doc" tint="bg-blue-50 text-blue-600" />
+            <StatCard title="Survei Aktif" value={stats?.activeSurveys} iconName="doc" tint="bg-primary-50 text-primary-600" />
             <StatCard title="TPD Aktif" value={stats?.activeSurveyors} iconName="brief" tint="bg-emerald-50 text-emerald-600" />
             <StatCard
               title="Responden Hari Ini"
@@ -308,13 +308,13 @@ function Dashboard() {
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Progress keseluruhan">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-gray-700">Progress Keseluruhan</h2>
-              <span className="text-sm font-bold text-blue-700">
+              <span className="text-sm font-bold text-primary-700">
                 N = {totalCollectedAll.toLocaleString('id-ID')} / {totalQuotaAll.toLocaleString('id-ID')}
               </span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-3">
               <div
-                className={`h-3 rounded-full transition-all ${overallPercentage >= 100 ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-blue-500 to-indigo-600'}`}
+                className={`h-3 rounded-full transition-all ${overallPercentage >= 100 ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-primary-500 to-indigo-600'}`}
                 style={{ width: `${Math.min(100, overallPercentage)}%` }}
               />
             </div>
@@ -450,7 +450,7 @@ function Dashboard() {
                       </td>
                       <td className="py-2.5 pr-4 text-gray-500">{tpd.email}</td>
                       <td className="py-2.5 text-right">
-                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
+                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary-50 text-primary-700">
                           N={tpd.responseCount}
                         </span>
                       </td>
