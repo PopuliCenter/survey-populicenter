@@ -654,6 +654,44 @@ router.post('/:id/quota', async (req, res, next) => {
 });
 
 /**
+ * DELETE /surveyors/:id/quota/:surveyId
+ * Lepas penugasan satu TPD dari satu survei (hapus baris kuota saja).
+ * Akun TPD TIDAK dihapus dan tetap bisa login / ditugaskan ke survei lain.
+ * Respons yang sudah masuk tidak dihapus.
+ */
+router.delete('/:id/quota/:surveyId', requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const { id, surveyId } = req.params;
+
+    const surveyor = await User.findOne({ where: { id, role: 'surveyor' }, attributes: ['id', 'name'] });
+    if (!surveyor) {
+      return res.status(404).json({ error: 'TPD tidak ditemukan' });
+    }
+
+    const quota = await SurveyorQuota.findOne({ where: { surveyor_id: id, survey_id: surveyId } });
+    if (!quota) {
+      return res.status(404).json({ error: 'Penugasan TPD untuk survei ini tidak ditemukan' });
+    }
+
+    await quota.destroy();
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'UNASSIGN_SURVEYOR',
+      entity_type: 'surveyor_quota',
+      entity_id: surveyor.id,
+      old_value: { surveyor_id: id, survey_id: surveyId },
+      new_value: null,
+      ip_address: req.ip,
+    });
+
+    res.json({ message: `TPD ${surveyor.name} dilepas dari survei ini` });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * POST /surveyors/bulk-upload
  * Bulk create surveyor accounts from CSV/Excel file.
  * Requires admin or supervisor role.

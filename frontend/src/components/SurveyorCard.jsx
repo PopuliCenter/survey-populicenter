@@ -37,6 +37,8 @@ function SurveyorCard({
   confirmDeleteId,
   onConfirmDelete,
   onCancelDelete,
+  surveyContext,
+  onUnassign,
   expandedQuotaId,
   onToggleQuota,
   formatDate,
@@ -112,15 +114,22 @@ function SurveyorCard({
           />
         )}
 
-        {/* Hapus — admin only */}
-        {currentUser.role === 'admin' && (
+        {/* Per survei: Lepas dari survei ini. Mode datar: Hapus akun (admin) */}
+        {surveyContext ? (
+          <IconButton
+            icon="unassign"
+            variant="warning"
+            label={`Lepas ${surveyor.name} dari survei ini`}
+            onClick={() => onUnassign(surveyor.id)}
+          />
+        ) : currentUser.role === 'admin' ? (
           <IconButton
             icon="trash"
             variant="danger"
-            label={`Hapus TPD ${surveyor.name}`}
+            label={`Hapus akun TPD ${surveyor.name}`}
             onClick={() => onConfirmDelete(surveyor.id)}
           />
-        )}
+        ) : null}
       </div>
 
       {/* Expandable Quota Panel */}

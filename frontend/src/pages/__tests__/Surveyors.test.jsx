@@ -91,7 +91,7 @@ describe('Delete surveyor functionality', () => {
     });
 
     // Both rows should have a "Hapus TPD" button
-    const hapusButtons = screen.getAllByRole('button', { name: /hapus tpd/i });
+    const hapusButtons = screen.getAllByRole('button', { name: /hapus akun tpd/i });
     expect(hapusButtons).toHaveLength(2);
   });
 
@@ -103,7 +103,7 @@ describe('Delete surveyor functionality', () => {
       expect(screen.getByText('Surveyor One')).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole('button', { name: /hapus tpd/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /hapus akun tpd/i })).not.toBeInTheDocument();
   });
 
   test('klik "Hapus" menampilkan ConfirmDialog dengan nama TPD', async () => {
@@ -114,7 +114,7 @@ describe('Delete surveyor functionality', () => {
       expect(screen.getByText('Surveyor One')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /hapus tpd surveyor one/i }));
+    fireEvent.click(screen.getByRole('button', { name: /hapus akun tpd surveyor one/i }));
 
     const dialog = await screen.findByRole('dialog', { name: /hapus tpd permanen/i });
     expect(within(dialog).getByText(/Akun "Surveyor One" akan dihapus secara permanen/i)).toBeInTheDocument();
@@ -130,7 +130,7 @@ describe('Delete surveyor functionality', () => {
       expect(screen.getByText('Surveyor One')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /hapus tpd surveyor one/i }));
+    fireEvent.click(screen.getByRole('button', { name: /hapus akun tpd surveyor one/i }));
 
     const dialog = await screen.findByRole('dialog', { name: /hapus tpd permanen/i });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Batal' }));
@@ -151,7 +151,7 @@ describe('Delete surveyor functionality', () => {
       expect(screen.getByText('Surveyor One')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /hapus tpd surveyor one/i }));
+    fireEvent.click(screen.getByRole('button', { name: /hapus akun tpd surveyor one/i }));
 
     const dialog = await screen.findByRole('dialog', { name: /hapus tpd permanen/i });
     fireEvent.click(within(dialog).getByRole('button', { name: /ya, hapus/i }));
@@ -172,7 +172,7 @@ describe('Delete surveyor functionality', () => {
 
     const initialGetCallCount = api.get.mock.calls.length;
 
-    fireEvent.click(screen.getByRole('button', { name: /hapus tpd surveyor one/i }));
+    fireEvent.click(screen.getByRole('button', { name: /hapus akun tpd surveyor one/i }));
 
     const dialog = await screen.findByRole('dialog', { name: /hapus tpd permanen/i });
     fireEvent.click(within(dialog).getByRole('button', { name: /ya, hapus/i }));

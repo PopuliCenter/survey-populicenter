@@ -398,6 +398,9 @@ function Surveyors() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Lepas-penugasan (per survei): hapus kuota TPD untuk survei terpilih, akun tetap
+  const [unassignTarget, setUnassignTarget] = useState(null);
+
   // Expanded quota panel: stores the TPD id whose quota panel is open
   const [expandedQuotaId, setExpandedQuotaId] = useState(null);
 
@@ -506,6 +509,25 @@ function Surveyors() {
           'Gagal menghapus TPD.'
       );
       setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  // ── Lepas TPD dari survei terpilih (hapus penugasan, akun tetap ada) ─────────
+  async function handleUnassign(tpd) {
+    if (!filterSurveyId) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/surveyors/${tpd.id}/quota/${filterSurveyId}`);
+      toast.success(`"${tpd.name}" dilepas dari survei ini.`);
+      setUnassignTarget(null);
+      fetchSurveyors();
+    } catch (err) {
+      toast.error(
+        err.response?.data?.error || err.message || 'Gagal melepas TPD dari survei.'
+      );
+      setUnassignTarget(null);
     } finally {
       setDeleting(false);
     }
@@ -848,6 +870,8 @@ function Surveyors() {
                   confirmDeleteId={null}
                   onConfirmDelete={() => setDeleteTarget(tpd)}
                   onCancelDelete={() => setDeleteTarget(null)}
+                  surveyContext={!!filterSurveyId}
+                  onUnassign={() => setUnassignTarget(tpd)}
                   expandedQuotaId={expandedQuotaId}
                   onToggleQuota={toggleQuotaPanel}
                   formatDate={formatDate}
@@ -945,15 +969,22 @@ function Surveyors() {
                                 />
                               )}
 
-                              {/* Hapus — admin only */}
-                              {currentUser.role === 'admin' && (
+                              {/* Per survei: Lepas dari survei ini. Mode datar: Hapus akun (admin) */}
+                              {filterSurveyId ? (
+                                <IconButton
+                                  icon="unassign"
+                                  variant="warning"
+                                  label={`Lepas ${tpd.name} dari survei ini`}
+                                  onClick={() => setUnassignTarget(tpd)}
+                                />
+                              ) : currentUser.role === 'admin' ? (
                                 <IconButton
                                   icon="trash"
                                   variant="danger"
-                                  label={`Hapus TPD ${tpd.name}`}
+                                  label={`Hapus akun TPD ${tpd.name}`}
                                   onClick={() => setDeleteTarget(tpd)}
                                 />
-                              )}
+                              ) : null}
                             </div>
                           </td>
                         </tr>
@@ -1102,6 +1133,23 @@ function Surveyors() {
         loading={deleting}
         onConfirm={() => deleteTarget && handleDeleteSurveyor(deleteTarget)}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Lepas dari survei ini (hapus penugasan, akun tetap) */}
+      <ConfirmDialog
+        open={!!unassignTarget}
+        title="Lepas TPD dari survei ini?"
+        description={
+          unassignTarget
+            ? `Penugasan "${unassignTarget.name}" untuk survei "${selectedSurvey?.title || 'ini'}" akan dihapus. Akun TPD TETAP ada (tidak terhapus) dan masih bisa ditugaskan ke survei lain. Respons yang sudah masuk tidak dihapus.`
+            : ''
+        }
+        confirmLabel="Lepas dari Survei"
+        cancelLabel="Batal"
+        tone="danger"
+        loading={deleting}
+        onConfirm={() => unassignTarget && handleUnassign(unassignTarget)}
+        onCancel={() => setUnassignTarget(null)}
       />
     </Layout>
   );
