@@ -22,8 +22,10 @@ const config: CapacitorConfig = {
       androidScaleType: 'CENTER_CROP',
     },
     StatusBar: {
+      // Latar putih + ikon gelap (style LIGHT = konten gelap untuk latar terang)
+      // agar jam/baterai/sinyal jelas & menyatu dengan header — kesan enterprise.
       style: 'LIGHT',
-      backgroundColor: '#2563eb',
+      backgroundColor: '#ffffff',
     },
   },
   android: {

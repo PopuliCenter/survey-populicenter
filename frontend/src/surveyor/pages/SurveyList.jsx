@@ -382,23 +382,34 @@ function SurveyList() {
       <header className="bg-white shadow-sm sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
         <div className="max-w-3xl mx-auto px-screen py-3">
           <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold text-gray-900">Daftar Survei</h1>
-              {user && (
-                <p className="text-xs text-gray-500 mt-0.5 truncate">
-                  Halo, <span className="font-medium text-gray-700">{user.name || user.email}</span>
-                  <span className="text-gray-300"> · </span>
-                  Diisi sesi ini: <span className="font-semibold text-accent-700">{sessionCount}</span>
-                </p>
-              )}
+            <div className="min-w-0 flex items-center gap-3">
+              <div
+                className="shrink-0 w-9 h-9 rounded-full bg-accent-100 text-accent-700 font-medium flex items-center justify-center text-sm"
+                aria-hidden="true"
+              >
+                {(user?.name || user?.email || '?').trim().charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-lg font-bold font-serif text-gray-900 leading-snug">Daftar Survei</h1>
+                {user && (
+                  <p className="text-xs text-gray-500 mt-0.5 truncate">
+                    Halo, <span className="font-medium text-gray-700">{user.name || user.email}</span>
+                    <span className="text-gray-300"> · </span>
+                    Diisi sesi ini: <span className="font-semibold text-accent-700">{sessionCount}</span>
+                  </p>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <OfflineStatusBar isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
               <button
                 onClick={handleLogoutClick}
-                className="min-h-[44px] inline-flex items-center text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-xl px-3"
+                aria-label="Keluar"
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl px-3 transition-colors"
               >
-                Keluar
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
               </button>
             </div>
           </div>
@@ -406,15 +417,15 @@ function SurveyList() {
           {/* ── Baris status offline + tombol unduh (ringkas) ── */}
           {surveys.length > 0 && (
             <div className={`mt-3 flex items-center gap-2 rounded-xl p-2.5 border ${
-              allDownloaded ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'
+              allDownloaded ? 'bg-green-50 border-green-200' : 'bg-accent-50 border-accent-200'
             }`}>
               {allDownloaded ? (
-                <svg className="w-5 h-5 text-green-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                <svg className="w-5 h-5 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12.75l1.5 1.5 3-3.75M7 18a4 4 0 01-.88-7.903A5 5 0 1115.9 8.616 3.5 3.5 0 0117 15.5H7z" /></svg>
               ) : (
-                <svg className="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" /></svg>
+                <svg className="w-5 h-5 text-accent-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 17v-6m0 6l-2.5-2.5M12 17l2.5-2.5M7 18a4 4 0 01-.88-7.903A5 5 0 1115.9 8.616 3.5 3.5 0 0117 15.5" /></svg>
               )}
               <div className="flex-1 min-w-0">
-                <p className={`text-xs font-medium ${allDownloaded ? 'text-green-800' : 'text-amber-800'}`}>
+                <p className={`text-xs font-medium ${allDownloaded ? 'text-green-800' : 'text-accent-800'}`}>
                   {allDownloaded
                     ? 'Semua survei siap dipakai offline'
                     : `${downloadedSurveys.size}/${surveys.length} survei siap offline`}
@@ -440,9 +451,15 @@ function SurveyList() {
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
+                    {allDownloaded ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    )}
                     {allDownloaded ? 'Perbarui' : 'Unduh'}
                   </>
                 )}
@@ -543,7 +560,7 @@ function SurveyList() {
                   ? 'bg-gray-300'
                   : isOfflineReady
                     ? 'bg-accent-500'
-                    : 'bg-amber-400';
+                    : 'bg-accent-400';
 
               return (
                 <div
@@ -556,16 +573,25 @@ function SurveyList() {
                   <div className="flex-1 min-w-0 p-4 sm:p-5">
                     {/* Judul + badge unduh */}
                     <div className="flex items-start justify-between gap-2">
-                      <h2 className="text-base font-bold text-gray-900 leading-snug">{survey.title}</h2>
-                      <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold ${
-                        isOfflineReady
-                          ? 'bg-green-50 text-green-700 border border-green-200'
-                          : 'bg-gray-100 text-gray-500 border border-gray-200'
-                      }`}>
+                      <h2 className="text-lg font-bold font-serif text-gray-900 leading-snug">{survey.title}</h2>
+                      <span
+                        title={isOfflineReady ? 'Tersimpan' : 'Belum diunduh'}
+                        className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold ${
+                          isOfflineReady
+                            ? 'bg-green-50 text-green-700 border border-green-200'
+                            : 'bg-gray-100 text-gray-500 border border-gray-200'
+                        }`}
+                      >
                         {isOfflineReady ? (
-                          <><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg> Tersimpan</>
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12.75l1.5 1.5 3-3.75M7 18a4 4 0 01-.88-7.903A5 5 0 1115.9 8.616 3.5 3.5 0 0117 15.5H7z" /></svg>
+                            Tersimpan
+                          </>
                         ) : (
-                          <>Belum diunduh</>
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 17v-6m0 6l-2.5-2.5M12 17l2.5-2.5M7 18a4 4 0 01-.88-7.903A5 5 0 1115.9 8.616 3.5 3.5 0 0117 15.5" /></svg>
+                            Belum diunduh
+                          </>
                         )}
                       </span>
                     </div>
@@ -573,8 +599,11 @@ function SurveyList() {
                       <p className="text-sm text-gray-500 mt-1">{survey.description}</p>
                     )}
                     {temporal.label && (
-                      <p className={`text-xs mt-1 font-medium ${temporal.isUrgent ? 'text-red-600' : 'text-gray-500'}`}>
-                        {temporal.isUrgent ? '⏳ ' : ''}{temporal.label}
+                      <p className={`text-xs mt-1 font-medium inline-flex items-center gap-1 ${temporal.isUrgent ? 'text-red-600' : 'text-gray-500'}`}>
+                        {temporal.isUrgent && (
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        )}
+                        {temporal.label}
                       </p>
                     )}
 
@@ -592,7 +621,7 @@ function SurveyList() {
 
                     {/* Peringatan belum diunduh */}
                     {!isOfflineReady && temporal.canStart && !targetMet && (
-                      <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-1.5">
+                      <p className="mt-3 text-xs text-accent-700 bg-accent-50 border border-accent-200 rounded-xl px-3 py-2 flex items-center gap-1.5">
                         <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" /></svg>
                         Unduh dulu agar bisa diisi tanpa internet
                       </p>
@@ -609,13 +638,15 @@ function SurveyList() {
                           <span className="flex items-center gap-2 shrink-0">
                             {/* Ringkasan status sekilas */}
                             {localPendingCount > 0 && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">
-                                ⏳ {localPendingCount}
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent-700 bg-accent-100 rounded-full px-2 py-0.5">
+                                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                {localPendingCount}
                               </span>
                             )}
                             {localFailedCount > 0 && (
                               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
-                                ✕ {localFailedCount}
+                                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                {localFailedCount}
                               </span>
                             )}
                             <svg className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -626,7 +657,7 @@ function SurveyList() {
                           {/* Progress bar mini */}
                           <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3 overflow-hidden flex">
                             {syncedCount > 0 && <div className="h-1.5 bg-green-500" style={{ width: `${(syncedCount / numbersToShow.length) * 100}%` }} />}
-                            {localPendingCount > 0 && <div className="h-1.5 bg-amber-400" style={{ width: `${(localPendingCount / numbersToShow.length) * 100}%` }} />}
+                            {localPendingCount > 0 && <div className="h-1.5 bg-accent-400" style={{ width: `${(localPendingCount / numbersToShow.length) * 100}%` }} />}
                             {localFailedCount > 0 && <div className="h-1.5 bg-red-400" style={{ width: `${(localFailedCount / numbersToShow.length) * 100}%` }} />}
                           </div>
 
@@ -635,13 +666,21 @@ function SurveyList() {
                           <ul className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
                             {numbersToShow.map((num) => {
                               const status = numStatus(num);
+                              const iconSvg = {
+                                synced: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
+                                uploading: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7 7 7M12 4v16" /></svg>,
+                                pending: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+                                failed: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
+                                ready: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" strokeWidth={2} /></svg>,
+                                not_downloaded: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" strokeWidth={2} /></svg>,
+                              }[status];
                               const map = {
-                                synced: { row: 'bg-green-50', badge: 'bg-green-100 text-green-800', icon: '✓', iconCls: 'text-green-600', label: 'Sudah terkirim' },
-                                uploading: { row: 'bg-amber-50', badge: 'bg-amber-100 text-amber-800', icon: '↑', iconCls: 'text-amber-600 animate-pulse', label: 'Sedang mengunggah data' },
-                                pending: { row: 'bg-amber-50/60', badge: 'bg-amber-100 text-amber-800', icon: '⏳', iconCls: 'text-amber-600', label: 'Menunggu upload' },
-                                failed: { row: 'bg-red-50', badge: 'bg-red-100 text-red-800', icon: '✕', iconCls: 'text-red-600', label: 'Gagal upload — perlu ditinjau' },
-                                ready: { row: 'bg-white hover:bg-accent-50', badge: 'bg-accent-100 text-accent-700', icon: '○', iconCls: 'text-accent-500', label: 'Belum diisi — ketuk untuk mengisi' },
-                                not_downloaded: { row: 'bg-white', badge: 'bg-gray-100 text-gray-500', icon: '○', iconCls: 'text-gray-400', label: 'Belum diisi' },
+                                synced: { row: 'bg-green-50', badge: 'bg-green-100 text-green-800', iconCls: 'text-green-600', label: 'Sudah terkirim' },
+                                uploading: { row: 'bg-accent-50', badge: 'bg-accent-100 text-accent-800', iconCls: 'text-accent-600 animate-pulse', label: 'Sedang mengunggah data' },
+                                pending: { row: 'bg-accent-50/60', badge: 'bg-accent-100 text-accent-800', iconCls: 'text-accent-600', label: 'Menunggu upload' },
+                                failed: { row: 'bg-red-50', badge: 'bg-red-100 text-red-800', iconCls: 'text-red-600', label: 'Gagal upload — perlu ditinjau' },
+                                ready: { row: 'bg-white hover:bg-accent-50', badge: 'bg-accent-100 text-accent-700', iconCls: 'text-accent-500', label: 'Belum diisi — ketuk untuk mengisi' },
+                                not_downloaded: { row: 'bg-white', badge: 'bg-gray-100 text-gray-500', iconCls: 'text-gray-400', label: 'Belum diisi' },
                               }[status];
                               const clickable = (status === 'ready' || status === 'not_downloaded') && temporal.canStart && !targetMet;
                               const RowTag = clickable ? 'button' : 'div';
@@ -657,7 +696,7 @@ function SurveyList() {
                                       : {})}
                                     className={`w-full min-h-[48px] flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${map.row} ${clickable ? 'cursor-pointer' : ''}`}
                                   >
-                                    <span className={`text-lg leading-none w-5 text-center shrink-0 ${map.iconCls}`} aria-hidden="true">{map.icon}</span>
+                                    <span className={`leading-none w-5 flex items-center justify-center shrink-0 ${map.iconCls}`} aria-hidden="true">{iconSvg}</span>
                                     <span className="flex-1 min-w-0">
                                       <span className="block text-sm font-semibold text-gray-800">Kuesioner No. {num}</span>
                                       <span className="block text-xs text-gray-500">{map.label}</span>
@@ -781,13 +820,15 @@ function SurveyList() {
         onConfirm={handleLogout}
       >
         {pendingCount > 0 && (
-          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-            ⚠️ Ada <strong>{pendingCount} data</strong> yang belum tersinkron ke server. Data akan tetap tersimpan di perangkat dan otomatis diunggah saat Anda login kembali.
+          <p className="text-sm text-accent-700 bg-accent-50 border border-accent-200 rounded-xl px-3 py-2 flex items-start gap-2">
+            <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" /></svg>
+            <span>Ada <strong>{pendingCount} data</strong> yang belum tersinkron ke server. Data akan tetap tersimpan di perangkat dan otomatis diunggah saat Anda login kembali.</span>
           </p>
         )}
         {failedItems.length > 0 && (
-          <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-            ❌ Ada <strong>{failedItems.length} data gagal</strong> yang perlu ditinjau sebelum keluar.
+          <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-start gap-2">
+            <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" /></svg>
+            <span>Ada <strong>{failedItems.length} data gagal</strong> yang perlu ditinjau sebelum keluar.</span>
           </p>
         )}
       </ConfirmSheet>
