@@ -26,6 +26,7 @@ const loginLimiter = rateLimit({
   keyGenerator: (req) => req.headers['cf-connecting-ip'] || req.ip,
   store: new RedisStore({
     sendCommand: (...args) => redis.call(...args),
+    prefix: 'rl:login:', // prefix unik agar tidak bentrok dengan limiter global (ERR_ERL_DOUBLE_COUNT)
   }),
   message: { error: 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.' },
   skip: () => process.env.NODE_ENV === 'test',

@@ -129,6 +129,7 @@ if (process.env.NODE_ENV !== 'test' && process.env.RATE_LIMIT_DISABLED !== 'true
     keyGenerator: rateLimitKey,
     store: new RedisStore({
       sendCommand: (...args) => redis.call(...args),
+      prefix: 'rl:global:', // prefix unik agar tidak bentrok dengan loginLimiter (ERR_ERL_DOUBLE_COUNT)
     }),
     message: { error: 'Terlalu banyak permintaan. Coba lagi nanti.' },
   });
