@@ -18,6 +18,7 @@ import SurveyorProgressTable from '../components/SurveyorProgressTable';
 import DashboardProvinceMap from '../components/DashboardProvinceMap';
 import DashboardTimePattern from '../components/DashboardTimePattern';
 import DashboardDataQuality from '../components/DashboardDataQuality';
+import LazyInView from '../components/LazyInView';
 import api from '../services/api';
 
 // ─── Ikon garis (SVG) ───────────────────────────────────────────────────────────
@@ -394,14 +395,18 @@ function Dashboard() {
           )}
         </section>
 
-        {/* ── Pola waktu masuk ── */}
-        <DashboardTimePattern surveyId={selectedSurvey} />
+        {/* ── Pola waktu masuk (lazy: fetch saat di-scroll) ── */}
+        <LazyInView minHeight={300}>
+          <DashboardTimePattern surveyId={selectedSurvey} />
+        </LazyInView>
 
         {/* ── Peta sebaran provinsi (manual load) ── */}
         <DashboardProvinceMap surveyId={selectedSurvey} />
 
-        {/* ── Kualitas data ── */}
-        <DashboardDataQuality surveyId={selectedSurvey} />
+        {/* ── Kualitas data (lazy: fetch saat di-scroll) ── */}
+        <LazyInView minHeight={220}>
+          <DashboardDataQuality surveyId={selectedSurvey} />
+        </LazyInView>
 
         {/* ── Progress Survei Aktif ── */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Progress survei aktif">
