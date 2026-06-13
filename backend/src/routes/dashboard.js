@@ -26,6 +26,16 @@ async function cacheSet(key, value, ttlSeconds) {
   }
 }
 
+// TTL pendek untuk endpoint inti: tahan beban query identik saat banyak akses
+// berbarengan (mis. banyak orang buka dashboard ketika TPD input deras),
+// tetap cukup segar (≤60 dtk basi).
+const CORE_TTL = 60;
+
+/** Bangun suffix cache key dari daftar surveyId (urut & gabung). */
+function idsKey(surveyIds) {
+  return [...surveyIds].sort().join(',');
+}
+
 /**
  * Validate UUID v4 format.
  * @param {string} str
@@ -109,6 +119,10 @@ router.get('/stats', authMiddleware, requireRole(['admin', 'supervisor', 'viewer
 
     const surveyIds = await resolveDashboardSurveyIds(surveyId);
 
+    const cacheKey = `dash:stats:${idsKey(surveyIds)}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
     const [activeSurveys, activeSurveyors] = await Promise.all([
       Survey.count({ where: { status: 'active' } }),
       User.count({ where: { role: 'surveyor', is_active: true } }),
@@ -117,12 +131,14 @@ router.get('/stats', authMiddleware, requireRole(['admin', 'supervisor', 'viewer
     // Use pre-computed statistics (fast, no COUNT(*) on responses table)
     const { totalResponses, todayResponses } = await getDashboardStats(surveyIds);
 
-    res.json({
+    const payload = {
       activeSurveys,
       activeSurveyors,
       todayResponses,
       totalResponses,
-    });
+    };
+    await cacheSet(cacheKey, payload, CORE_TTL);
+    res.json(payload);
   } catch (error) {
     next(error);
   }
@@ -150,6 +166,10 @@ router.get('/trend', authMiddleware, requireRole(['admin', 'supervisor', 'viewer
     const rangeEnd = wibDayRangeUTC(now).end;
 
     const surveyIds = await resolveDashboardSurveyIds(surveyId);
+
+    const cacheKey = `dash:trend:${idsKey(surveyIds)}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
 
     let rows = [];
     if (surveyIds.length > 0) {
@@ -181,6 +201,7 @@ router.get('/trend', authMiddleware, requireRole(['admin', 'supervisor', 'viewer
       count: countMap[dateStr] || 0,
     }));
 
+    await cacheSet(cacheKey, trend, CORE_TTL);
     res.json(trend);
   } catch (error) {
     next(error);
@@ -204,6 +225,10 @@ router.get('/top-surveyors', authMiddleware, requireRole(['admin', 'supervisor',
     if (surveyIds.length === 0) {
       return res.json([]);
     }
+
+    const cacheKey = `dash:top:${idsKey(surveyIds)}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
 
     const responseWhere = {
       questionnaire_number: { [Op.notLike]: 'PENDING-%' },
@@ -238,6 +263,7 @@ router.get('/top-surveyors', authMiddleware, requireRole(['admin', 'supervisor',
       responseCount: parseInt(row.responseCount, 10),
     }));
 
+    await cacheSet(cacheKey, topSurveyors, CORE_TTL);
     res.json(topSurveyors);
   } catch (error) {
     next(error);
@@ -256,6 +282,12 @@ router.get('/survey-progress/:surveyId', authMiddleware, requireRole(['admin', '
     if (!isValidUUID(surveyId)) {
       return res.status(422).json({ error: 'Format surveyId tidak valid' });
     }
+
+    // Cache per survei: meredam fan-out (1 panggilan/survei aktif tiap buka dashboard)
+    // saat banyak akses berbarengan.
+    const cacheKey = `dash:progress:${surveyId}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
 
     // Check survey exists
     const survey = await Survey.findOne({ where: { id: surveyId }, attributes: ['id', 'title'] });
@@ -296,14 +328,16 @@ router.get('/survey-progress/:surveyId', authMiddleware, requireRole(['admin', '
 
     const completionPercentage = calculatePercentage(totalCollected, totalQuota);
 
-    res.json({
+    const payload = {
       surveyId: survey.id,
       surveyTitle: survey.title,
       totalQuota,
       totalCollected,
       completionPercentage,
       surveyors,
-    });
+    };
+    await cacheSet(cacheKey, payload, CORE_TTL);
+    res.json(payload);
   } catch (error) {
     next(error);
   }

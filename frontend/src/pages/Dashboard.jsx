@@ -137,6 +137,21 @@ function SurveyOverviewCard({ title, totalQuota, totalCollected, percentage, onC
   );
 }
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+function Skeleton({ className = '' }) {
+  return <div className={`animate-pulse bg-gray-100 rounded-xl ${className}`} aria-hidden="true" />;
+}
+
+function StatCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <Skeleton className="w-10 h-10 rounded-xl" />
+      <Skeleton className="h-7 w-20 mt-3" />
+      <Skeleton className="h-3 w-24 mt-2" />
+    </div>
+  );
+}
+
 // ─── Custom Bar Label ─────────────────────────────────────────────────────────
 function BarLabel({ x, y, width, value }) {
   if (!value) return null;
@@ -152,7 +167,9 @@ function Dashboard() {
   const [stats, setStats] = useState(null);
   const [trend, setTrend] = useState([]);
   const [topTPD, setTopTPD] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [trendLoading, setTrendLoading] = useState(true);
+  const [topLoading, setTopLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [activeSurveys, setActiveSurveys] = useState([]);
@@ -165,28 +182,30 @@ function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    async function fetchOverview() {
-      setLoading(true);
-      setError(null);
-      try {
-        const params = selectedSurvey ? { survey_id: selectedSurvey } : {};
-        const [statsRes, trendRes, topRes] = await Promise.all([
-          api.get('/dashboard/stats', { params }),
-          api.get('/dashboard/trend', { params }),
-          api.get('/dashboard/top-surveyors', { params }),
-        ]);
-        if (!cancelled) {
-          setStats(statsRes.data);
-          setTrend(trendRes.data);
-          setTopTPD(topRes.data);
-        }
-      } catch (err) {
-        if (!cancelled) setError(err.response?.data?.message || err.message || 'Gagal memuat data.');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    fetchOverview();
+    const params = selectedSurvey ? { survey_id: selectedSurvey } : {};
+
+    // Tiga permintaan independen → tiap bagian tampil begitu datanya tiba
+    // (render bertahap), bukan menunggu ketiganya selesai.
+    setStatsLoading(true);
+    setTrendLoading(true);
+    setTopLoading(true);
+    setError(null);
+
+    api.get('/dashboard/stats', { params })
+      .then((r) => { if (!cancelled) setStats(r.data); })
+      .catch((err) => { if (!cancelled) setError(err.response?.data?.message || err.message || 'Gagal memuat statistik.'); })
+      .finally(() => { if (!cancelled) setStatsLoading(false); });
+
+    api.get('/dashboard/trend', { params })
+      .then((r) => { if (!cancelled) setTrend(r.data); })
+      .catch(() => { if (!cancelled) setTrend([]); })
+      .finally(() => { if (!cancelled) setTrendLoading(false); });
+
+    api.get('/dashboard/top-surveyors', { params })
+      .then((r) => { if (!cancelled) setTopTPD(r.data); })
+      .catch(() => { if (!cancelled) setTopTPD([]); })
+      .finally(() => { if (!cancelled) setTopLoading(false); });
+
     return () => { cancelled = true; };
   }, [selectedSurvey]);
 
@@ -235,25 +254,6 @@ function Dashboard() {
     }
   }
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Memuat data dashboard…</div>
-      </Layout>
-    );
-  }
-
-  if (error) {
-    return (
-      <Layout>
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4" role="alert">
-          <p className="font-medium">Terjadi kesalahan</p>
-          <p className="text-sm mt-1">{error}</p>
-        </div>
-      </Layout>
-    );
-  }
-
   // Trend data
   const trendData = trend.map((item) => ({
     ...item,
@@ -293,26 +293,44 @@ function Dashboard() {
           </div>
         </div>
 
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4" role="alert">
+            <p className="font-medium">Terjadi kesalahan</p>
+            <p className="text-sm mt-1">{error}</p>
+          </div>
+        )}
+
         {/* ── Summary stat cards ── */}
         <section aria-label="Statistik ringkasan">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <StatCard title="Survei Aktif" value={stats?.activeSurveys} iconName="doc" tint="bg-primary-50 text-primary-600" />
-            <StatCard title="TPD Aktif" value={stats?.activeSurveyors} iconName="brief" tint="bg-emerald-50 text-emerald-600" />
-            <StatCard
-              title="Responden Hari Ini"
-              value={stats?.todayResponses}
-              subtitle={`dari total ${(stats?.totalResponses || 0).toLocaleString('id-ID')} responden`}
-              iconName="clipboard"
-              tint="bg-amber-50 text-amber-600"
-              trend={stats?.todayResponses > 0 ? `${stats.todayResponses.toLocaleString('id-ID')} hari ini` : undefined}
-            />
-            <StatCard
-              title="Total Responden (N)"
-              value={stats?.totalResponses}
-              subtitle={totalQuotaAll > 0 ? `Target: ${totalQuotaAll.toLocaleString('id-ID')} (${overallPercentage}%)` : undefined}
-              iconName="users"
-              tint="bg-violet-50 text-violet-600"
-            />
+            {statsLoading && !stats ? (
+              <>
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+              </>
+            ) : (
+              <>
+                <StatCard title="Survei Aktif" value={stats?.activeSurveys} iconName="doc" tint="bg-primary-50 text-primary-600" />
+                <StatCard title="TPD Aktif" value={stats?.activeSurveyors} iconName="brief" tint="bg-emerald-50 text-emerald-600" />
+                <StatCard
+                  title="Responden Hari Ini"
+                  value={stats?.todayResponses}
+                  subtitle={`dari total ${(stats?.totalResponses || 0).toLocaleString('id-ID')} responden`}
+                  iconName="clipboard"
+                  tint="bg-amber-50 text-amber-600"
+                  trend={stats?.todayResponses > 0 ? `${stats.todayResponses.toLocaleString('id-ID')} hari ini` : undefined}
+                />
+                <StatCard
+                  title="Total Responden (N)"
+                  value={stats?.totalResponses}
+                  subtitle={totalQuotaAll > 0 ? `Target: ${totalQuotaAll.toLocaleString('id-ID')} (${overallPercentage}%)` : undefined}
+                  iconName="users"
+                  tint="bg-violet-50 text-violet-600"
+                />
+              </>
+            )}
           </div>
         </section>
 
@@ -376,7 +394,9 @@ function Dashboard() {
               Total: <span className="font-bold text-gray-700">{trendTotal}</span> responden
             </span>
           </div>
-          {trendData.length === 0 ? (
+          {trendLoading && trend.length === 0 ? (
+            <Skeleton className="w-full h-[280px]" />
+          ) : trendData.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">Belum ada data tren.</p>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
@@ -478,7 +498,11 @@ function Dashboard() {
         {/* ── Top 5 TPD ── */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Top 5 TPD">
           <h2 className="text-base font-semibold text-gray-700 mb-4">Top 5 TPD</h2>
-          {topTPD.length === 0 ? (
+          {topLoading && topTPD.length === 0 ? (
+            <div className="space-y-2">
+              {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+            </div>
+          ) : topTPD.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">Belum ada data TPD.</p>
           ) : (
             <div className="overflow-x-auto">
