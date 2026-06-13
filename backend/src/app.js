@@ -49,6 +49,20 @@ const app = express();
 // rate-limit (lihat rateLimitKey & loginLimiter).
 app.set('trust proxy', 1);
 
+// Jadikan req.ip = IP klien ASLI dari Cloudflare (CF-Connecting-IP) agar access
+// log (morgan), audit log, dan rate-limit mencatat IP pengunjung sebenarnya —
+// bukan IP Cloudflare/nginx. Header ini diset Cloudflare & tak bisa dipalsukan
+// klien selama origin hanya menerima trafik via Cloudflare (batasi firewall ke
+// rentang IP Cloudflare untuk jaminan penuh). Dipasang paling awal agar berlaku
+// untuk semua middleware & route di bawahnya.
+app.use((req, res, next) => {
+  const realIp = req.headers['cf-connecting-ip'];
+  if (realIp) {
+    Object.defineProperty(req, 'ip', { value: realIp, configurable: true });
+  }
+  next();
+});
+
 // ─── Sentry Express error handler ────────────────────────────────────────────
 if (process.env.SENTRY_DSN) {
   Sentry.setupExpressErrorHandler(app);
