@@ -1,22 +1,40 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/Toast';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import UserManagement from './pages/UserManagement';
-import Surveyors from './pages/Surveyors';
-import Surveys from './pages/Surveys';
-import SurveyBuilder from './pages/SurveyBuilder';
-import Responses from './pages/Responses';
-import ResponseDetail from './pages/ResponseDetail';
-import Reports from './pages/Reports';
-import MapView from './pages/MapView';
-import AuditLog from './pages/AuditLog';
-import Cleanup from './pages/Cleanup';
-import SurveyList from './surveyor/pages/SurveyList';
-import SurveyForm from './surveyor/pages/SurveyForm';
-import SubmitSuccess from './surveyor/pages/SubmitSuccess';
-import PublicResults from './public/PublicResults';
+
+// ─── Lazy-loaded pages (code-splitting per rute) ──────────────────────────────
+// Tiap halaman jadi chunk terpisah → bundle awal kecil. Halaman berat (chart
+// recharts, peta leaflet) hanya diunduh saat rutenya dibuka. Embed publik tidak
+// lagi menarik seluruh kode dashboard.
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const UserManagement = lazy(() => import('./pages/UserManagement'));
+const Surveyors = lazy(() => import('./pages/Surveyors'));
+const Surveys = lazy(() => import('./pages/Surveys'));
+const SurveyBuilder = lazy(() => import('./pages/SurveyBuilder'));
+const Responses = lazy(() => import('./pages/Responses'));
+const ResponseDetail = lazy(() => import('./pages/ResponseDetail'));
+const Reports = lazy(() => import('./pages/Reports'));
+const MapView = lazy(() => import('./pages/MapView'));
+const AuditLog = lazy(() => import('./pages/AuditLog'));
+const Cleanup = lazy(() => import('./pages/Cleanup'));
+const SurveyList = lazy(() => import('./surveyor/pages/SurveyList'));
+const SurveyForm = lazy(() => import('./surveyor/pages/SurveyForm'));
+const SubmitSuccess = lazy(() => import('./surveyor/pages/SubmitSuccess'));
+const PublicResults = lazy(() => import('./public/PublicResults'));
+
+// Fallback saat chunk halaman sedang diunduh.
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div
+        className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"
+        role="status"
+        aria-label="Memuat halaman"
+      />
+    </div>
+  );
+}
 
 // ─── Protected Route ──────────────────────────────────────────────────────────
 /**
@@ -60,6 +78,7 @@ function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
@@ -223,6 +242,7 @@ function App() {
           }
         />
       </Routes>
+      </Suspense>
       </ToastProvider>
     </BrowserRouter>
   );
