@@ -43,6 +43,12 @@ const redis = require('./config/redis');
 
 const app = express();
 
+// Di belakang nginx + Cloudflare: percayai 1 hop proxy (nginx) agar req.ip,
+// req.protocol/req.secure benar, dan express-rate-limit tidak menolak header
+// X-Forwarded-For. IP klien asli tetap diambil dari CF-Connecting-IP saat key
+// rate-limit (lihat rateLimitKey & loginLimiter).
+app.set('trust proxy', 1);
+
 // ─── Sentry Express error handler ────────────────────────────────────────────
 if (process.env.SENTRY_DSN) {
   Sentry.setupExpressErrorHandler(app);
@@ -111,7 +117,8 @@ if (process.env.NODE_ENV !== 'test' && process.env.RATE_LIMIT_DISABLED !== 'true
         // token tidak valid → jatuh ke key IP
       }
     }
-    return req.ip;
+    // IP klien asli dari Cloudflare (bukan IP nginx internal).
+    return req.headers['cf-connecting-ip'] || req.ip;
   };
 
   const globalLimiter = rateLimit({

@@ -21,6 +21,9 @@ const loginLimiter = rateLimit({
   max: 10, // 10 attempts per window
   standardHeaders: true,
   legacyHeaders: false,
+  // Key per IP asli klien (dari Cloudflare), bukan IP nginx internal — agar
+  // satu pengguna tidak memblokir semua pengguna lain yang berbagi proxy.
+  keyGenerator: (req) => req.headers['cf-connecting-ip'] || req.ip,
   store: new RedisStore({
     sendCommand: (...args) => redis.call(...args),
   }),
