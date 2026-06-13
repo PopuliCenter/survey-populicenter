@@ -8,6 +8,8 @@ const { stringify } = require('csv-stringify');
 const { Response, Answer, Question, User, Survey, ExportJob } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { queue: exportQueue } = require('../config/queue');
+const { buildSnapshot } = require('../utils/aggregateResults');
+const { buildReportPptx } = require('../utils/buildReportPptx');
 
 const router = express.Router();
 
@@ -602,6 +604,55 @@ router.get('/exports/:jobId/download', authMiddleware, requireRole(['admin', 'su
 
     res.sendFile(filePath);
   } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /reports/surveys/:id/export/pptx
+ * Hasilkan deck laporan survei (PPTX) bergaya template Populi dari data agregat.
+ * Sinkron (jumlah slide ~ jumlah pertanyaan). Narasi otomatis; bisa ditimpa via
+ * body.narratives { [questionId]: teks } dan body.methodology.
+ *
+ * Requires: authMiddleware + requireRole(['admin', 'supervisor', 'viewer'])
+ */
+router.post('/surveys/:id/export/pptx', authMiddleware, requireRole(['admin', 'supervisor', 'viewer']), async (req, res, next) => {
+  try {
+    const { id: survey_id } = req.params;
+
+    const survey = await Survey.findByPk(survey_id, {
+      attributes: ['id', 'title', 'type', 'start_date', 'end_date'],
+    });
+    if (!survey) {
+      return res.status(404).json({ error: 'Survei tidak ditemukan' });
+    }
+
+    const { question_ids: questionIds, narratives, methodology } = req.body || {};
+    const snapshot = await buildSnapshot(survey_id, {
+      questionIds: Array.isArray(questionIds) && questionIds.length > 0 ? questionIds : null,
+    });
+
+    const buffer = await buildReportPptx({
+      survey: {
+        title: survey.title,
+        type: survey.type,
+        start_date: survey.start_date,
+        end_date: survey.end_date,
+      },
+      snapshot,
+      options: {
+        narratives: narratives && typeof narratives === 'object' ? narratives : undefined,
+        methodology: typeof methodology === 'string' ? methodology : undefined,
+      },
+    });
+
+    const safeTitle = (survey.title || 'laporan').replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').substring(0, 50);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}_laporan_${dateStr}.pptx"`);
+    res.send(buffer);
+  } catch (error) {
+    if (error.status === 404) return res.status(404).json({ error: error.message });
     next(error);
   }
 });
