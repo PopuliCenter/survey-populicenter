@@ -13,7 +13,7 @@ function MapView() {
   const currentUser = (() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
   })();
-  const isViewer = currentUser.role === 'viewer';
+  const isViewer = ['viewer', 'partner_lokal'].includes(currentUser.role);
 
   const [surveys, setSurveys] = useState([]);
   const [tpdList, setTpdList] = useState([]);

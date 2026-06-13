@@ -56,18 +56,35 @@ async function authMiddleware(req, res, next) {
 }
 
 /**
- * requireRole - Check req.user.role matches one of the allowed roles
- * Returns 403 for access denied
- * @param {string | string[]} roles - Single role or array of allowed roles
+ * Pewarisan role: role turunan mewarisi izin role dasarnya.
+ *   - partner_lokal (PL)        → seperti viewer (lihat saja)
+ *   - asisten_supervisor        → seperti supervisor (kecuali yang di-deny)
  */
-function requireRole(roles) {
-  const allowedRoles = Array.isArray(roles) ? roles : [roles];
+const ROLE_INHERITS = {
+  partner_lokal: 'viewer',
+  asisten_supervisor: 'supervisor',
+};
+
+/**
+ * requireRole - Check req.user.role matches one of the allowed roles
+ * (atau role dasarnya bila role turunan). Returns 403 for access denied.
+ * @param {string | string[]} roles - Single role or array of allowed roles
+ * @param {{ deny?: string[] }} [options] - role yang ditolak walau mewarisi
+ *        (mis. asisten_supervisor pada rute manajemen survei).
+ */
+function requireRole(roles, options = {}) {
+  const allowedRoles = new Set(Array.isArray(roles) ? roles : [roles]);
+  const denied = new Set(options.deny || []);
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Sesi telah berakhir, silakan login kembali' });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    const role = req.user.role;
+    const base = ROLE_INHERITS[role];
+    const permitted = !denied.has(role) && (allowedRoles.has(role) || (base && allowedRoles.has(base)));
+
+    if (!permitted) {
       return res.status(403).json({ error: 'Anda tidak memiliki izin untuk mengakses resource ini' });
     }
 
@@ -81,7 +98,7 @@ function requireRole(roles) {
  * @returns {boolean} true if roleStr is 'admin', 'supervisor', 'viewer', or 'surveyor'
  */
 function isValidRole(roleStr) {
-  return ['admin', 'supervisor', 'viewer', 'surveyor'].includes(roleStr);
+  return ['admin', 'supervisor', 'viewer', 'surveyor', 'partner_lokal', 'asisten_supervisor'].includes(roleStr);
 }
 
 module.exports = {

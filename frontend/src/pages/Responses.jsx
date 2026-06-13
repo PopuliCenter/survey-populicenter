@@ -56,7 +56,7 @@ function Responses() {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
   })();
   const isSurveyor = currentUser.role === 'surveyor';
-  const isViewer = currentUser.role === 'viewer';
+  const isViewer = ['viewer', 'partner_lokal'].includes(currentUser.role);
 
   // ── Dropdown data ───────────────────────────────────────────────────────────
   const [surveys, setSurveys] = useState([]);

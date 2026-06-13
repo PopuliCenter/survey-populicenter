@@ -92,13 +92,13 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
 
     let surveys;
 
-    if (role === 'admin' || role === 'supervisor') {
-      // Admin and supervisor see all surveys
+    if (role === 'admin' || role === 'supervisor' || role === 'asisten_supervisor') {
+      // Admin, supervisor & asisten supervisor melihat semua survei
       surveys = await Survey.findAll({
         attributes: ['id', 'title', 'description', 'status', 'type', 'start_date', 'end_date', 'created_at'],
         order: [['created_at', 'DESC']],
       });
-    } else if (role === 'viewer') {
+    } else if (role === 'viewer' || role === 'partner_lokal') {
       // Viewer sees active and inactive surveys (not draft)
       surveys = await Survey.findAll({
         where: { status: ['active', 'inactive'] },
@@ -202,7 +202,7 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
  * Body: { title, description }
  * Status defaults to 'draft'
  */
-router.post('/', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.post('/', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { title, description, start_date, end_date, type } = req.body;
 
@@ -315,7 +315,7 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
  * Update survey (admin only)
  * Body: { title, description }
  */
-router.put('/:id', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.put('/:id', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { title, description, start_date, end_date, field_tools_settings, form_mode, type } = req.body;
@@ -393,7 +393,7 @@ router.put('/:id', authMiddleware, requireRole(['admin', 'supervisor']), async (
  * Change status from draft/inactive to active
  * Create PostgreSQL sequence questionnaire_seq_{survey_id_underscored}
  */
-router.patch('/:id/activate', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.patch('/:id/activate', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -440,7 +440,7 @@ router.patch('/:id/activate', authMiddleware, requireRole(['admin', 'supervisor'
  * Deactivate survey (admin only)
  * Change status from active to inactive
  */
-router.patch('/:id/deactivate', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.patch('/:id/deactivate', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -484,7 +484,7 @@ router.patch('/:id/deactivate', authMiddleware, requireRole(['admin', 'superviso
  * Reject if survey has any responses (409)
  * Reject if survey is not draft (409)
  */
-router.delete('/:id', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.delete('/:id', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -543,7 +543,7 @@ router.delete('/:id', authMiddleware, requireRole(['admin', 'supervisor']), asyn
  * Membuat survei baru berstatus draft dengan semua pertanyaan dari survei sumber.
  * Skip logic di-remap agar referensi question_id menunjuk ke UUID pertanyaan baru.
  */
-router.post('/:id/clone', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.post('/:id/clone', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   const { id } = req.params;
 
   try {

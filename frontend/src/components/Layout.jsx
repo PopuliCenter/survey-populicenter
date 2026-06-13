@@ -28,6 +28,20 @@ const NAV_ITEMS_BY_ROLE = {
     { label: 'Data Responden', path: '/responses', icon: 'clipboard' },
     { label: 'Peta', path: '/map', icon: 'map' },
   ],
+  // Partner Lokal (PL): akses lihat saja — sama seperti viewer
+  partner_lokal: [
+    { label: 'Dashboard', path: '/dashboard', icon: 'grid' },
+    { label: 'Data Responden', path: '/responses', icon: 'clipboard' },
+    { label: 'Peta', path: '/map', icon: 'map' },
+  ],
+  // Asisten Supervisor: seperti supervisor TANPA menu Survei
+  asisten_supervisor: [
+    { label: 'Dashboard', path: '/dashboard', icon: 'grid' },
+    { label: 'Manajemen TPD', path: '/surveyors', icon: 'brief' },
+    { label: 'Data Responden', path: '/responses', icon: 'clipboard' },
+    { label: 'Laporan', path: '/reports', icon: 'chart' },
+    { label: 'Peta', path: '/map', icon: 'map' },
+  ],
   surveyor: [], // TPD menggunakan layout terpisah
 };
 
@@ -35,6 +49,18 @@ const SIDEBAR_LABEL_BY_ROLE = {
   admin: 'Admin Dashboard',
   supervisor: 'Supervisor Dashboard',
   viewer: 'Viewer Dashboard',
+  partner_lokal: 'Partner Lokal',
+  asisten_supervisor: 'Asisten Supervisor',
+};
+
+// Label tampilan role (mengganti tampilan mentah seperti "partner_lokal").
+export const ROLE_LABELS = {
+  admin: 'Admin',
+  supervisor: 'Supervisor',
+  viewer: 'Viewer',
+  surveyor: 'TPD',
+  partner_lokal: 'Partner Lokal',
+  asisten_supervisor: 'Asisten Supervisor',
 };
 
 // ─── Ikon garis (SVG) — menggantikan emoji ──────────────────────────────────────
@@ -259,7 +285,7 @@ function Layout({ children }) {
             {sidebarOpen && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white truncate">{user.name || user.email}</p>
-                <p className="text-[11px] text-slate-400 capitalize truncate">{user.role}</p>
+                <p className="text-[11px] text-slate-400 capitalize truncate">{ROLE_LABELS[user.role] || user.role}</p>
               </div>
             )}
             <button
@@ -300,7 +326,7 @@ function Layout({ children }) {
             <div className="flex items-center gap-3 ml-auto">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-medium text-gray-800 truncate max-w-[160px]">{user.name || user.email}</p>
-                <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                <p className="text-xs text-gray-500 capitalize">{ROLE_LABELS[user.role] || user.role}</p>
               </div>
               <div className="w-9 h-9 rounded-full bg-slate-800 text-white font-bold flex items-center justify-center text-sm flex-shrink-0" title={user.name || user.email}>
                 {getInitials(user)}

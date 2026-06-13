@@ -212,8 +212,10 @@ describe('Form modal — admin role', () => {
     const optionValues = options.map(o => o.value);
     expect(optionValues).toContain('admin');
     expect(optionValues).toContain('supervisor');
+    expect(optionValues).toContain('asisten_supervisor');
     expect(optionValues).toContain('viewer');
-    expect(options).toHaveLength(3);
+    expect(optionValues).toContain('partner_lokal');
+    expect(options).toHaveLength(5);
   });
 });
 

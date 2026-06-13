@@ -94,8 +94,8 @@ router.put('/:id', authMiddleware, requireRole(['admin', 'supervisor']), async (
     const { id } = req.params;
     const { name, email, password } = req.body;
 
-    // Supervisor can only update their own account
-    if (req.user.role === 'supervisor' && id !== String(req.user.id)) {
+    // Supervisor & asisten supervisor hanya boleh mengubah akun sendiri
+    if (['supervisor', 'asisten_supervisor'].includes(req.user.role) && id !== String(req.user.id)) {
       return res.status(403).json({ error: 'Anda tidak memiliki izin untuk mengakses resource ini' });
     }
 

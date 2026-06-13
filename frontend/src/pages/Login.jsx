@@ -48,11 +48,15 @@ function Login() {
       localStorage.setItem('user', JSON.stringify(user));
 
       // Redirect based on role
-      if (user.role === 'admin') {
-        navigate('/dashboard');
-      } else {
-        navigate('/surveyor');
-      }
+      const homeByRole = {
+        admin: '/dashboard',
+        supervisor: '/surveys',
+        viewer: '/dashboard',
+        surveyor: '/surveyor',
+        partner_lokal: '/dashboard',
+        asisten_supervisor: '/dashboard',
+      };
+      navigate(homeByRole[user.role] || '/surveyor');
     } catch (err) {
       let message;
       if (err.response?.data?.error) {

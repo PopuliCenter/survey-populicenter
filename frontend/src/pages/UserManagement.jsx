@@ -5,15 +5,22 @@ import api from '../services/api';
 
 // ─── Tab Configuration ────────────────────────────────────────────────────────
 const ALL_TABS = [
-  { key: 'admin',      label: 'Admin',      endpoint: '/admins' },
-  { key: 'supervisor', label: 'Supervisor',  endpoint: '/supervisors' },
-  { key: 'viewer',     label: 'Viewer',      endpoint: '/viewers' },
+  { key: 'admin',              label: 'Admin',              endpoint: '/admins' },
+  { key: 'supervisor',         label: 'Supervisor',         endpoint: '/supervisors' },
+  { key: 'asisten_supervisor', label: 'Asisten Supervisor', endpoint: '/asisten-supervisor' },
+  { key: 'viewer',             label: 'Viewer',             endpoint: '/viewers' },
+  { key: 'partner_lokal',      label: 'Partner Lokal',      endpoint: '/partner-lokal' },
 ];
+
+// Tab terbatas untuk supervisor & asisten (hanya kelola Viewer). Role PL &
+// Asisten dikelola admin.
+const LIMITED_TABS = ALL_TABS.filter(t => t.key === 'viewer');
 
 // ─── Role options for the form modal ─────────────────────────────────────────
 const ROLE_OPTIONS_BY_CURRENT_ROLE = {
-  admin:      ALL_TABS,
-  supervisor: ALL_TABS.filter(t => t.key === 'viewer'),
+  admin:              ALL_TABS,
+  supervisor:         LIMITED_TABS,
+  asisten_supervisor: LIMITED_TABS,
 };
 
 // ─── Password Validation ──────────────────────────────────────────────────────
@@ -356,8 +363,8 @@ function UserManagement() {
 
   // Compute visible tabs based on current user's role
   const visibleTabs =
-    currentUser.role === 'supervisor'
-      ? ALL_TABS.filter(t => t.key === 'viewer')
+    ['supervisor', 'asisten_supervisor'].includes(currentUser.role)
+      ? LIMITED_TABS
       : ALL_TABS;
 
   // Active tab — default to first visible tab

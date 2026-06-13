@@ -288,8 +288,8 @@ function ResponseDetail() {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
   })();
   const userRole = currentUser.role || '';
-  const canEditReview = userRole === 'admin' || userRole === 'supervisor';
-  const canViewReview = canEditReview || userRole === 'viewer';
+  const canEditReview = ['admin', 'supervisor', 'asisten_supervisor'].includes(userRole);
+  const canViewReview = canEditReview || ['viewer', 'partner_lokal'].includes(userRole);
 
   const [response, setResponse] = useState(null);
   const [loading, setLoading] = useState(true);

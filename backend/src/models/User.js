@@ -30,7 +30,7 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(20),
       allowNull: false,
       validate: {
-        isIn: [['admin', 'supervisor', 'viewer', 'surveyor']],
+        isIn: [['admin', 'supervisor', 'viewer', 'surveyor', 'partner_lokal', 'asisten_supervisor']],
       },
     },
     is_active: {

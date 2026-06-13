@@ -212,7 +212,7 @@ router.get('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin',
  * Add a question to a survey (admin only)
  * Body: { text, type, order_index, is_required, randomize_options, options, skip_logic }
  */
-router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { surveyId } = req.params;
     const { text, type, is_required, randomize_options, allow_other, options, skip_logic } = req.body;
@@ -341,7 +341,7 @@ router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin'
  * Update a question (admin only)
  * Body: { text, type, order_index, is_required, randomize_options, options, skip_logic }
  */
-router.put('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.put('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { surveyId, qid } = req.params;
     const { text, type, order_index, is_required, randomize_options, allow_other, options, skip_logic } = req.body;
@@ -475,7 +475,7 @@ router.put('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['ad
  * Delete a question (admin only)
  * Also removes all skip_logic rules in OTHER questions that reference this question as target
  */
-router.delete('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.delete('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { surveyId, qid } = req.params;
 
@@ -529,7 +529,7 @@ router.delete('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole([
  * Reorder questions (admin only)
  * Body: { order: [{ id, order_index }, ...] }
  */
-router.patch('/surveys/:surveyId/questions/reorder', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.patch('/surveys/:surveyId/questions/reorder', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { surveyId } = req.params;
     const { order } = req.body;
@@ -586,7 +586,7 @@ router.patch('/surveys/:surveyId/questions/reorder', authMiddleware, requireRole
  * Export semua pertanyaan survei sebagai JSON.
  * Bisa digunakan untuk backup atau import ke survei lain.
  */
-router.get('/surveys/:surveyId/questions/export', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.get('/surveys/:surveyId/questions/export', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { surveyId } = req.params;
 
@@ -632,7 +632,7 @@ router.get('/surveys/:surveyId/questions/export', authMiddleware, requireRole(['
  * Body: { questions: [{ text, type, is_required, options, ... }] }
  * Pertanyaan ditambahkan setelah pertanyaan yang sudah ada.
  */
-router.post('/surveys/:surveyId/questions/import', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.post('/surveys/:surveyId/questions/import', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { surveyId } = req.params;
     const { questions: importQuestions } = req.body;

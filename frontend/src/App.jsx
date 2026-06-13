@@ -71,18 +71,23 @@ function ProtectedRoute({ children, role }) {
     return <Navigate to="/login" replace />;
   }
 
-  // Optional role check
+  // Optional role check (dengan pewarisan: PL≈viewer, Asisten≈supervisor)
   if (role) {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const ROLE_INHERITS = { partner_lokal: 'viewer', asisten_supervisor: 'supervisor' };
       const allowedRoles = Array.isArray(role) ? role : [role];
-      if (!allowedRoles.includes(user.role)) {
+      const base = ROLE_INHERITS[user.role];
+      const ok = allowedRoles.includes(user.role) || (base && allowedRoles.includes(base));
+      if (!ok) {
         // Redirect to role-specific home page
         const homeByRole = {
           admin: '/dashboard',
           supervisor: '/surveys',
           viewer: '/dashboard',
           surveyor: '/surveyor',
+          partner_lokal: '/dashboard',
+          asisten_supervisor: '/dashboard',
         };
         return <Navigate to={homeByRole[user.role] || '/login'} replace />;
       }
