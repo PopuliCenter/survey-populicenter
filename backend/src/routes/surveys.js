@@ -695,6 +695,73 @@ router.put('/:id/region-targets', authMiddleware, requireRole(['admin', 'supervi
 });
 
 /**
+ * GET /surveys/:id/report-config
+ * Konfigurasi laporan PPTX (metodologi, narasi, demografi, section).
+ */
+router.get('/:id/report-config', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const survey = await Survey.findByPk(req.params.id, { attributes: ['id', 'report_config'] });
+    if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
+    res.json(survey.report_config && typeof survey.report_config === 'object' ? survey.report_config : {});
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /surveys/:id/report-config
+ * Simpan konfigurasi laporan PPTX.
+ * Body: { methodology?, narratives?, demographics?, sections? }
+ */
+router.put('/:id/report-config', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const survey = await Survey.findByPk(req.params.id);
+    if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
+
+    const body = req.body || {};
+    const clean = {};
+
+    if (typeof body.methodology === 'string') clean.methodology = body.methodology;
+
+    if (body.narratives && typeof body.narratives === 'object') {
+      const n = {};
+      for (const [k, v] of Object.entries(body.narratives)) {
+        if (typeof v === 'string' && v.trim()) n[k] = v;
+      }
+      clean.narratives = n;
+    }
+
+    if (Array.isArray(body.demographics)) {
+      clean.demographics = body.demographics.filter((x) => typeof x === 'string');
+    }
+
+    if (body.sections && typeof body.sections === 'object') {
+      const s = {};
+      for (const [k, v] of Object.entries(body.sections)) {
+        if (typeof v === 'string' && v.trim()) s[k] = v.trim();
+      }
+      clean.sections = s;
+    }
+
+    await survey.update({ report_config: clean });
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'UPDATE_REPORT_CONFIG',
+      entity_type: 'survey',
+      entity_id: survey.id,
+      old_value: null,
+      new_value: { keys: Object.keys(clean) },
+      ip_address: req.ip,
+    });
+
+    res.json(clean);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /surveys/:id/publication
  * Status publikasi hasil survei (untuk panel admin di dashboard).
  * Mengembalikan null bila belum pernah dipublikasikan.

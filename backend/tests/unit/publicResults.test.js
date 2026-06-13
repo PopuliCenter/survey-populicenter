@@ -244,3 +244,45 @@ describe('Monitoring klien (embed bertoken)', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('Konfigurasi laporan PPTX', () => {
+  test('PUT /surveys/:id/report-config menyimpan & menormalisasi', async () => {
+    const update = jest.fn().mockResolvedValue(true);
+    Survey.findByPk.mockResolvedValue({ id: 'sv-1', report_config: {}, update });
+
+    const res = await request(app)
+      .put('/surveys/sv-1/report-config')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        methodology: 'Baris 1\nBaris 2',
+        narratives: { q1: 'Narasi q1', q2: '   ' },
+        demographics: ['d1', 'd2', 123],
+        sections: { q1: ' Kondisi Ekonomi ', q3: '' },
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.methodology).toBe('Baris 1\nBaris 2');
+    expect(res.body.narratives).toEqual({ q1: 'Narasi q1' }); // q2 kosong dibuang
+    expect(res.body.demographics).toEqual(['d1', 'd2']); // non-string dibuang
+    expect(res.body.sections).toEqual({ q1: 'Kondisi Ekonomi' }); // trim + kosong dibuang
+    expect(update).toHaveBeenCalled();
+  });
+
+  test('GET /surveys/:id/report-config mengembalikan config', async () => {
+    Survey.findByPk.mockResolvedValue({ id: 'sv-1', report_config: { methodology: 'X', demographics: ['d1'] } });
+    const res = await request(app)
+      .get('/surveys/sv-1/report-config')
+      .set('Authorization', `Bearer ${supervisorToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.demographics).toEqual(['d1']);
+  });
+
+  test('PUT /surveys/:id/report-config ditolak untuk viewer', async () => {
+    const viewerToken = jwt.sign({ id: 'v-1', role: 'viewer', email: 'v@x.com' }, JWT_SECRET, { expiresIn: '8h' });
+    const res = await request(app)
+      .put('/surveys/sv-1/report-config')
+      .set('Authorization', `Bearer ${viewerToken}`)
+      .send({ methodology: 'x' });
+    expect(res.status).toBe(403);
+  });
+});

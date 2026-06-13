@@ -4,6 +4,7 @@ import SurveySelector from '../components/SurveySelector';
 import PublicationPanel from '../components/PublicationPanel';
 import MonitoringPanel from '../components/MonitoringPanel';
 import SamplingTargetModal from '../components/SamplingTargetModal';
+import ReportConfigModal from '../components/ReportConfigModal';
 import { useToast } from '../components/Toast';
 import api from '../services/api';
 
@@ -211,6 +212,8 @@ function Reports() {
 
   // ── Modal target sampling per provinsi ──────────────────────────────────────
   const [showTargets, setShowTargets] = useState(false);
+  // ── Modal konfigurasi laporan PPTX ──────────────────────────────────────────
+  const [showReportConfig, setShowReportConfig] = useState(false);
 
   // ── Load dropdown data on mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -629,6 +632,22 @@ function Reports() {
                 </>
               )}
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!selectedSurveyId) { setExportError('Pilih survei terlebih dahulu.'); return; }
+                setShowReportConfig(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+              aria-label="Konfigurasi laporan PPTX"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              Konfigurasi laporan
+            </button>
           </div>
 
           <p className="text-xs text-gray-400">
@@ -684,6 +703,14 @@ function Reports() {
             surveyId={selectedSurveyId}
             surveyTitle={getSelectedSurveyTitle()}
             onClose={() => setShowTargets(false)}
+          />
+        )}
+
+        {showReportConfig && selectedSurveyId && (
+          <ReportConfigModal
+            surveyId={selectedSurveyId}
+            surveyTitle={getSelectedSurveyTitle()}
+            onClose={() => setShowReportConfig(false)}
           />
         )}
 

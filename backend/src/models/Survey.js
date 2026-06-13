@@ -100,6 +100,12 @@ module.exports = (sequelize) => {
       defaultValue: [],
       // Format: [{ province: 'JAWA BARAT', target: 500 }, ...]
     },
+    report_config: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: {},
+      // { methodology, narratives:{qid:text}, demographics:[qid], sections:{qid:label} }
+    },
   }, {
     tableName: 'surveys',
     underscored: true,

@@ -621,7 +621,7 @@ router.post('/surveys/:id/export/pptx', authMiddleware, requireRole(['admin', 's
     const { id: survey_id } = req.params;
 
     const survey = await Survey.findByPk(survey_id, {
-      attributes: ['id', 'title', 'type', 'start_date', 'end_date'],
+      attributes: ['id', 'title', 'type', 'start_date', 'end_date', 'report_config'],
     });
     if (!survey) {
       return res.status(404).json({ error: 'Survei tidak ditemukan' });
@@ -632,6 +632,8 @@ router.post('/surveys/:id/export/pptx', authMiddleware, requireRole(['admin', 's
       questionIds: Array.isArray(questionIds) && questionIds.length > 0 ? questionIds : null,
     });
 
+    // Gabungkan konfigurasi tersimpan dengan override sekali-pakai dari body.
+    const cfg = survey.report_config && typeof survey.report_config === 'object' ? survey.report_config : {};
     const buffer = await buildReportPptx({
       survey: {
         title: survey.title,
@@ -641,8 +643,10 @@ router.post('/surveys/:id/export/pptx', authMiddleware, requireRole(['admin', 's
       },
       snapshot,
       options: {
-        narratives: narratives && typeof narratives === 'object' ? narratives : undefined,
-        methodology: typeof methodology === 'string' ? methodology : undefined,
+        narratives: { ...(cfg.narratives || {}), ...(narratives && typeof narratives === 'object' ? narratives : {}) },
+        methodology: typeof methodology === 'string' ? methodology : cfg.methodology,
+        demographics: Array.isArray(cfg.demographics) ? cfg.demographics : [],
+        sections: cfg.sections && typeof cfg.sections === 'object' ? cfg.sections : {},
       },
     });
 
