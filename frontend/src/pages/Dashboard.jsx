@@ -15,6 +15,9 @@ import {
 import Layout from '../components/Layout';
 import SurveyProgressCard from '../components/SurveyProgressCard';
 import SurveyorProgressTable from '../components/SurveyorProgressTable';
+import DashboardProvinceMap from '../components/DashboardProvinceMap';
+import DashboardTimePattern from '../components/DashboardTimePattern';
+import DashboardDataQuality from '../components/DashboardDataQuality';
 import api from '../services/api';
 
 // ─── Ikon garis (SVG) ───────────────────────────────────────────────────────────
@@ -267,6 +270,15 @@ function Dashboard() {
   const totalCollectedAll = Object.values(progressMap).reduce((s, p) => s + (p.totalCollected || 0), 0);
   const overallPercentage = totalQuotaAll > 0 ? Math.min(100, Math.round((totalCollectedAll / totalQuotaAll) * 1000) / 10) : 0;
 
+  // Laju & proyeksi (scope mengikuti survei terpilih bila ada)
+  const paceScope = selectedSurvey ? progressMap[selectedSurvey] : null;
+  const paceTarget = paceScope ? paceScope.totalQuota : totalQuotaAll;
+  const paceCollected = paceScope ? paceScope.totalCollected : totalCollectedAll;
+  const avgPerDay = trend.length > 0 ? trendTotal / trend.length : 0;
+  const paceRemaining = Math.max(0, paceTarget - paceCollected);
+  const daysNeeded = avgPerDay > 0 && paceRemaining > 0 ? Math.ceil(paceRemaining / avgPerDay) : null;
+  const projectedDate = daysNeeded != null ? new Date(Date.now() + daysNeeded * 86400000) : null;
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -325,6 +337,36 @@ function Dashboard() {
           </section>
         )}
 
+        {/* ── Laju & Proyeksi ── */}
+        {paceTarget > 0 && (
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Laju dan proyeksi">
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">Laju &amp; Proyeksi</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-xs text-gray-500 mb-1">Laju (7 hari)</p>
+                <p className="text-xl font-bold text-gray-800">{Math.round(avgPerDay).toLocaleString('id-ID')}<span className="text-sm font-normal text-gray-400"> /hari</span></p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-xs text-gray-500 mb-1">Sisa target</p>
+                <p className="text-xl font-bold text-gray-800">{paceRemaining.toLocaleString('id-ID')}</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-xs text-gray-500 mb-1">Estimasi selesai</p>
+                {paceRemaining === 0 ? (
+                  <p className="text-xl font-bold text-green-600">Tercapai ✓</p>
+                ) : projectedDate ? (
+                  <p className="text-xl font-bold text-gray-800">
+                    {projectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    <span className="text-sm font-normal text-gray-400"> · {daysNeeded} hari</span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-400">Belum bisa diestimasi (laju 0)</p>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* ── 7-day trend chart ── */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Tren 7 hari">
           <div className="flex items-center justify-between mb-4">
@@ -351,6 +393,15 @@ function Dashboard() {
             </ResponsiveContainer>
           )}
         </section>
+
+        {/* ── Pola waktu masuk ── */}
+        <DashboardTimePattern surveyId={selectedSurvey} />
+
+        {/* ── Peta sebaran provinsi (manual load) ── */}
+        <DashboardProvinceMap surveyId={selectedSurvey} />
+
+        {/* ── Kualitas data ── */}
+        <DashboardDataQuality surveyId={selectedSurvey} />
 
         {/* ── Progress Survei Aktif ── */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Progress survei aktif">

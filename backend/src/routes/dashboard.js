@@ -4,8 +4,27 @@ const { Survey, User, Response, SurveyorQuota, sequelize } = require('../models'
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { getDashboardStats, getSurveyorResponseCounts } = require('../utils/statisticsUpdater');
 const { wibDateString, wibDayRangeUTC } = require('../utils/time');
+const { normalizeProvince } = require('../utils/province');
+const redis = require('../config/redis');
 
 const router = express.Router();
+
+// Cache ringan via Redis (gagal-aman: bila Redis bermasalah, tetap hitung).
+async function cacheGet(key) {
+  try {
+    const v = await redis.get(key);
+    return v ? JSON.parse(v) : null;
+  } catch {
+    return null;
+  }
+}
+async function cacheSet(key, value, ttlSeconds) {
+  try {
+    await redis.setex(key, ttlSeconds, JSON.stringify(value));
+  } catch {
+    /* abaikan kegagalan cache */
+  }
+}
 
 /**
  * Validate UUID v4 format.
@@ -385,6 +404,160 @@ router.get('/surveyor-summary', authMiddleware, requireRole(['admin', 'superviso
     });
 
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /dashboard/responses-by-province
+ * Sebaran responden (committed) per provinsi, dari jawaban pertanyaan wilayah.
+ * Dimuat MANUAL (tombol) + di-cache 10 menit agar tidak membebani server.
+ */
+router.get('/responses-by-province', authMiddleware, requireRole(['admin', 'supervisor', 'viewer']), async (req, res, next) => {
+  try {
+    const { survey_id: surveyId } = req.query;
+    const surveyIds = await resolveDashboardSurveyIds(surveyId);
+    if (surveyIds.length === 0) {
+      return res.json({ regions: [], generated_at: new Date().toISOString(), cached: false });
+    }
+
+    const cacheKey = `dash:prov:${[...surveyIds].sort().join(',')}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json({ ...cached, cached: true });
+
+    const rows = await sequelize.query(
+      `SELECT a.answer_json->>'province_name' AS province, COUNT(*)::int AS count
+       FROM answers a
+       JOIN responses r ON r.id = a.response_id
+       JOIN questions q ON q.id = a.question_id
+       WHERE q.survey_id IN (:surveyIds)
+         AND r.survey_id IN (:surveyIds)
+         AND q.type = 'indonesia_region'
+         AND r.questionnaire_number NOT LIKE 'PENDING-%'
+         AND a.answer_json->>'province_name' IS NOT NULL
+       GROUP BY 1`,
+      { replacements: { surveyIds }, type: sequelize.QueryTypes.SELECT }
+    );
+
+    const merged = new Map();
+    for (const row of rows) {
+      const key = normalizeProvince(row.province);
+      if (!key) continue;
+      merged.set(key, (merged.get(key) || 0) + Number(row.count));
+    }
+    const regions = Array.from(merged, ([province, count]) => ({ province, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const payload = { regions, generated_at: new Date().toISOString() };
+    await cacheSet(cacheKey, payload, 600);
+    res.json({ ...payload, cached: false });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /dashboard/time-pattern
+ * Pola waktu responden masuk (WIB): per hari-dalam-minggu & per jam (committed).
+ */
+router.get('/time-pattern', authMiddleware, requireRole(['admin', 'supervisor', 'viewer']), async (req, res, next) => {
+  try {
+    const { survey_id: surveyId } = req.query;
+    const surveyIds = await resolveDashboardSurveyIds(surveyId);
+    const emptyWeekday = Array.from({ length: 7 }, (_, dow) => ({ dow, count: 0 }));
+    const emptyHour = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 }));
+    if (surveyIds.length === 0) return res.json({ by_weekday: emptyWeekday, by_hour: emptyHour });
+
+    const cacheKey = `dash:time:${[...surveyIds].sort().join(',')}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    const rows = await sequelize.query(
+      `SELECT EXTRACT(DOW FROM created_at AT TIME ZONE 'Asia/Jakarta')::int AS dow,
+              EXTRACT(HOUR FROM created_at AT TIME ZONE 'Asia/Jakarta')::int AS hour,
+              COUNT(*)::int AS count
+       FROM responses
+       WHERE survey_id IN (:surveyIds) AND questionnaire_number NOT LIKE 'PENDING-%'
+       GROUP BY 1, 2`,
+      { replacements: { surveyIds }, type: sequelize.QueryTypes.SELECT }
+    );
+
+    const byWeekday = emptyWeekday.map((d) => ({ ...d }));
+    const byHour = emptyHour.map((h) => ({ ...h }));
+    for (const r of rows) {
+      const c = Number(r.count);
+      if (r.dow >= 0 && r.dow <= 6) byWeekday[r.dow].count += c;
+      if (r.hour >= 0 && r.hour <= 23) byHour[r.hour].count += c;
+    }
+
+    const payload = { by_weekday: byWeekday, by_hour: byHour };
+    await cacheSet(cacheKey, payload, 300);
+    res.json(payload);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /dashboard/data-quality
+ * Kualitas data: status review (committed), cakupan GPS, & jumlah sesi pending.
+ */
+router.get('/data-quality', authMiddleware, requireRole(['admin', 'supervisor', 'viewer']), async (req, res, next) => {
+  try {
+    const { survey_id: surveyId } = req.query;
+    const surveyIds = await resolveDashboardSurveyIds(surveyId);
+    const empty = {
+      total: 0,
+      by_review: { unreviewed: 0, flagged: 0, verified: 0 },
+      gps: { with: 0, without: 0, pct: null },
+      pending: 0,
+    };
+    if (surveyIds.length === 0) return res.json(empty);
+
+    const cacheKey = `dash:quality:${[...surveyIds].sort().join(',')}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    const [reviewRows, pendingRow] = await Promise.all([
+      sequelize.query(
+        `SELECT review_status,
+                COUNT(*)::int AS count,
+                COUNT(*) FILTER (WHERE latitude IS NOT NULL)::int AS with_gps
+         FROM responses
+         WHERE survey_id IN (:surveyIds) AND questionnaire_number NOT LIKE 'PENDING-%'
+         GROUP BY review_status`,
+        { replacements: { surveyIds }, type: sequelize.QueryTypes.SELECT }
+      ),
+      sequelize.query(
+        `SELECT COUNT(*)::int AS pending FROM responses
+         WHERE survey_id IN (:surveyIds) AND questionnaire_number LIKE 'PENDING-%'`,
+        { replacements: { surveyIds }, type: sequelize.QueryTypes.SELECT }
+      ),
+    ]);
+
+    const byReview = { unreviewed: 0, flagged: 0, verified: 0 };
+    let total = 0;
+    let withGps = 0;
+    for (const r of reviewRows) {
+      const c = Number(r.count);
+      total += c;
+      withGps += Number(r.with_gps);
+      if (byReview[r.review_status] != null) byReview[r.review_status] += c;
+    }
+
+    const payload = {
+      total,
+      by_review: byReview,
+      gps: {
+        with: withGps,
+        without: total - withGps,
+        pct: total > 0 ? Math.round((withGps / total) * 1000) / 10 : null,
+      },
+      pending: Number((pendingRow[0] && pendingRow[0].pending) || 0),
+    };
+    await cacheSet(cacheKey, payload, 300);
+    res.json(payload);
   } catch (error) {
     next(error);
   }
