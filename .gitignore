@@ -35,3 +35,8 @@ certs/
 *.bak
 *.bak.*
 .env.bak.*
+
+# Berkas referensi/template laporan — JANGAN di-commit/deploy (rahasia & besar)
+frontend/public/Final Report*
+frontend/public/*.thmx
+frontend/public/~$*

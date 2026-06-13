@@ -20,7 +20,7 @@ const { narrateQuestion } = require('./reportNarrative');
 const SLIDE_W = 10.833;
 const SLIDE_H = 7.5;
 const NAVY = '1F3864';
-const ORANGE = 'F26522';
+const ORANGE = 'FF9300'; // oranye deck Populi (dari kotak nomor halaman di master)
 const BLUE = '2E75B6';
 const INK = '262626';
 const GRAY = '595959';
@@ -59,21 +59,22 @@ async function buildReportPptx({ survey, snapshot, options = {} }) {
   const footerText = `POPULI CENTER: ${(survey.title || 'SURVEI').toUpperCase()}${period ? ` (${period})` : ''}`;
   let page = 1;
 
-  function brandCorner(slide) {
-    if (hasLogo) {
-      const w = 1.7, h = w / LOGO_RATIO;
-      slide.addImage({ path: LOGO, x: SLIDE_W - w - 0.28, y: 0.24, w, h });
-    }
+  // "CONFIDENTIAL" merah di pojok kanan atas tiap slide (gaya master template).
+  function confidential(slide) {
+    if (options.confidential === false) return;
+    slide.addText('CONFIDENTIAL - TIDAK UNTUK PUBLIKASI', { x: 7.15, y: 0.11, w: 3.18, h: 0.3, fontFace: 'Calibri', fontSize: 11, bold: true, color: 'C00000', align: 'right', valign: 'middle' });
   }
+  // Footer: "POPULI CENTER: ..." kiri-bawah + nomor halaman dalam kotak oranye kanan-bawah.
   function footer(slide) {
-    slide.addText(footerText, { x: 0.5, y: 7.06, w: SLIDE_W - 1.4, h: 0.32, fontFace: 'Calibri', fontSize: 9, color: GRAY });
-    slide.addText(String(page), { x: SLIDE_W - 0.85, y: 7.06, w: 0.55, h: 0.32, fontFace: 'Calibri', fontSize: 11, bold: true, color: NAVY, align: 'right' });
+    slide.addText(footerText, { x: 0.5, y: 7.05, w: 8.9, h: 0.32, fontFace: 'Calibri', fontSize: 9, color: GRAY, valign: 'middle' });
+    slide.addShape(pptx.ShapeType.rect, { x: 9.58, y: 6.95, w: 0.71, h: 0.4, fill: { color: ORANGE }, line: { type: 'none' } });
+    slide.addText(String(page), { x: 9.58, y: 6.95, w: 0.71, h: 0.4, fontFace: 'Calibri', fontSize: 14, bold: true, color: 'FFFFFF', align: 'center', valign: 'middle' });
     page += 1;
   }
   // Header section + garis aksen oranye (gaya template).
   function header(slide, label) {
-    slide.addText((label || '').toUpperCase(), { x: 0.5, y: 0.26, w: 6.7, h: 0.55, fontFace: 'Calibri', fontSize: 20, bold: true, color: NAVY, valign: 'middle' });
-    slide.addShape(pptx.ShapeType.rect, { x: 0.52, y: 0.82, w: 2.1, h: 0.045, fill: { color: ORANGE }, line: { type: 'none' } });
+    slide.addText((label || '').toUpperCase(), { x: 0.5, y: 0.42, w: 6.4, h: 0.55, fontFace: 'Calibri', fontSize: 20, bold: true, color: NAVY, valign: 'middle' });
+    slide.addShape(pptx.ShapeType.rect, { x: 0.52, y: 1.0, w: 2.1, h: 0.05, fill: { color: ORANGE }, line: { type: 'none' } });
   }
   function barChart(slide, q, box) {
     const dist = Array.isArray(q.distribution) ? q.distribution.slice(0, 12) : [];
@@ -105,7 +106,7 @@ async function buildReportPptx({ survey, snapshot, options = {} }) {
   // ── Metodologi ──────────────────────────────────────────────────────────
   {
     const slide = pptx.addSlide();
-    brandCorner(slide); header(slide, 'Pengantar & Metodologi');
+    confidential(slide); header(slide, 'Pengantar & Metodologi');
     const n = (snapshot.target && snapshot.target.total) || snapshot.response_count || 0;
     const achieved = snapshot.response_count || 0;
     const provinces = snapshot.map && Array.isArray(snapshot.map.regions) ? snapshot.map.regions.length : null;
@@ -125,7 +126,7 @@ async function buildReportPptx({ survey, snapshot, options = {} }) {
   // ── Peta/sebaran provinsi ──────────────────────────────────────────────────
   if (snapshot.map && Array.isArray(snapshot.map.regions) && snapshot.map.regions.length > 0) {
     const slide = pptx.addSlide();
-    brandCorner(slide); header(slide, 'Sebaran Responden per Provinsi');
+    confidential(slide); header(slide, 'Sebaran Responden per Provinsi');
     const top = snapshot.map.regions.slice(0, 15);
     barChart(slide, { type: 'single_choice', distribution: top.map((r) => ({ label: r.name, count: r.count, pct: null })) }, { x: 0.5, y: 1.15, w: SLIDE_W - 1.0, h: 5.6 });
     footer(slide);
@@ -144,7 +145,7 @@ async function buildReportPptx({ survey, snapshot, options = {} }) {
     divider('Profil Responden');
     for (const group of chunk(demoQs, 4)) {
       const slide = pptx.addSlide();
-      brandCorner(slide); header(slide, 'Profil Responden');
+      confidential(slide); header(slide, 'Profil Responden');
       const boxes = [
         { x: 0.5, y: 1.25, w: 4.85, h: 2.55 }, { x: 5.5, y: 1.25, w: 4.85, h: 2.55 },
         { x: 0.5, y: 4.1, w: 4.85, h: 2.55 }, { x: 5.5, y: 4.1, w: 4.85, h: 2.55 },
@@ -172,10 +173,10 @@ async function buildReportPptx({ survey, snapshot, options = {} }) {
     first = false;
 
     const slide = pptx.addSlide();
-    brandCorner(slide);
+    confidential(slide);
     header(slide, currentSection || 'Hasil Survei');
-    slide.addText(q.text || 'Pertanyaan', { x: 0.5, y: 0.98, w: SLIDE_W - 1.0, h: 0.85, fontFace: 'Calibri', fontSize: 15, bold: true, color: INK, valign: 'top' });
-    barChart(slide, q, { x: 0.35, y: 1.95, w: 5.45, h: 4.7 });
+    slide.addText(q.text || 'Pertanyaan', { x: 0.5, y: 1.12, w: SLIDE_W - 1.0, h: 0.78, fontFace: 'Calibri', fontSize: 15, bold: true, color: INK, valign: 'top' });
+    barChart(slide, q, { x: 0.35, y: 1.98, w: 5.45, h: 4.65 });
     // Narasi di kanan, dalam kotak ringan + garis aksen.
     slide.addShape(pptx.ShapeType.rect, { x: 6.0, y: 2.0, w: 0.06, h: 4.3, fill: { color: ORANGE }, line: { type: 'none' } });
     const narrative = narratives[q.id] || narrateQuestion(q);
