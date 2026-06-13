@@ -1,28 +1,48 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/Toast';
 import Login from './pages/Login';
 
 // ─── Lazy-loaded pages (code-splitting per rute) ──────────────────────────────
-// Tiap halaman jadi chunk terpisah → bundle awal kecil. Halaman berat (chart
-// recharts, peta leaflet) hanya diunduh saat rutenya dibuka. Embed publik tidak
-// lagi menarik seluruh kode dashboard.
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const UserManagement = lazy(() => import('./pages/UserManagement'));
-const Surveyors = lazy(() => import('./pages/Surveyors'));
-const Surveys = lazy(() => import('./pages/Surveys'));
-const SurveyBuilder = lazy(() => import('./pages/SurveyBuilder'));
-const Responses = lazy(() => import('./pages/Responses'));
-const ResponseDetail = lazy(() => import('./pages/ResponseDetail'));
-const Reports = lazy(() => import('./pages/Reports'));
-const MapView = lazy(() => import('./pages/MapView'));
-const AuditLog = lazy(() => import('./pages/AuditLog'));
-const Cleanup = lazy(() => import('./pages/Cleanup'));
+// Tiap halaman jadi chunk terpisah → bundle awal kecil. Importer dipakai ulang
+// untuk lazy() DAN prefetch saat idle (lihat prefetchRoutes), agar navigasi
+// berikutnya instan tanpa layar kosong.
+const importers = {
+  dashboard: () => import('./pages/Dashboard'),
+  users: () => import('./pages/UserManagement'),
+  surveyors: () => import('./pages/Surveyors'),
+  surveys: () => import('./pages/Surveys'),
+  builder: () => import('./pages/SurveyBuilder'),
+  responses: () => import('./pages/Responses'),
+  responseDetail: () => import('./pages/ResponseDetail'),
+  reports: () => import('./pages/Reports'),
+  map: () => import('./pages/MapView'),
+  audit: () => import('./pages/AuditLog'),
+  cleanup: () => import('./pages/Cleanup'),
+};
+
+const Dashboard = lazy(importers.dashboard);
+const UserManagement = lazy(importers.users);
+const Surveyors = lazy(importers.surveyors);
+const Surveys = lazy(importers.surveys);
+const SurveyBuilder = lazy(importers.builder);
+const Responses = lazy(importers.responses);
+const ResponseDetail = lazy(importers.responseDetail);
+const Reports = lazy(importers.reports);
+const MapView = lazy(importers.map);
+const AuditLog = lazy(importers.audit);
+const Cleanup = lazy(importers.cleanup);
 const SurveyList = lazy(() => import('./surveyor/pages/SurveyList'));
 const SurveyForm = lazy(() => import('./surveyor/pages/SurveyForm'));
 const SubmitSuccess = lazy(() => import('./surveyor/pages/SubmitSuccess'));
 const PublicResults = lazy(() => import('./public/PublicResults'));
 const PublicMonitor = lazy(() => import('./public/PublicMonitor'));
+
+// Prefetch chunk rute dashboard saat browser idle → klik menu jadi instan
+// (chunk sudah ter-cache, tidak ada layar kosong + spinner).
+function prefetchRoutes() {
+  Object.values(importers).forEach((fn) => { fn().catch(() => {}); });
+}
 
 // Fallback saat chunk halaman sedang diunduh.
 function PageLoader() {
@@ -76,6 +96,18 @@ function ProtectedRoute({ children, role }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 function App() {
+  // Setelah render awal, prefetch chunk rute saat idle (hanya bila sudah login)
+  // agar perpindahan halaman terasa instan.
+  useEffect(() => {
+    if (!localStorage.getItem('token')) return undefined;
+    const ric = typeof window !== 'undefined' && window.requestIdleCallback;
+    const id = ric ? ric(prefetchRoutes, { timeout: 4000 }) : setTimeout(prefetchRoutes, 2500);
+    return () => {
+      if (ric && window.cancelIdleCallback) window.cancelIdleCallback(id);
+      else clearTimeout(id);
+    };
+  }, []);
+
   return (
     <BrowserRouter>
       <ToastProvider>
