@@ -96,6 +96,25 @@ cocokkan dengan `data.slug` yang dikirim (mis. `data.slug === 'nama-survei'`).
 
 ---
 
+## 4b. Embed monitoring klien (link privat)
+
+Selain hasil publik, ada embed **monitoring** untuk klien memantau *capaian vs
+target* random sampling (total & per provinsi), diperbarui berkala (±15 menit).
+
+- Admin mengaktifkannya di **Laporan & Ekspor → Target Sampling per Provinsi →
+  Aktifkan monitoring**, lalu menyalin **tautan privat bertoken** atau cuplikan iframe.
+- Tautannya berbentuk `https://risetcenter.com/embed/monitor/<token-rahasia>`.
+- **Bersifat privat** — token tidak bisa ditebak. Hanya bagikan ke klien terkait,
+  jangan tayangkan di halaman publik.
+- Capaian per provinsi hanya muncul bila survei punya pertanyaan wilayah
+  (`indonesia_region`) dan target per provinsi sudah diisi admin. Jika tidak,
+  hanya capaian total yang tampil.
+
+Cara menyemat sama seperti embed hasil (widget HTML + skrip auto-resize), cukup
+ganti `src` dengan tautan monitoring.
+
+---
+
 ## 5. API publik (untuk integrasi lanjutan)
 
 Bila tim website ingin merender sendiri (tanpa iframe), tersedia API JSON publik
@@ -105,6 +124,7 @@ Bila tim website ingin merender sendiri (tanpa iframe), tersedia API JSON publik
 |---|---|
 | `GET https://risetcenter.com/public/results` | Daftar survei yang dipublikasikan |
 | `GET https://risetcenter.com/public/results/{slug}` | Snapshot agregat satu survei |
+| `GET https://risetcenter.com/public/monitor/{token}` | Snapshot monitoring (capaian vs target) — link privat |
 
 Contoh isi snapshot: `response_count`, `questions[]` (tiap pertanyaan punya
 `distribution[]` berisi `{ label, count, pct }`), dan `map.regions[]`

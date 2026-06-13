@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Layout from '../components/Layout';
 import SurveySelector from '../components/SurveySelector';
 import PublicationPanel from '../components/PublicationPanel';
+import MonitoringPanel from '../components/MonitoringPanel';
+import SamplingTargetModal from '../components/SamplingTargetModal';
 import { useToast } from '../components/Toast';
 import api from '../services/api';
 
@@ -205,6 +207,9 @@ function Reports() {
 
   // ── Async job tracking ──────────────────────────────────────────────────────
   const [activeJobs, setActiveJobs] = useState([]);
+
+  // ── Modal target sampling per provinsi ──────────────────────────────────────
+  const [showTargets, setShowTargets] = useState(false);
 
   // ── Load dropdown data on mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -590,6 +595,40 @@ function Reports() {
               surveyTitle={getSelectedSurveyTitle()}
             />
           </div>
+        )}
+
+        {/* Monitoring & target sampling — admin saja */}
+        {isAdmin && (
+          <div className="bg-white rounded-xl shadow p-5 space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-700">Target Sampling per Provinsi</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Rencana random sampling per wilayah — dipakai untuk memantau capaian vs target.
+              </p>
+            </div>
+            {selectedSurveyId ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowTargets(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg"
+                >
+                  Atur target per provinsi
+                </button>
+                <MonitoringPanel surveyId={selectedSurveyId} surveyTitle={getSelectedSurveyTitle()} />
+              </>
+            ) : (
+              <p className="text-sm text-gray-400">Pilih survei terlebih dahulu.</p>
+            )}
+          </div>
+        )}
+
+        {showTargets && selectedSurveyId && (
+          <SamplingTargetModal
+            surveyId={selectedSurveyId}
+            surveyTitle={getSelectedSurveyTitle()}
+            onClose={() => setShowTargets(false)}
+          />
         )}
 
         {/* Async job tracker */}

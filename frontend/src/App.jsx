@@ -22,6 +22,7 @@ const SurveyList = lazy(() => import('./surveyor/pages/SurveyList'));
 const SurveyForm = lazy(() => import('./surveyor/pages/SurveyForm'));
 const SubmitSuccess = lazy(() => import('./surveyor/pages/SubmitSuccess'));
 const PublicResults = lazy(() => import('./public/PublicResults'));
+const PublicMonitor = lazy(() => import('./public/PublicMonitor'));
 
 // Fallback saat chunk halaman sedang diunduh.
 function PageLoader() {
@@ -85,6 +86,9 @@ function App() {
 
         {/* Embed publik hasil survei (tanpa login) — disematkan di populicenter.org */}
         <Route path="/embed/results/:slug" element={<PublicResults />} />
+
+        {/* Embed monitoring klien (link bertoken) — capaian vs target */}
+        <Route path="/embed/monitor/:token" element={<PublicMonitor />} />
 
         {/* Redirect root ke login */}
         <Route path="/" element={<Navigate to="/login" replace />} />

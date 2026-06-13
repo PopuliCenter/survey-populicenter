@@ -94,6 +94,12 @@ module.exports = (sequelize) => {
         isIn: [['nasional', 'daerah', 'lainnya']],
       },
     },
+    region_targets: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: [],
+      // Format: [{ province: 'JAWA BARAT', target: 500 }, ...]
+    },
   }, {
     tableName: 'surveys',
     underscored: true,

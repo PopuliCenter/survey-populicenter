@@ -1,67 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from 'recharts';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import publicApi from '../services/publicApi';
-import { lookupCentroid } from '../data/provinceCentroids';
+import ProvinceBubbleMap from './ProvinceBubbleMap';
 
 // Palet warna konsisten untuk batang & lingkaran peta.
 const COLORS = ['#2563eb', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#10b981'];
-
-// ─── Peta sebaran: proporsional-simbol di centroid provinsi ───────────────────
-function ProvinceBubbleMap({ regions }) {
-  const containerRef = useRef(null);
-  const mapRef = useRef(null);
-
-  useEffect(() => {
-    if (mapRef.current || !containerRef.current) return;
-
-    const map = L.map(containerRef.current, {
-      center: [-2.5, 118],
-      zoom: 4,
-      scrollWheelZoom: false,
-      attributionControl: true,
-    });
-    mapRef.current = map;
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 12,
-    }).addTo(map);
-
-    const max = regions.reduce((m, r) => Math.max(m, r.count), 0) || 1;
-    const bounds = [];
-    for (const r of regions) {
-      const c = lookupCentroid(r.name);
-      if (!c) continue;
-      // Radius proporsional ke akar jumlah (agar luas ~ jumlah), 6–34 px.
-      const radius = 6 + Math.sqrt(r.count / max) * 28;
-      L.circleMarker([c.lat, c.lng], {
-        radius,
-        color: '#1d4ed8',
-        weight: 1,
-        fillColor: '#3b82f6',
-        fillOpacity: 0.5,
-      })
-        .bindTooltip(`${r.name}: ${r.count.toLocaleString('id-ID')} responden`, { direction: 'top' })
-        .addTo(map);
-      bounds.push([c.lat, c.lng]);
-    }
-    if (bounds.length > 0) {
-      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 7 });
-    }
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
-  }, [regions]);
-
-  return <div ref={containerRef} style={{ height: 360, width: '100%', borderRadius: 12 }} />;
-}
 
 // ─── Satu blok pertanyaan: bar chart distribusi ───────────────────────────────
 function DistributionChart({ data }) {
@@ -211,6 +157,23 @@ function PublicResults() {
             <span> · Dipublikasikan {new Date(data.published_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
           )}
         </p>
+        {data.target?.total > 0 && (
+          <div className="mt-3 max-w-sm">
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>Capaian responden</span>
+              <span className="font-medium text-gray-700">
+                {data.target.achieved?.toLocaleString('id-ID')} / {data.target.total?.toLocaleString('id-ID')}
+                {data.target.pct != null && ` (${data.target.pct}%)`}
+              </span>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 rounded-full"
+                style={{ width: `${Math.min(100, data.target.pct || 0)}%` }}
+              />
+            </div>
+          </div>
+        )}
         {data.summary && (
           <p className="text-sm text-gray-700 mt-3 leading-relaxed whitespace-pre-line">{data.summary}</p>
         )}

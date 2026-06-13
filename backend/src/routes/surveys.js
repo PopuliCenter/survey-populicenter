@@ -1,10 +1,11 @@
 const express = require('express');
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
-const { Survey, Question, Response, AuditLog, PublishedResult, sequelize } = require('../models');
+const { Survey, Question, Response, AuditLog, PublishedResult, MonitoringReport, sequelize } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { validateFieldToolsSettings } = require('../utils/fieldToolsValidator');
-const { buildSnapshot } = require('../utils/aggregateResults');
+const { buildSnapshot, buildMonitoringSnapshot } = require('../utils/aggregateResults');
 
 /**
  * slugify — ubah judul menjadi kunci URL aman: huruf kecil, kata dipisah "-".
@@ -636,6 +637,64 @@ router.post('/:id/clone', authMiddleware, requireRole(['admin', 'supervisor']), 
 });
 
 /**
+ * GET /surveys/:id/region-targets
+ * Ambil rencana target sampling per provinsi.
+ */
+router.get('/:id/region-targets', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const survey = await Survey.findByPk(req.params.id, { attributes: ['id', 'region_targets'] });
+    if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
+    res.json(Array.isArray(survey.region_targets) ? survey.region_targets : []);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /surveys/:id/region-targets
+ * Simpan rencana target sampling per provinsi.
+ * Body: { region_targets: [{ province, target }] }
+ */
+router.put('/:id/region-targets', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const survey = await Survey.findByPk(req.params.id);
+    if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
+
+    const raw = (req.body && req.body.region_targets) || [];
+    if (!Array.isArray(raw)) {
+      return res.status(422).json({ error: 'region_targets harus berupa array' });
+    }
+
+    // Normalisasi: provinsi non-kosong + target bilangan bulat > 0. Provinsi duplikat dijumlahkan.
+    const byProvince = new Map();
+    for (const item of raw) {
+      const province = item && typeof item.province === 'string' ? item.province.trim() : '';
+      const target = Number(item && item.target);
+      if (!province || !Number.isFinite(target) || target <= 0) continue;
+      const t = Math.floor(target);
+      byProvince.set(province, (byProvince.get(province) || 0) + t);
+    }
+    const clean = Array.from(byProvince, ([province, target]) => ({ province, target }));
+
+    await survey.update({ region_targets: clean });
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'UPDATE_REGION_TARGETS',
+      entity_type: 'survey',
+      entity_id: survey.id,
+      old_value: null,
+      new_value: { count: clean.length, total: clean.reduce((s, r) => s + r.target, 0) },
+      ip_address: req.ip,
+    });
+
+    res.json(clean);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /surveys/:id/publication
  * Status publikasi hasil survei (untuk panel admin di dashboard).
  * Mengembalikan null bila belum pernah dipublikasikan.
@@ -644,7 +703,7 @@ router.get('/:id/publication', authMiddleware, requireRole(['admin', 'supervisor
   try {
     const pub = await PublishedResult.findOne({
       where: { survey_id: req.params.id },
-      attributes: ['slug', 'title', 'summary', 'survey_type', 'response_count', 'is_published', 'published_at'],
+      attributes: ['slug', 'title', 'summary', 'survey_type', 'response_count', 'question_ids', 'is_published', 'published_at'],
     });
     if (!pub) return res.json(null);
     res.json({
@@ -653,6 +712,7 @@ router.get('/:id/publication', authMiddleware, requireRole(['admin', 'supervisor
       summary: pub.summary,
       type: pub.survey_type,
       response_count: pub.response_count,
+      question_ids: pub.question_ids,
       is_published: pub.is_published,
       published_at: pub.published_at,
     });
@@ -670,15 +730,20 @@ router.get('/:id/publication', authMiddleware, requireRole(['admin', 'supervisor
 router.post('/:id/publish', authMiddleware, requireRole(['admin']), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { summary, slug: slugOverride } = req.body || {};
+    const { summary, slug: slugOverride, question_ids: questionIds } = req.body || {};
 
     const survey = await Survey.findByPk(id, { attributes: ['id', 'title', 'type'] });
     if (!survey) {
       return res.status(404).json({ error: 'Survei tidak ditemukan' });
     }
 
+    // Normalisasi pilihan pertanyaan (null = tampilkan semua).
+    const selectedQuestionIds = Array.isArray(questionIds) && questionIds.length > 0
+      ? questionIds
+      : null;
+
     // Bangun snapshot agregat (committed only, tanpa PII).
-    const snapshot = await buildSnapshot(id);
+    const snapshot = await buildSnapshot(id, { questionIds: selectedQuestionIds });
 
     const existing = await PublishedResult.findOne({ where: { survey_id: id } });
 
@@ -701,6 +766,7 @@ router.post('/:id/publish', authMiddleware, requireRole(['admin']), async (req, 
       summary: summary != null ? summary : (existing ? existing.summary : null),
       response_count: snapshot.response_count,
       snapshot,
+      question_ids: selectedQuestionIds,
       is_published: true,
       published_by: req.user.id,
       published_at: new Date(),
@@ -764,6 +830,91 @@ router.post('/:id/unpublish', authMiddleware, requireRole(['admin']), async (req
     });
 
     res.json({ slug: pub.slug, is_published: false });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /surveys/:id/monitoring
+ * Status embed monitoring klien (untuk panel admin).
+ */
+router.get('/:id/monitoring', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const mon = await MonitoringReport.findOne({
+      where: { survey_id: req.params.id },
+      attributes: ['token', 'is_enabled', 'snapshot_at'],
+    });
+    if (!mon) return res.json(null);
+    res.json({ token: mon.token, is_enabled: mon.is_enabled, snapshot_at: mon.snapshot_at });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /surveys/:id/monitoring/enable
+ * Aktifkan embed monitoring klien — buat token (bila belum ada) + hitung snapshot.
+ */
+router.post('/:id/monitoring/enable', authMiddleware, requireRole(['admin']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const survey = await Survey.findByPk(id, { attributes: ['id'] });
+    if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
+
+    const snapshot = await buildMonitoringSnapshot(id);
+
+    let mon = await MonitoringReport.findOne({ where: { survey_id: id } });
+    if (mon) {
+      await mon.update({ is_enabled: true, snapshot, snapshot_at: new Date() });
+    } else {
+      mon = await MonitoringReport.create({
+        survey_id: id,
+        token: crypto.randomBytes(24).toString('hex'),
+        is_enabled: true,
+        snapshot,
+        snapshot_at: new Date(),
+      });
+    }
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'ENABLE_MONITORING',
+      entity_type: 'survey',
+      entity_id: id,
+      old_value: null,
+      new_value: { token: mon.token },
+      ip_address: req.ip,
+    });
+
+    res.json({ token: mon.token, is_enabled: true, snapshot_at: mon.snapshot_at });
+  } catch (error) {
+    if (error.status === 404) return res.status(404).json({ error: error.message });
+    next(error);
+  }
+});
+
+/**
+ * POST /surveys/:id/monitoring/disable
+ * Nonaktifkan embed monitoring (token tetap tersimpan, bisa diaktifkan lagi).
+ */
+router.post('/:id/monitoring/disable', authMiddleware, requireRole(['admin']), async (req, res, next) => {
+  try {
+    const mon = await MonitoringReport.findOne({ where: { survey_id: req.params.id } });
+    if (!mon) return res.status(404).json({ error: 'Monitoring belum pernah diaktifkan' });
+    await mon.update({ is_enabled: false });
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'DISABLE_MONITORING',
+      entity_type: 'survey',
+      entity_id: req.params.id,
+      old_value: { is_enabled: true },
+      new_value: { is_enabled: false },
+      ip_address: req.ip,
+    });
+
+    res.json({ token: mon.token, is_enabled: false });
   } catch (error) {
     next(error);
   }

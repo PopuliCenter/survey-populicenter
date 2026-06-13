@@ -43,6 +43,11 @@ module.exports = (sequelize) => {
       type: DataTypes.JSONB,
       allowNull: false,
     },
+    question_ids: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: null,
+    },
     is_published: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

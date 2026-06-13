@@ -21,13 +21,21 @@ function renderPanel(props = {}) {
   );
 }
 
+// Mock api.get yang sadar-URL: /publication vs /questions.
+function mockGet({ publication = null, questions = [] }) {
+  api.get.mockImplementation((url) => {
+    if (url.includes('/questions')) return Promise.resolve({ data: questions });
+    return Promise.resolve({ data: publication });
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
 describe('PublicationPanel', () => {
   test('menampilkan "Belum dipublikasikan" saat status null', async () => {
-    api.get.mockResolvedValue({ data: null });
+    mockGet({ publication: null, questions: [] });
     renderPanel();
 
     await waitFor(() => {
@@ -37,34 +45,57 @@ describe('PublicationPanel', () => {
   });
 
   test('tanpa survei terpilih menampilkan ajakan memilih survei', async () => {
-    api.get.mockResolvedValue({ data: null });
+    mockGet({ publication: null, questions: [] });
     renderPanel({ surveyId: '' });
 
     expect(screen.getByText(/pilih survei terlebih dahulu/i)).toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalled();
   });
 
-  test('klik "Publikasikan hasil" memanggil API publish lalu menampilkan cuplikan embed', async () => {
-    // 1) status awal: belum dipublikasikan
-    api.get.mockResolvedValueOnce({ data: null });
-    // publish berhasil
-    api.post.mockResolvedValue({ data: { slug: 'survei-kepuasan', is_published: true, response_count: 10, published_at: '2026-06-13T00:00:00Z' } });
-    // 2) reload status setelah publish: sudah tayang
-    api.get.mockResolvedValueOnce({ data: { slug: 'survei-kepuasan', summary: 'ringkas', is_published: true, response_count: 10, published_at: '2026-06-13T00:00:00Z' } });
+  test('menampilkan checkbox pertanyaan yang bisa diagregasi', async () => {
+    mockGet({
+      publication: null,
+      questions: [
+        { id: 'q1', text: 'Pilihan A', type: 'single_choice' },
+        { id: 'q2', text: 'Teks bebas', type: 'long_text' },
+        { id: 'q3', text: 'Skala', type: 'rating_scale' },
+      ],
+    });
+    renderPanel();
+
+    await waitFor(() => {
+      expect(screen.getByText('Pilihan A')).toBeInTheDocument();
+    });
+    // Teks bebas TIDAK boleh muncul (bukan tipe agregat).
+    expect(screen.queryByText('Teks bebas')).not.toBeInTheDocument();
+    expect(screen.getByText('Skala')).toBeInTheDocument();
+  });
+
+  test('klik "Publikasikan hasil" mengirim question_ids terpilih lalu menampilkan embed', async () => {
+    let publication = null;
+    api.get.mockImplementation((url) => {
+      if (url.includes('/questions')) {
+        return Promise.resolve({ data: [{ id: 'q1', text: 'Pilihan A', type: 'single_choice' }] });
+      }
+      return Promise.resolve({ data: publication });
+    });
+    api.post.mockImplementation(() => {
+      publication = { slug: 'survei-kepuasan', summary: '', is_published: true, response_count: 10, published_at: '2026-06-13T00:00:00Z' };
+      return Promise.resolve({ data: publication });
+    });
 
     renderPanel();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /publikasikan hasil/i })).toBeInTheDocument();
+      expect(screen.getByText('Pilihan A')).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole('button', { name: /publikasikan hasil/i }));
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/surveys/sv1/publish', { summary: '' });
+      expect(api.post).toHaveBeenCalledWith('/surveys/sv1/publish', { summary: '', question_ids: ['q1'] });
     });
 
-    // Setelah tayang: muncul status + cuplikan iframe embed
     await waitFor(() => {
       expect(screen.getByText(/tayang publik/i)).toBeInTheDocument();
     });
@@ -72,7 +103,10 @@ describe('PublicationPanel', () => {
   });
 
   test('saat tayang, tombol berubah jadi "Perbarui snapshot" + ada "Cabut dari publik"', async () => {
-    api.get.mockResolvedValue({ data: { slug: 'survei-kepuasan', summary: '', is_published: true, response_count: 5, published_at: '2026-06-13T00:00:00Z' } });
+    mockGet({
+      publication: { slug: 'survei-kepuasan', summary: '', is_published: true, response_count: 5, published_at: '2026-06-13T00:00:00Z' },
+      questions: [],
+    });
     renderPanel();
 
     await waitFor(() => {

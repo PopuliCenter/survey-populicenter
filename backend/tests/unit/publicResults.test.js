@@ -21,8 +21,10 @@ jest.mock('../../src/models', () => {
     Question: { findAll: jest.fn().mockResolvedValue([]) },
     Response: { count: jest.fn().mockResolvedValue(0), findAll: jest.fn() },
     Answer: { findAll: jest.fn().mockResolvedValue([]) },
+    SurveyorQuota: { sum: jest.fn().mockResolvedValue(0) },
     AuditLog: { create: jest.fn().mockResolvedValue({}) },
     PublishedResult: { findAll: jest.fn(), findOne: jest.fn(), create: jest.fn() },
+    MonitoringReport: { findOne: jest.fn(), create: jest.fn() },
     sequelize: { fn: jest.fn(), col: jest.fn(), query: jest.fn(), transaction: jest.fn() },
     Sequelize: { Op },
   };
@@ -41,7 +43,7 @@ jest.mock('../../src/config/redis', () => ({
 }));
 
 const app = require('../../src/app');
-const { Survey, PublishedResult, Response } = require('../../src/models');
+const { Survey, PublishedResult, MonitoringReport, Response } = require('../../src/models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const adminToken = jwt.sign({ id: 'admin-1', role: 'admin', email: 'a@x.com' }, JWT_SECRET, { expiresIn: '8h' });
@@ -150,5 +152,95 @@ describe('Publish — admin only', () => {
     expect(res.status).toBe(200);
     expect(res.body.is_published).toBe(true);
     expect(res.body.slug).toBe('survei-a');
+  });
+});
+
+describe('Target sampling per provinsi', () => {
+  test('GET /surveys/:id/region-targets mengembalikan target tersimpan', async () => {
+    Survey.findByPk.mockResolvedValue({ id: 'sv-1', region_targets: [{ province: 'JAWA BARAT', target: 500 }] });
+
+    const res = await request(app)
+      .get('/surveys/sv-1/region-targets')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{ province: 'JAWA BARAT', target: 500 }]);
+  });
+
+  test('PUT /surveys/:id/region-targets menormalisasi (buang target <=0, gabung duplikat)', async () => {
+    const update = jest.fn().mockResolvedValue(true);
+    Survey.findByPk.mockResolvedValue({ id: 'sv-1', region_targets: [], update });
+
+    const res = await request(app)
+      .put('/surveys/sv-1/region-targets')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ region_targets: [
+        { province: 'JAWA BARAT', target: 300 },
+        { province: 'JAWA BARAT', target: 200 },
+        { province: 'BALI', target: 0 },
+        { province: '', target: 100 },
+      ] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{ province: 'JAWA BARAT', target: 500 }]);
+    expect(update).toHaveBeenCalledWith({ region_targets: [{ province: 'JAWA BARAT', target: 500 }] });
+  });
+
+  test('PUT /surveys/:id/region-targets ditolak untuk viewer', async () => {
+    const viewerToken = jwt.sign({ id: 'v-1', role: 'viewer', email: 'v@x.com' }, JWT_SECRET, { expiresIn: '8h' });
+    const res = await request(app)
+      .put('/surveys/sv-1/region-targets')
+      .set('Authorization', `Bearer ${viewerToken}`)
+      .send({ region_targets: [] });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('Monitoring klien (embed bertoken)', () => {
+  test('POST /surveys/:id/monitoring/enable (admin) membuat token + snapshot', async () => {
+    Survey.findByPk.mockResolvedValue({ id: 'sv-1', title: 'Survei A', type: 'nasional', region_targets: [{ province: 'JAWA BARAT', target: 500 }] });
+    Response.count.mockResolvedValue(120);
+    MonitoringReport.findOne.mockResolvedValue(null);
+    MonitoringReport.create.mockImplementation((payload) => Promise.resolve({ ...payload }));
+
+    const res = await request(app)
+      .post('/surveys/sv-1/monitoring/enable')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body.is_enabled).toBe(true);
+    expect(typeof res.body.token).toBe('string');
+    expect(res.body.token.length).toBeGreaterThan(20);
+    expect(MonitoringReport.create).toHaveBeenCalled();
+  });
+
+  test('POST /surveys/:id/monitoring/enable ditolak untuk supervisor', async () => {
+    const res = await request(app)
+      .post('/surveys/sv-1/monitoring/enable')
+      .set('Authorization', `Bearer ${supervisorToken}`)
+      .send({});
+    expect(res.status).toBe(403);
+  });
+
+  test('GET /public/monitor/:token menyajikan snapshot tersimpan (masih segar)', async () => {
+    MonitoringReport.findOne.mockResolvedValue({
+      survey_id: 'sv-1',
+      snapshot: { survey: { title: 'Survei A' }, total: { target: 500, achieved: 120, pct: 24 }, regions: [{ province: 'JAWA BARAT', target: 500, actual: 120, pct: 24 }], has_region_data: true },
+      snapshot_at: new Date(),
+      update: jest.fn(),
+    });
+
+    const res = await request(app).get('/public/monitor/abc123');
+    expect(res.status).toBe(200);
+    expect(res.body.total.achieved).toBe(120);
+    expect(res.body.regions).toHaveLength(1);
+    expect(res.headers['access-control-allow-origin']).toBe('*');
+  });
+
+  test('GET /public/monitor/:token → 404 bila token tidak valid', async () => {
+    MonitoringReport.findOne.mockResolvedValue(null);
+    const res = await request(app).get('/public/monitor/salah');
+    expect(res.status).toBe(404);
   });
 });

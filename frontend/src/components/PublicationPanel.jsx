@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useToast } from './Toast';
 import api from '../services/api';
 
+// Tipe pertanyaan yang bisa diagregasi & ditayangkan (selaras dengan backend).
+const AGG_TYPES = ['single_choice', 'multiple_choice', 'rating_scale', 'numeric_scale', 'matrix', 'indonesia_region'];
+
 /**
  * PublicationPanel — panel admin untuk menayangkan hasil survei (agregat) ke
  * publik di website (populicenter.org).
@@ -17,6 +20,8 @@ function PublicationPanel({ surveyId, surveyTitle }) {
   const [loading, setLoading] = useState(false);
   const [pub, setPub] = useState(null); // null = belum pernah dipublikasikan
   const [summary, setSummary] = useState('');
+  const [questions, setQuestions] = useState([]); // pertanyaan yang bisa diagregasi
+  const [selectedIds, setSelectedIds] = useState([]);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState('');
 
@@ -24,15 +29,38 @@ function PublicationPanel({ surveyId, surveyTitle }) {
     if (!surveyId) return;
     setLoading(true);
     try {
-      const res = await api.get(`/surveys/${surveyId}/publication`);
-      setPub(res.data);
-      setSummary(res.data?.summary || '');
+      const [pubRes, qRes] = await Promise.all([
+        api.get(`/surveys/${surveyId}/publication`),
+        api.get(`/surveys/${surveyId}/questions`),
+      ]);
+      const aggQuestions = (qRes.data || []).filter((q) => AGG_TYPES.includes(q.type));
+      setQuestions(aggQuestions);
+      setPub(pubRes.data);
+      setSummary(pubRes.data?.summary || '');
+      // Pra-centang dari publikasi sebelumnya; bila belum ada → centang semua.
+      const preset = pubRes.data?.question_ids;
+      setSelectedIds(
+        Array.isArray(preset) && preset.length > 0
+          ? preset.filter((id) => aggQuestions.some((q) => q.id === id))
+          : aggQuestions.map((q) => q.id)
+      );
     } catch {
       setPub(null);
+      setQuestions([]);
     } finally {
       setLoading(false);
     }
   }, [surveyId]);
+
+  function toggleQuestion(id) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+  const allSelected = questions.length > 0 && selectedIds.length === questions.length;
+  function toggleAll() {
+    setSelectedIds(allSelected ? [] : questions.map((q) => q.id));
+  }
 
   useEffect(() => { loadStatus(); }, [loadStatus]);
 
@@ -44,9 +72,16 @@ function PublicationPanel({ surveyId, surveyTitle }) {
     : '';
 
   async function handlePublish() {
+    if (questions.length > 0 && selectedIds.length === 0) {
+      toast.error('Pilih minimal satu pertanyaan untuk ditampilkan.');
+      return;
+    }
     setBusy(true);
     try {
-      const res = await api.post(`/surveys/${surveyId}/publish`, { summary });
+      const res = await api.post(`/surveys/${surveyId}/publish`, {
+        summary,
+        question_ids: selectedIds,
+      });
       setPub(res.data);
       toast.success(
         pub?.is_published
@@ -135,6 +170,43 @@ function PublicationPanel({ surveyId, surveyTitle }) {
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
         />
       </div>
+
+      {/* Pilih pertanyaan yang tampil */}
+      {questions.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-medium text-gray-600">
+              Pertanyaan yang ditampilkan ({selectedIds.length}/{questions.length})
+            </label>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-xs text-primary-600 hover:underline"
+            >
+              {allSelected ? 'Kosongkan' : 'Pilih semua'}
+            </button>
+          </div>
+          <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+            {questions.map((q) => (
+              <label
+                key={q.id}
+                className="flex items-start gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(q.id)}
+                  onChange={() => toggleQuestion(q.id)}
+                  className="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-400"
+                />
+                <span className="text-gray-700">{q.text}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            Hanya pertanyaan pilihan/skala/matriks/wilayah yang bisa ditayangkan (teks bebas &amp; media dikecualikan demi privasi).
+          </p>
+        </div>
+      )}
 
       {/* Aksi */}
       <div className="flex flex-wrap gap-3">

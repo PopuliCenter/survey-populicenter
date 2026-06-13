@@ -23,6 +23,7 @@ const Answer = require('./Answer')(sequelize);
 const AuditLog = require('./AuditLog')(sequelize);
 const ExportJob = require('./ExportJob')(sequelize);
 const PublishedResult = require('./PublishedResult')(sequelize);
+const MonitoringReport = require('./MonitoringReport')(sequelize);
 
 // ─── Associations ─────────────────────────────────────────────────────────────
 
@@ -78,6 +79,10 @@ PublishedResult.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
 User.hasMany(PublishedResult, { foreignKey: 'published_by', as: 'publishedResults' });
 PublishedResult.belongsTo(User, { foreignKey: 'published_by', as: 'publisher' });
 
+// Survey → MonitoringReport (embed monitoring klien)
+Survey.hasOne(MonitoringReport, { foreignKey: 'survey_id', as: 'monitoringReport', onDelete: 'CASCADE' });
+MonitoringReport.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
+
 module.exports = {
   sequelize,
   Sequelize,
@@ -90,4 +95,5 @@ module.exports = {
   AuditLog,
   ExportJob,
   PublishedResult,
+  MonitoringReport,
 };
