@@ -16,6 +16,7 @@ import Cleanup from './pages/Cleanup';
 import SurveyList from './surveyor/pages/SurveyList';
 import SurveyForm from './surveyor/pages/SurveyForm';
 import SubmitSuccess from './surveyor/pages/SubmitSuccess';
+import PublicResults from './public/PublicResults';
 
 // ─── Protected Route ──────────────────────────────────────────────────────────
 /**
@@ -62,6 +63,9 @@ function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
+
+        {/* Embed publik hasil survei (tanpa login) — disematkan di populicenter.org */}
+        <Route path="/embed/results/:slug" element={<PublicResults />} />
 
         {/* Redirect root ke login */}
         <Route path="/" element={<Navigate to="/login" replace />} />

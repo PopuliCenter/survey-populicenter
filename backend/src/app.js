@@ -160,6 +160,7 @@ app.use('/map', require('./routes/map'));
 app.use('/upload', require('./routes/upload'));
 app.use('/audit-logs', require('./routes/audit-logs'));
 app.use('/cleanup', require('./routes/cleanup'));
+app.use('/public', require('./routes/public'));
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((req, res) => {

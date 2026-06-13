@@ -1,9 +1,41 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
-const { Survey, Question, Response, AuditLog, sequelize } = require('../models');
+const { Survey, Question, Response, AuditLog, PublishedResult, sequelize } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { validateFieldToolsSettings } = require('../utils/fieldToolsValidator');
+const { buildSnapshot } = require('../utils/aggregateResults');
+
+/**
+ * slugify — ubah judul menjadi kunci URL aman: huruf kecil, kata dipisah "-".
+ */
+function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .substring(0, 80)
+    .replace(/^-+|-+$/g, '') || 'survei';
+}
+
+/**
+ * ensureUniqueSlug — pastikan slug unik di tabel published_results, kecuali
+ * milik survei ini sendiri (saat re-publish). Tambah sufiks -2, -3, … bila bentrok.
+ */
+async function ensureUniqueSlug(baseSlug, surveyId) {
+  let candidate = baseSlug;
+  let n = 1;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const existing = await PublishedResult.findOne({ where: { slug: candidate } });
+    if (!existing || existing.survey_id === surveyId) return candidate;
+    n += 1;
+    candidate = `${baseSlug}-${n}`;
+  }
+}
 
 const router = express.Router();
 
@@ -598,6 +630,140 @@ router.post('/:id/clone', authMiddleware, requireRole(['admin', 'supervisor']), 
       created_at: result.cloned.created_at,
       question_count: result.questionCount,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /surveys/:id/publication
+ * Status publikasi hasil survei (untuk panel admin di dashboard).
+ * Mengembalikan null bila belum pernah dipublikasikan.
+ */
+router.get('/:id/publication', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const pub = await PublishedResult.findOne({
+      where: { survey_id: req.params.id },
+      attributes: ['slug', 'title', 'summary', 'survey_type', 'response_count', 'is_published', 'published_at'],
+    });
+    if (!pub) return res.json(null);
+    res.json({
+      slug: pub.slug,
+      title: pub.title,
+      summary: pub.summary,
+      type: pub.survey_type,
+      response_count: pub.response_count,
+      is_published: pub.is_published,
+      published_at: pub.published_at,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /surveys/:id/publish
+ * Bekukan snapshot agregat survei lalu tayangkan publik (opt-in admin).
+ * Body opsional: { summary, slug }.
+ * Hanya admin — menayangkan data ke publik adalah aksi sensitif.
+ */
+router.post('/:id/publish', authMiddleware, requireRole(['admin']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { summary, slug: slugOverride } = req.body || {};
+
+    const survey = await Survey.findByPk(id, { attributes: ['id', 'title', 'type'] });
+    if (!survey) {
+      return res.status(404).json({ error: 'Survei tidak ditemukan' });
+    }
+
+    // Bangun snapshot agregat (committed only, tanpa PII).
+    const snapshot = await buildSnapshot(id);
+
+    const existing = await PublishedResult.findOne({ where: { survey_id: id } });
+
+    // Slug: jika sudah ada, pertahankan; jika override diberikan, pakai itu;
+    // selain itu turunkan dari judul. Selalu dijamin unik.
+    let slug;
+    if (slugOverride) {
+      slug = await ensureUniqueSlug(slugify(slugOverride), id);
+    } else if (existing) {
+      slug = existing.slug;
+    } else {
+      slug = await ensureUniqueSlug(slugify(survey.title), id);
+    }
+
+    const payload = {
+      survey_id: id,
+      slug,
+      title: survey.title,
+      survey_type: survey.type,
+      summary: summary != null ? summary : (existing ? existing.summary : null),
+      response_count: snapshot.response_count,
+      snapshot,
+      is_published: true,
+      published_by: req.user.id,
+      published_at: new Date(),
+    };
+
+    let pub;
+    if (existing) {
+      await existing.update(payload);
+      pub = existing;
+    } else {
+      pub = await PublishedResult.create(payload);
+    }
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'PUBLISH_RESULTS',
+      entity_type: 'survey',
+      entity_id: id,
+      old_value: existing ? { is_published: existing.is_published, response_count: existing.response_count } : null,
+      new_value: { slug: pub.slug, response_count: pub.response_count },
+      ip_address: req.ip,
+    });
+
+    res.status(existing ? 200 : 201).json({
+      slug: pub.slug,
+      title: pub.title,
+      type: pub.survey_type,
+      response_count: pub.response_count,
+      is_published: pub.is_published,
+      published_at: pub.published_at,
+    });
+  } catch (error) {
+    if (error.status === 404) {
+      return res.status(404).json({ error: error.message });
+    }
+    next(error);
+  }
+});
+
+/**
+ * POST /surveys/:id/unpublish
+ * Cabut hasil dari publik (snapshot tetap tersimpan, bisa dipublikasikan lagi).
+ */
+router.post('/:id/unpublish', authMiddleware, requireRole(['admin']), async (req, res, next) => {
+  try {
+    const pub = await PublishedResult.findOne({ where: { survey_id: req.params.id } });
+    if (!pub) {
+      return res.status(404).json({ error: 'Hasil survei ini belum pernah dipublikasikan' });
+    }
+
+    await pub.update({ is_published: false });
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'UNPUBLISH_RESULTS',
+      entity_type: 'survey',
+      entity_id: req.params.id,
+      old_value: { is_published: true },
+      new_value: { is_published: false },
+      ip_address: req.ip,
+    });
+
+    res.json({ slug: pub.slug, is_published: false });
   } catch (error) {
     next(error);
   }

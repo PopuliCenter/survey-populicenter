@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Layout from '../components/Layout';
 import SurveySelector from '../components/SurveySelector';
+import PublicationPanel from '../components/PublicationPanel';
 import { useToast } from '../components/Toast';
 import api from '../services/api';
 
@@ -183,6 +184,7 @@ function Reports() {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
   })();
   const isViewer = currentUser.role === 'viewer';
+  const isAdmin = currentUser.role === 'admin';
 
   // ── Dropdown data ───────────────────────────────────────────────────────────
   const [surveys, setSurveys] = useState([]);
@@ -573,6 +575,22 @@ function Reports() {
             asinkron. Status dan link unduhan akan muncul di bawah.
           </p>
         </div>
+
+        {/* Publikasi hasil ke publik — admin saja */}
+        {isAdmin && (
+          <div className="bg-white rounded-xl shadow p-5 space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-700">Publikasi Hasil ke Publik</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Tayangkan ringkasan agregat survei di website populicenter.org.
+              </p>
+            </div>
+            <PublicationPanel
+              surveyId={selectedSurveyId}
+              surveyTitle={getSelectedSurveyTitle()}
+            />
+          </div>
+        )}
 
         {/* Async job tracker */}
         {activeJobs.length > 0 && (

@@ -22,6 +22,7 @@ const Response = require('./Response')(sequelize);
 const Answer = require('./Answer')(sequelize);
 const AuditLog = require('./AuditLog')(sequelize);
 const ExportJob = require('./ExportJob')(sequelize);
+const PublishedResult = require('./PublishedResult')(sequelize);
 
 // ─── Associations ─────────────────────────────────────────────────────────────
 
@@ -70,6 +71,13 @@ ExportJob.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
 User.hasMany(ExportJob, { foreignKey: 'requested_by', as: 'exportJobs' });
 ExportJob.belongsTo(User, { foreignKey: 'requested_by', as: 'requester' });
 
+// Survey → PublishedResult (hasil agregat yang ditayangkan publik)
+Survey.hasOne(PublishedResult, { foreignKey: 'survey_id', as: 'publishedResult', onDelete: 'CASCADE' });
+PublishedResult.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
+
+User.hasMany(PublishedResult, { foreignKey: 'published_by', as: 'publishedResults' });
+PublishedResult.belongsTo(User, { foreignKey: 'published_by', as: 'publisher' });
+
 module.exports = {
   sequelize,
   Sequelize,
@@ -81,4 +89,5 @@ module.exports = {
   Answer,
   AuditLog,
   ExportJob,
+  PublishedResult,
 };
