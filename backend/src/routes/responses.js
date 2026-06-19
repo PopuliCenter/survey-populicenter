@@ -8,6 +8,7 @@ const { validateAllAnswers } = require('../utils/answerValidator');
 const { validateDateFormat, validateTimeFormat, validateDateAnswer, validateMatrixAnswer } = require('../utils/validators');
 const { validateFieldToolsSubmission } = require('../utils/fieldToolsValidator');
 const { incrementResponseStats } = require('../utils/statisticsUpdater');
+const { computeHiddenQuestions, buildAnswerMap } = require('../utils/skipLogicEvaluator');
 
 const { Op } = Sequelize;
 
@@ -205,16 +206,24 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
       return res.status(422).json({ error: fieldToolsResult.error });
     }
 
-    // Get all questions for this survey
+    // Get all questions for this survey (terurut untuk evaluasi skip logic)
     const questions = await Question.findAll({
       where: { survey_id },
-      attributes: ['id', 'is_required', 'type', 'options'],
+      attributes: ['id', 'is_required', 'type', 'options', 'order_index', 'skip_logic'],
+      order: [['order_index', 'ASC']],
     });
 
-    // Validate all required questions are answered
+    // Hitung pertanyaan yang TERSEMBUNYI oleh skip logic berdasarkan jawaban
+    // yang masuk. Otoritas di server: pertanyaan wajib pada cabang yang TIDAK
+    // dilalui responden tidak boleh dianggap "belum dijawab".
+    const questionTypeMap = new Map(questions.map((q) => [q.id, q]));
+    const answerMap = buildAnswerMap(answers, questionTypeMap);
+    const hiddenQuestionIds = computeHiddenQuestions(questions, answerMap);
+
+    // Validate required questions are answered (kecuali yang tersembunyi cabang)
     const answeredQuestionIds = new Set(answers.map((a) => a.question_id));
     const missingQuestions = questions
-      .filter((q) => q.is_required && !answeredQuestionIds.has(q.id))
+      .filter((q) => q.is_required && !hiddenQuestionIds.has(q.id) && !answeredQuestionIds.has(q.id))
       .map((q) => q.id);
 
     if (missingQuestions.length > 0) {

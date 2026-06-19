@@ -16,6 +16,8 @@ jest.mock('../../src/models', () => {
   const mockTransaction = {
     commit: jest.fn().mockResolvedValue(undefined),
     rollback: jest.fn().mockResolvedValue(undefined),
+    // Diperlukan oleh quota re-check (FOR UPDATE): transaction.LOCK.UPDATE.
+    LOCK: { UPDATE: 'UPDATE' },
   };
 
   const mockSequelize = {
@@ -26,6 +28,9 @@ jest.mock('../../src/models', () => {
     Op: {
       ne: Symbol('ne'),
     },
+    // Diperlukan oleh incrementResponseStats (sequelize.QueryTypes.RAW) dan
+    // query nextval; tanpa ini jalur sukses melempar TypeError → 500.
+    QueryTypes: { SELECT: 'SELECT', RAW: 'RAW', INSERT: 'INSERT', UPDATE: 'UPDATE' },
   };
 
   const MockSequelize = {
@@ -73,6 +78,8 @@ jest.mock('../../src/config/redis', () => ({
   incr: jest.fn(),
   expire: jest.fn(),
   del: jest.fn(),
+  // Dibutuhkan RedisStore (rate-limit) saat konstruksi di import auth.js.
+  call: jest.fn().mockResolvedValue('sha-test'),
 }));
 
 const app = require('../../src/app');
@@ -360,6 +367,73 @@ describe('Response Module - POST /responses/submit', () => {
     expect(res.body.missing_questions).toContain('q-uuid-002');
     expect(res.body.missing_questions).not.toContain('q-uuid-001');
     expect(res.body.missing_questions).not.toContain('q-uuid-003');
+  });
+
+  test('skip logic: pertanyaan wajib pada cabang yang DILEWATI tidak diwajibkan (submit berhasil)', async () => {
+    const token = createSurveyorToken();
+    const { sessionToken } = setupSuccessfulSubmit();
+
+    // q1 induk: jika 'A' lompat ke q3 → q2 (wajib) tersembunyi.
+    Question.findAll.mockResolvedValue([
+      { id: 'q-uuid-001', is_required: true, type: 'single_choice', order_index: 0, skip_logic: [
+        { condition: { question_id: 'q-uuid-001', operator: 'equals', value: 'A' }, action: 'jump_to', target_question_id: 'q-uuid-003' },
+      ] },
+      { id: 'q-uuid-002', is_required: true, type: 'short_text', order_index: 1, skip_logic: null },
+      { id: 'q-uuid-003', is_required: true, type: 'short_text', order_index: 2, skip_logic: null },
+    ]);
+
+    const res = await request(app)
+      .post('/responses/submit')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        session_token: sessionToken,
+        answers: [
+          { question_id: 'q-uuid-001', answer_value: 'A' }, // memicu lompatan
+          { question_id: 'q-uuid-003', answer_value: 'isi' },
+          // q-uuid-002 sengaja TIDAK dijawab (tersembunyi)
+        ],
+        geo: { status: 'available', lat: -6.2, lng: 106.8 },
+        ...defaultFieldToolsData,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveProperty('questionnaire_number');
+  });
+
+  test('skip logic: pertanyaan wajib pada cabang yang DILALUI tetap diwajibkan (422)', async () => {
+    const token = createSurveyorToken();
+    const startTime = new Date(Date.now() - 60000).toISOString();
+    const sessionToken = createSessionToken({
+      response_id: 'response-uuid-001',
+      survey_id: 'survey-uuid-001',
+      surveyor_id: 'surveyor-uuid-001',
+      start_time: startTime,
+    });
+
+    Response.findOne.mockResolvedValue(mockResponseRecord({ start_time: startTime }));
+    Survey.findOne.mockResolvedValue({ id: 'survey-uuid-001', title: 'Test Survey', field_tools_settings: allOptionalFieldToolsSettings });
+    Question.findAll.mockResolvedValue([
+      { id: 'q-uuid-001', is_required: true, type: 'single_choice', order_index: 0, skip_logic: [
+        { condition: { question_id: 'q-uuid-001', operator: 'equals', value: 'A' }, action: 'jump_to', target_question_id: 'q-uuid-003' },
+      ] },
+      { id: 'q-uuid-002', is_required: true, type: 'short_text', order_index: 1, skip_logic: null },
+      { id: 'q-uuid-003', is_required: true, type: 'short_text', order_index: 2, skip_logic: null },
+    ]);
+
+    const res = await request(app)
+      .post('/responses/submit')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        session_token: sessionToken,
+        answers: [
+          { question_id: 'q-uuid-001', answer_value: 'B' }, // TIDAK melompat → q2 tetap tampil
+          { question_id: 'q-uuid-003', answer_value: 'isi' },
+        ],
+        geo: { status: 'available', lat: -6.2, lng: 106.8 },
+      });
+
+    expect(res.status).toBe(422);
+    expect(res.body.missing_questions).toContain('q-uuid-002');
   });
 
   test('geolokasi status available - menyimpan lat dan lng', async () => {
