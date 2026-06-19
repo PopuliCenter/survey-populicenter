@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import SkipLogicEditor from '../components/SkipLogicEditor';
+import SkipLogicHint from '../components/SkipLogicHint';
 import ValidationRulesEditor from '../components/ValidationRulesEditor';
 import IconButton from '../components/IconButton';
 import useModalA11y from '../hooks/useModalA11y';
@@ -1657,13 +1658,8 @@ function SurveyBuilder() {
                                   {question.options.length} pilihan jawaban
                                 </p>
                               )}
-                            {/* Skip logic preview */}
-                            {question.skip_logic &&
-                              question.skip_logic.length > 0 && (
-                                <p className="text-xs text-indigo-500 mt-1">
-                                  {question.skip_logic.length} aturan skip logic
-                                </p>
-                              )}
+                            {/* Skip logic preview + tooltip/peringatan */}
+                            <SkipLogicHint question={question} questions={questions} />
                           </div>
 
                           {/* Actions */}

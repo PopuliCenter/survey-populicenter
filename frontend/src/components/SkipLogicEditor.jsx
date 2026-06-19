@@ -348,6 +348,11 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
                       ✓ Pertanyaan antara akan dilewati, langsung ke P{targetQuestion.order_index + 1}
                     </p>
                   )}
+                  {!rule.target_question_id && conditions.some((c) => c.question_id && c.value) && (
+                    <p className="text-xs text-amber-600">
+                      ⚠ Tujuan lompatan belum dipilih — aturan ini belum berfungsi.
+                    </p>
+                  )}
                 </div>
 
                 {/* Preview aturan */}
