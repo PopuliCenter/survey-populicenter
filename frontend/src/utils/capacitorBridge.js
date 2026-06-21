@@ -168,6 +168,82 @@ export async function getNetworkStatus() {
 }
 
 /**
+ * Pantau perubahan status jaringan. Native: plugin @capacitor/network
+ * (akurat di WebView Android). Web: event 'online'/'offline'.
+ *
+ * @param {(status: { connected: boolean, connectionType: string }) => void} callback
+ * @returns {Promise<() => void>} fungsi berhenti memantau
+ */
+export async function addNetworkListener(callback) {
+  if (!isNativePlatform()) {
+    const on = () => callback({ connected: true, connectionType: 'unknown' });
+    const off = () => callback({ connected: false, connectionType: 'none' });
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }
+
+  try {
+    const { Network } = await import('@capacitor/network');
+    const handle = await Network.addListener('networkStatusChange', (status) => {
+      callback({ connected: status.connected, connectionType: status.connectionType });
+    });
+    return () => { try { handle.remove(); } catch { /* abaikan */ } };
+  } catch {
+    return () => {};
+  }
+}
+
+/**
+ * Getaran umpan balik (haptics). Hanya aktif di native; no-op di web.
+ * @param {'success'|'warning'|'error'|'light'} kind
+ */
+export async function hapticNotify(kind = 'success') {
+  if (!isNativePlatform()) return;
+  try {
+    const { Haptics, NotificationType, ImpactStyle } = await import('@capacitor/haptics');
+    if (kind === 'success' || kind === 'warning' || kind === 'error') {
+      const type = kind === 'success'
+        ? NotificationType.Success
+        : kind === 'warning'
+          ? NotificationType.Warning
+          : NotificationType.Error;
+      await Haptics.notification({ type });
+    } else {
+      await Haptics.impact({ style: ImpactStyle.Light });
+    }
+  } catch { /* non-kritis */ }
+}
+
+/**
+ * Pantau saat aplikasi kembali ke depan (resume). Native: event 'resume'
+ * (@capacitor/app). Web: 'visibilitychange' → visible.
+ *
+ * @param {() => void} callback
+ * @returns {Promise<() => void>} fungsi berhenti memantau
+ */
+export async function addResumeListener(callback) {
+  if (!isNativePlatform()) {
+    const handler = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') callback();
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }
+
+  try {
+    const { App } = await import('@capacitor/app');
+    const listener = await App.addListener('resume', () => callback());
+    return () => { try { listener.remove(); } catch { /* abaikan */ } };
+  } catch {
+    return () => {};
+  }
+}
+
+/**
  * Set status bar style for Android.
  * @param {{ style?: 'DARK' | 'LIGHT', color?: string }} options
  */

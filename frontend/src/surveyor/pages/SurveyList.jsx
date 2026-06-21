@@ -6,7 +6,31 @@ import useSyncManager from '../hooks/useSyncManager';
 import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey } from '../../utils/storage';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import ConfirmSheet from '../../components/ConfirmSheet';
-import { addBackButtonListener } from '../../utils/capacitorBridge';
+import { addBackButtonListener, addResumeListener } from '../../utils/capacitorBridge';
+import { diffSurveyAvailability, toSurveyStubs } from '../../utils/surveyNotify';
+import { toastInfo, toastWarning } from '../../utils/toastBus';
+
+const LAST_SEEN_SURVEYS_KEY = 'tpd:lastSeenSurveys';
+
+/**
+ * Bandingkan daftar survei dengan yang terakhir dilihat (localStorage) dan
+ * tampilkan toast bila ada survei baru tersedia / dinonaktifkan. Pemanggilan
+ * pertama hanya menyimpan baseline (tidak memunculkan toast).
+ */
+function notifySurveyAvailability(surveys) {
+  try {
+    const current = toSurveyStubs(surveys);
+    const prevRaw = localStorage.getItem(LAST_SEEN_SURVEYS_KEY);
+    localStorage.setItem(LAST_SEEN_SURVEYS_KEY, JSON.stringify(current));
+    if (!prevRaw) return; // baseline pertama — jangan banjiri notif
+    const prev = JSON.parse(prevRaw);
+    const { added, removed } = diffSurveyAvailability(prev, current);
+    added.forEach((s) => toastInfo(`Survei baru tersedia: ${s.title}`));
+    removed.forEach((s) => toastWarning(`Survei dinonaktifkan: ${s.title}`));
+  } catch {
+    // non-kritis
+  }
+}
 
 /**
  * Hitung selisih hari antara dua tanggal (dibulatkan ke bawah).
@@ -122,6 +146,9 @@ function SurveyList() {
         const activeSurveys = surveysRes.data || [];
         setSurveys(activeSurveys);
 
+        // Notif perubahan ketersediaan survei (baru / dinonaktifkan)
+        notifySurveyAvailability(activeSurveys);
+
         // Cache survey list for offline use
         try {
           await cacheSurveyList(activeSurveys);
@@ -205,6 +232,18 @@ function SurveyList() {
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // ─── Muat ulang saat aplikasi kembali ke depan (resume) ─────────────────────
+  // Agar notif "survei baru / dinonaktifkan" muncul saat TPD membuka app lagi.
+  useEffect(() => {
+    let cleanup = () => {};
+    let active = true;
+    (async () => {
+      const unsub = await addResumeListener(() => { if (active) fetchData(); });
+      if (active) cleanup = unsub; else unsub();
+    })();
+    return () => { active = false; if (typeof cleanup === 'function') cleanup(); };
   }, [fetchData]);
 
   // ─── Check which surveys are already cached + cari pertanyaan unique_id ──────

@@ -9,6 +9,8 @@ import {
   getMediaFilesByLocalId,
   deleteMediaFilesByLocalId,
 } from '../../utils/storage';
+import { addNetworkListener, getNetworkStatus, hapticNotify } from '../../utils/capacitorBridge';
+import { toastSuccess, toastWarning } from '../../utils/toastBus';
 
 /**
  * Hook untuk mengelola sinkronisasi Offline Queue ke backend.
@@ -50,6 +52,9 @@ function useSyncManager() {
 
     isSyncingRef.current = true;
     setIsSyncing(true);
+
+    let syncedCount = 0;
+    let failedCount = 0;
 
     try {
       const pending = await getQueueByStatus('pending');
@@ -109,6 +114,7 @@ function useSyncManager() {
           // Success: mark as synced and clean up media files
           await updateQueueStatus(entry.localId, 'synced');
           await deleteMediaFilesByLocalId(entry.localId);
+          syncedCount += 1;
         } catch (err) {
           if (!err.response) {
             // Network error — stop syncing, retry later
@@ -121,6 +127,7 @@ function useSyncManager() {
             err.response?.data?.message ||
             `Error ${err.response.status}`;
           await updateQueueStatus(entry.localId, 'failed', errorMessage);
+          failedCount += 1;
         }
       }
 
@@ -132,6 +139,18 @@ function useSyncManager() {
       isSyncingRef.current = false;
       setIsSyncing(false);
       await refreshCounts();
+
+      // Umpan balik hasil sinkron (pop-up sesaat) — hanya bila ada yang diproses.
+      if (syncedCount > 0 && failedCount === 0) {
+        toastSuccess(`${syncedCount} data berhasil terkirim`);
+        hapticNotify('success');
+      } else if (syncedCount > 0 && failedCount > 0) {
+        toastWarning(`${syncedCount} terkirim, ${failedCount} gagal`);
+        hapticNotify('warning');
+      } else if (failedCount > 0) {
+        toastWarning(`${failedCount} data gagal terkirim — coba lagi nanti`);
+        hapticNotify('warning');
+      }
     }
   }, [refreshCounts]);
 
@@ -172,32 +191,34 @@ function useSyncManager() {
     }
   }, [refreshCounts, syncNow]);
 
-  // ─── Online/offline event listeners ────────────────────────────────────────
+  // ─── Status jaringan + sinkron otomatis ─────────────────────────────────────
+  // Pakai @capacitor/network (akurat di WebView Android) via capacitorBridge;
+  // fallback ke event 'online'/'offline' di web.
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      syncNow();
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
+    let cleanup = () => {};
+    let active = true;
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [syncNow]);
-
-  // ─── Initial load ───────────────────────────────────────────────────────────
-  useEffect(() => {
     refreshCounts();
-    // If online on mount and there are pending items, sync automatically
-    if (navigator.onLine) {
-      syncNow();
-    }
+
+    (async () => {
+      try {
+        const init = await getNetworkStatus();
+        if (active) {
+          setIsOnline(init.connected);
+          if (init.connected) syncNow();
+        }
+      } catch {
+        if (active && navigator.onLine) syncNow();
+      }
+
+      cleanup = await addNetworkListener(({ connected }) => {
+        if (!active) return;
+        setIsOnline(connected);
+        if (connected) syncNow();
+      });
+    })();
+
+    return () => { active = false; if (typeof cleanup === 'function') cleanup(); };
   }, [refreshCounts, syncNow]);
 
   return {

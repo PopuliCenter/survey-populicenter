@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
+import GlobalNotifications from './components/GlobalNotifications.jsx';
 import './index.css';
 import { initSentry } from './config/sentry.js';
 
@@ -41,5 +42,6 @@ if ('serviceWorker' in navigator) {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
+    <GlobalNotifications />
   </React.StrictMode>
 );
