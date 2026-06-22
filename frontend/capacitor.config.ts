@@ -29,7 +29,11 @@ const config: CapacitorConfig = {
     },
   },
   android: {
-    allowMixedContent: true,
+    // Mixed content dimatikan (keamanan rilis): aset di-bundle (skema capacitor)
+    // & API lewat CapacitorHttp native, jadi tak ada subresource HTTP di laman
+    // HTTPS. Catatan: bila SUATU SAAT memakai live-reload dev via server.url
+    // berbasis http, set true sementara untuk dev saja.
+    allowMixedContent: false,
     captureInput: true,
     // webContentsDebuggingEnabled sengaja TIDAK di-set:
     // Capacitor otomatis MENONAKTIFKAN inspeksi WebView di build "release"
