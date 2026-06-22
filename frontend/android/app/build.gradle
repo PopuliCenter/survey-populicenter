@@ -1,5 +1,15 @@
 apply plugin: 'com.android.application'
 
+// ─── Signing rilis dari keystore.properties (TIDAK di-commit) ────────────────
+// Build tetap jalan tanpa file ini (debug/CI). Bila ada, rilis ditandatangani.
+// Lihat android/keystore.properties.example untuk format.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.populicenter.survey"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -17,6 +27,17 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            release {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         debug {
             // ─── Optimasi debug build ───────────────────────────────────
@@ -29,6 +50,12 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Tandatangani rilis hanya bila keystore.properties tersedia.
+            // Tanpa itu, ./gradlew bundleRelease tetap berjalan (AAB unsigned —
+            // berguna untuk verifikasi build sebelum keystore disiapkan).
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 
