@@ -5,6 +5,7 @@ import { addBackButtonListener } from '../utils/capacitorBridge';
 import useStatusBar from '../hooks/useStatusBar';
 import ConfirmSheet from '../components/ConfirmSheet';
 import AppVersionLabel from '../components/AppVersionLabel';
+import AppFooterLinks from '../components/AppFooterLinks';
 
 /**
  * Login page with email + password form.
@@ -180,6 +181,7 @@ function Login() {
 
       <p className="text-center text-[11px] text-primary-100 mt-6">© {new Date().getFullYear()} Populi Center</p>
       <AppVersionLabel className="block text-center text-[10px] text-primary-200/80 mt-1" />
+      <AppFooterLinks className="text-center mt-1.5 text-[10px] text-primary-100" linkClassName="underline hover:text-white" />
 
       {/* Bottom sheet — Konfirmasi Keluar Aplikasi */}
       <ConfirmSheet
