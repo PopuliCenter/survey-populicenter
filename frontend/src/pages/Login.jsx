@@ -4,6 +4,7 @@ import api from '../services/api';
 import { addBackButtonListener } from '../utils/capacitorBridge';
 import useStatusBar from '../hooks/useStatusBar';
 import ConfirmSheet from '../components/ConfirmSheet';
+import AppVersionLabel from '../components/AppVersionLabel';
 
 /**
  * Login page with email + password form.
@@ -178,6 +179,7 @@ function Login() {
       </div>
 
       <p className="text-center text-[11px] text-primary-100 mt-6">© {new Date().getFullYear()} Populi Center</p>
+      <AppVersionLabel className="block text-center text-[10px] text-primary-200/80 mt-1" />
 
       {/* Bottom sheet — Konfirmasi Keluar Aplikasi */}
       <ConfirmSheet

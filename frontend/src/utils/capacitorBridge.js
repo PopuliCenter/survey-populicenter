@@ -244,6 +244,25 @@ export async function addResumeListener(callback) {
 }
 
 /**
+ * Versi aplikasi untuk ditampilkan. Native: dari APK (versionName + build) via
+ * @capacitor/app — sumber kebenaran yang sama dengan yang dilihat di Play.
+ * Web/PWA: dari package.json (di-inject saat build sebagai __APP_VERSION__).
+ *
+ * @returns {Promise<{ version: string, build: string }>}
+ */
+export async function getAppVersion() {
+  if (isNativePlatform()) {
+    try {
+      const { App } = await import('@capacitor/app');
+      const info = await App.getInfo();
+      return { version: info.version || '', build: info.build != null ? String(info.build) : '' };
+    } catch { /* fallback ke versi web */ }
+  }
+  const webVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '';
+  return { version: webVersion, build: '' };
+}
+
+/**
  * Set status bar style for Android.
  * @param {{ style?: 'DARK' | 'LIGHT', color?: string }} options
  */

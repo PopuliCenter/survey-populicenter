@@ -3,10 +3,18 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { readFileSync } from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Versi aplikasi dari package.json → di-inject sebagai konstanta __APP_VERSION__
+// (dipakai sebagai fallback web; di native diambil dari APK via @capacitor/app).
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'));
+
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     VitePWA({
