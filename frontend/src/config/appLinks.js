@@ -19,12 +19,16 @@ export const PRIVACY_POLICY_URL = 'https://risetcenter.com/kebijakan-privasi.htm
 // (file statis: frontend/public/syarat-ketentuan.html).
 export const TERMS_URL = 'https://risetcenter.com/syarat-ketentuan.html';
 
-// Email dukungan. Contoh: 'support@populicenter.org'
-export const SUPPORT_EMAIL = '';
+// Halaman Pertanyaan Umum / FAQ — dilayani langsung oleh risetcenter.com
+// (file statis: frontend/public/pertanyaan-umum.html).
+export const FAQ_URL = 'https://risetcenter.com/pertanyaan-umum.html';
+
+// Email dukungan.
+export const SUPPORT_EMAIL = 'info@populicenter.org';
 
 // Nomor WhatsApp dukungan, format internasional TANPA tanda '+'.
-// Contoh: '6281234567890'
-export const SUPPORT_WHATSAPP = '';
+// (0812-9206-8362 → 6281292068362)
+export const SUPPORT_WHATSAPP = '6281292068362';
 
 /**
  * Tautan kontak dukungan siap-pakai: utamakan WhatsApp, lalu email.

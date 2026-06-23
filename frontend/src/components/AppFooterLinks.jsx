@@ -1,5 +1,5 @@
 import React from 'react';
-import { PRIVACY_POLICY_URL, TERMS_URL, supportLink } from '../config/appLinks';
+import { PRIVACY_POLICY_URL, TERMS_URL, FAQ_URL, supportLink } from '../config/appLinks';
 
 /**
  * AppFooterLinks — baris tautan Kebijakan Privasi · Syarat & Ketentuan ·
@@ -12,6 +12,7 @@ function AppFooterLinks({ className = '', linkClassName = '' }) {
   const links = [
     { label: 'Kebijakan Privasi', href: PRIVACY_POLICY_URL },
     { label: 'Syarat & Ketentuan', href: TERMS_URL },
+    { label: 'Pertanyaan Umum', href: FAQ_URL },
     { label: 'Hubungi Dukungan', href: supportLink() },
   ].filter((l) => l.href);
 
