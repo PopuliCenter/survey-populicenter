@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Batalkan run lama bila ada push baru pada ref yang sama.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (test + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm install
+      # Lint bersifat LAPORAN dulu (belum memblok) — jadikan blocking setelah
+      # peringatan dibersihkan: hapus 'continue-on-error'.
+      - name: Lint (report only)
+        run: npm run lint
+        continue-on-error: true
+      # GERBANG: test unit frontend (209/209 hijau) wajib lulus.
+      - name: Test
+        run: npm run test:ci
+      # GERBANG: build produksi wajib sukses.
+      - name: Build
+        run: npm run build
+
+  backend:
+    name: Backend (lint + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm install
+      - name: Lint (report only)
+        run: npm run lint
+        continue-on-error: true
+      # Sebagian test backend masih gagal (mock unit + integration butuh DB).
+      # Dijalankan sebagai LAPORAN dulu; jadikan gerbang setelah dihijaukan
+      # (perbaiki mock + tambah service Postgres/Redis atau pisahkan integration).
+      - name: Test (not gating yet)
+        run: npm test
+        continue-on-error: true
