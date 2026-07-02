@@ -53,4 +53,22 @@ export function initSentry() {
   console.log('[Sentry] Frontend error tracking initialized');
 }
 
+/**
+ * Tandai error dengan identitas pengguna agar bisa dilacak per-TPD/perangkat
+ * di dashboard Sentry. Aman dipanggil meski Sentry belum diinisialisasi (no-op).
+ * @param {{ id?: string, email?: string, role?: string, name?: string }} user
+ */
+export function setSentryUser(user) {
+  if (!user) return;
+  try {
+    Sentry.setUser({ id: user.id, email: user.email, username: user.name });
+    if (user.role) Sentry.setTag('role', user.role);
+  } catch { /* abaikan bila Sentry tak aktif */ }
+}
+
+/** Hapus identitas pengguna dari Sentry (dipanggil saat logout). */
+export function clearSentryUser() {
+  try { Sentry.setUser(null); } catch { /* abaikan */ }
+}
+
 export { Sentry };

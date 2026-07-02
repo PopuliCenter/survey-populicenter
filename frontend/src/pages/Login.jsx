@@ -6,6 +6,7 @@ import useStatusBar from '../hooks/useStatusBar';
 import ConfirmSheet from '../components/ConfirmSheet';
 import AppVersionLabel from '../components/AppVersionLabel';
 import AppFooterLinks from '../components/AppFooterLinks';
+import { setSentryUser } from '../config/sentry';
 
 /**
  * Login page with email + password form.
@@ -48,6 +49,7 @@ function Login() {
       // Persist credentials
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+      setSentryUser(user); // tandai error berikutnya dengan identitas pengguna
 
       // Redirect based on role
       const homeByRole = {

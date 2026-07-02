@@ -65,8 +65,9 @@ describe('getNavItemsForRole', () => {
     expect(paths).toContain('/reports');
     expect(paths).toContain('/map');
     expect(paths).toContain('/audit-log');
+    expect(paths).toContain('/system');
     expect(paths).toContain('/cleanup');
-    expect(items).toHaveLength(9);
+    expect(items).toHaveLength(10);
   });
 
   test('returns supervisor nav items for supervisor role', () => {

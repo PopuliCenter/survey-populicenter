@@ -181,6 +181,7 @@ app.use('/', require('./routes/questions'));
 app.use('/responses', require('./routes/responses'));
 app.use('/reports', require('./routes/reports'));
 app.use('/dashboard', require('./routes/dashboard'));
+app.use('/monitoring', require('./routes/monitoring'));
 app.use('/map', require('./routes/map'));
 app.use('/upload', require('./routes/upload'));
 app.use('/audit-logs', require('./routes/audit-logs'));

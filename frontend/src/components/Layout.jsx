@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
+import { clearSentryUser } from '../config/sentry';
 
 const NAV_ITEMS_BY_ROLE = {
   admin: [
@@ -12,6 +13,7 @@ const NAV_ITEMS_BY_ROLE = {
     { label: 'Laporan', path: '/reports', icon: 'chart' },
     { label: 'Peta', path: '/map', icon: 'map' },
     { label: 'Log Audit', path: '/audit-log', icon: 'search' },
+    { label: 'Status Sistem', path: '/system', icon: 'server' },
     { label: 'Pembersihan Data', path: '/cleanup', icon: 'trash' },
   ],
   supervisor: [
@@ -75,6 +77,7 @@ const ICON_PATHS = {
   search: 'M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z',
   trash: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3',
   logout: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1',
+  server: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-14 4h.01M17 16h.01',
 };
 
 // Preferensi sidebar dipertahankan antar-navigasi. Layout di-mount ulang tiap
@@ -203,6 +206,7 @@ function Layout({ children }) {
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      clearSentryUser();
       navigate('/login');
     }
   };

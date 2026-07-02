@@ -19,6 +19,7 @@ const importers = {
   map: () => import('./pages/MapView'),
   audit: () => import('./pages/AuditLog'),
   cleanup: () => import('./pages/Cleanup'),
+  systemStatus: () => import('./pages/SystemStatus'),
 };
 
 const Dashboard = lazy(importers.dashboard);
@@ -32,6 +33,7 @@ const Reports = lazy(importers.reports);
 const MapView = lazy(importers.map);
 const AuditLog = lazy(importers.audit);
 const Cleanup = lazy(importers.cleanup);
+const SystemStatus = lazy(importers.systemStatus);
 const SurveyList = lazy(() => import('./surveyor/pages/SurveyList'));
 const SurveyForm = lazy(() => import('./surveyor/pages/SurveyForm'));
 const SubmitSuccess = lazy(() => import('./surveyor/pages/SubmitSuccess'));
@@ -239,6 +241,15 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <Cleanup />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/system"
+          element={
+            <ProtectedRoute role="admin">
+              <SystemStatus />
             </ProtectedRoute>
           }
         />

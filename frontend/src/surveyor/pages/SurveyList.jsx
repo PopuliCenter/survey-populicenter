@@ -9,6 +9,7 @@ import ConfirmSheet from '../../components/ConfirmSheet';
 import { addBackButtonListener, addResumeListener } from '../../utils/capacitorBridge';
 import { diffSurveyAvailability, toSurveyStubs } from '../../utils/surveyNotify';
 import { toastInfo, toastWarning } from '../../utils/toastBus';
+import { clearSentryUser } from '../../config/sentry';
 
 const LAST_SEEN_SURVEYS_KEY = 'tpd:lastSeenSurveys';
 
@@ -376,6 +377,7 @@ function SurveyList() {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       sessionStorage.removeItem('session_response_count');
+      clearSentryUser();
       navigate('/login', { replace: true });
     }
   };

@@ -34,6 +34,11 @@ export const SUPPORT_WHATSAPP = '6281292068362';
  * Tautan kontak dukungan siap-pakai: utamakan WhatsApp, lalu email.
  * @returns {string} URL (wa.me / mailto) atau '' bila belum diisi.
  */
+// URL dashboard proyek Sentry (org/proyek Anda). Kosong = kartu Sentry di
+// halaman Status Sistem tampil sebagai "belum dikonfigurasi".
+// Contoh: 'https://sentry.io/organizations/populi/projects/populi-survey/'
+export const SENTRY_DASHBOARD_URL = '';
+
 export function supportLink() {
   if (SUPPORT_WHATSAPP) return `https://wa.me/${SUPPORT_WHATSAPP}`;
   if (SUPPORT_EMAIL) return `mailto:${SUPPORT_EMAIL}`;

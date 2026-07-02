@@ -3,10 +3,15 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import GlobalNotifications from './components/GlobalNotifications.jsx';
 import './index.css';
-import { initSentry } from './config/sentry.js';
+import { initSentry, setSentryUser } from './config/sentry.js';
 
 // Initialize Sentry error tracking (before anything else)
 initSentry();
+// Tandai sesi yang dipulihkan (sudah login) agar error ter-atribut ke pengguna.
+try {
+  const storedUser = localStorage.getItem('user');
+  if (storedUser) setSentryUser(JSON.parse(storedUser));
+} catch { /* abaikan */ }
 
 // Register PWA Service Worker
 if ('serviceWorker' in navigator) {
