@@ -9,24 +9,6 @@ function formatBytes(bytes) {
   return `${(bytes / Math.pow(1024, i)).toFixed(i ? 1 : 0)} ${u[i]}`;
 }
 
-async function downloadArchive(survey, onProgress) {
-  onProgress?.(survey.id, true);
-  try {
-    const res = await api.get(`/storage/survey/${survey.id}/archive`, { responseType: 'blob', timeout: 600000 });
-    const url = URL.createObjectURL(res.data);
-    const a = document.createElement('a');
-    const safe = (survey.title || 'survei').replace(/[^a-z0-9\-_]+/gi, '_').slice(0, 40);
-    a.href = url;
-    a.download = `arsip-${safe}-${new Date().toISOString().slice(0, 10)}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  } finally {
-    onProgress?.(survey.id, false);
-  }
-}
-
 function Storage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -67,10 +49,41 @@ function Storage() {
     return next;
   });
 
+  async function downloadArchive(survey) {
+    setBusyId(survey.id, true);
+    setError(null);
+    try {
+      const res = await api.get(`/storage/survey/${survey.id}/archive`, { responseType: 'blob', timeout: 600000 });
+      const blob = res.data;
+      const ct = (res.headers && res.headers['content-type']) || blob.type || '';
+      // Bila server balas non-ZIP (mis. HTML SPA karena rute belum ter-deploy,
+      // atau JSON error), tampilkan pesan yang jelas — bukan unduh file rusak.
+      if (!/zip/i.test(ct)) {
+        let msg = 'Server tidak mengembalikan file ZIP. Pastikan backend & nginx (rute /storage) sudah di-deploy ulang.';
+        try { const j = JSON.parse(await blob.text()); if (j.error) msg = j.error; } catch { /* biarkan pesan default */ }
+        throw new Error(msg);
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safe = (survey.title || 'survei').replace(/[^a-z0-9\-_]+/gi, '_').slice(0, 40);
+      a.href = url;
+      a.download = `arsip-${safe}-${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setMessage(`Arsip "${survey.title}" berhasil diunduh (${formatBytes(blob.size)}). Cek folder Unduhan perangkat Anda.`);
+    } catch (e) {
+      setError(`Gagal mengunduh arsip "${survey.title}": ${e.message || 'kesalahan tak dikenal'}`);
+    } finally {
+      setBusyId(survey.id, false);
+    }
+  }
+
   async function handleDownloadSelected() {
     for (const id of selected) {
       const s = surveys.find((x) => x.id === id);
-      if (s) await downloadArchive(s, setBusyId); // berurutan agar tidak membebani
+      if (s) await downloadArchive(s); // berurutan agar tidak membebani
     }
   }
 
@@ -171,7 +184,7 @@ function Storage() {
                       <td className="p-3 text-right text-gray-700">{s.responses.toLocaleString('id-ID')}</td>
                       <td className="p-3 text-right text-gray-700">{s.media_count.toLocaleString('id-ID')}</td>
                       <td className="p-3 text-right">
-                        <button type="button" onClick={() => downloadArchive(s, setBusyId)} disabled={busy.has(s.id)}
+                        <button type="button" onClick={() => downloadArchive(s)} disabled={busy.has(s.id)}
                           className="px-3 py-1 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-50 rounded-md">
                           {busy.has(s.id) ? 'Menyiapkan…' : 'Unduh arsip'}
                         </button>
