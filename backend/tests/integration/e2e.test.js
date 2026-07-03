@@ -24,6 +24,7 @@ jest.mock('../../src/models', () => {
   const mockTransaction = {
     commit: jest.fn().mockResolvedValue(undefined),
     rollback: jest.fn().mockResolvedValue(undefined),
+    LOCK: { UPDATE: 'UPDATE' }, // dipakai quota re-check (FOR UPDATE)
   };
 
   const mockSequelize = {
@@ -31,6 +32,7 @@ jest.mock('../../src/models', () => {
     col: jest.fn((col) => col),
     query: jest.fn(),
     transaction: jest.fn().mockResolvedValue(mockTransaction),
+    QueryTypes: { SELECT: 'SELECT', RAW: 'RAW', INSERT: 'INSERT', UPDATE: 'UPDATE' },
     Op: {
       ne: Symbol('ne'),
       gte: Symbol('gte'),
@@ -85,10 +87,12 @@ jest.mock('../../src/config/redis', () => ({
   incr: jest.fn(),
   expire: jest.fn(),
   del: jest.fn(),
+  call: jest.fn().mockResolvedValue('sha-test'),
 }));
 
+// Bentuk sesuai ekspor asli: { queue: <Queue> } — kode memakai queue.add(...)
 jest.mock('../../src/config/queue', () => ({
-  add: jest.fn().mockResolvedValue({ id: 'bull-job-id' }),
+  queue: { add: jest.fn().mockResolvedValue({ id: 'bull-job-id' }) },
 }));
 
 const app = require('../../src/app');

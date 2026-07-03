@@ -44,7 +44,7 @@ jest.mock('../../src/config/redis', () => ({
 }));
 
 jest.mock('../../src/config/queue', () => ({
-  add: jest.fn(),
+  queue: { add: jest.fn() },
 }));
 
 const app = require('../../src/app');
@@ -376,9 +376,9 @@ describe('POST /reports/surveys/:id/export/xlsx', () => {
     const ExportJob = require('../../src/models').ExportJob;
     ExportJob.create = jest.fn().mockResolvedValue(mockExportJob);
 
-    // Mock exportQueue.add
+    // Mock exportQueue.queue.add
     const exportQueue = require('../../src/config/queue');
-    exportQueue.add = jest.fn().mockResolvedValue({});
+    exportQueue.queue.add = jest.fn().mockResolvedValue({});
 
     const token = createAdminToken();
     const res = await request(app)
@@ -395,7 +395,7 @@ describe('POST /reports/surveys/:id/export/xlsx', () => {
       format: 'xlsx',
       filters: {},
     });
-    expect(exportQueue.add).toHaveBeenCalled();
+    expect(exportQueue.queue.add).toHaveBeenCalled();
   });
 
   it('returns xlsx file with correct Content-Type for ≤1000 responses', async () => {
@@ -633,9 +633,9 @@ describe('POST /reports/surveys/:id/export/csv', () => {
     const ExportJob = require('../../src/models').ExportJob;
     ExportJob.create = jest.fn().mockResolvedValue(mockExportJob);
 
-    // Mock exportQueue.add
+    // Mock exportQueue.queue.add
     const exportQueue = require('../../src/config/queue');
-    exportQueue.add = jest.fn().mockResolvedValue({});
+    exportQueue.queue.add = jest.fn().mockResolvedValue({});
 
     const token = createAdminToken();
     const res = await request(app)
