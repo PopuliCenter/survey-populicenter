@@ -26,11 +26,9 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm install
-      # Lint bersifat LAPORAN dulu (belum memblok) — jadikan blocking setelah
-      # peringatan dibersihkan: hapus 'continue-on-error'.
-      - name: Lint (report only)
+      # GERBANG: lint frontend 0 error + 0 warning (sudah bersih).
+      - name: Lint
         run: npm run lint
-        continue-on-error: true
       # GERBANG: test unit frontend (209/209 hijau) wajib lulus.
       - name: Test
         run: npm run test:ci

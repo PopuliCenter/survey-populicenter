@@ -13,7 +13,7 @@
  */
 
 import fc from 'fast-check';
-import { describe, test, expect } from 'vitest';
+import { describe, test } from 'vitest';
 import { fisherYatesShuffle, getDisplayOptions } from '../randomizeOptions.js';
 
 // ─── Arbitrary ────────────────────────────────────────────────────────────────

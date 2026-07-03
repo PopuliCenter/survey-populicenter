@@ -30,7 +30,7 @@ const sqlite = new SQLiteConnection(CapacitorSQLite);
 export async function initSQLiteDB() {
   if (db) return db;
 
-  const ret = await sqlite.checkConnectionsConsistency();
+  await sqlite.checkConnectionsConsistency();
   const isConn = (await sqlite.isConnection(DB_NAME, false)).result;
 
   if (isConn) {

@@ -34,11 +34,13 @@ function usePhotoCapture(options = {}) {
   const [photos, setPhotos] = useState([]);
   const previewUrlsRef = useRef(new Set());
 
-  // Revoke all preview URLs on unmount
+  // Revoke all preview URLs on unmount. Salin ref ke variabel lokal agar
+  // cleanup memakai koleksi yang sama (menghindari peringatan exhaustive-deps).
   useEffect(() => {
+    const urls = previewUrlsRef.current;
     return () => {
-      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      previewUrlsRef.current.clear();
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
     };
   }, []);
 

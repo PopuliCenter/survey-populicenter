@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { isNativePlatform } from '../utils/capacitorBridge';
 
 /**
  * Halaman konfigurasi server — hanya tampil di native app (Capacitor).

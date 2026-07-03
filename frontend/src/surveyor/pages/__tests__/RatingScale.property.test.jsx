@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { describe, test, expect } from 'vitest';
+import { describe, test } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import fc from 'fast-check';
 
@@ -20,7 +20,7 @@ import fc from 'fast-check';
 // This mirrors the implementation in SurveyForm.jsx exactly.
 function RatingScaleField({ question, answer, onChange, hasError }) {
   const config = question.options && !Array.isArray(question.options) ? question.options : {};
-  const { min = 1, max = 5, display = 'stars', labels = {} } = config;
+  const { min = 1, max = 5, display = 'stars' } = config;
   const selectedValue = answer ? parseInt(answer, 10) : null;
 
   const values = [];

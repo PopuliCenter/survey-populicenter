@@ -10,15 +10,9 @@ import IconButton from './IconButton';
  *   onBuilder: (survey) => void,
  *   onClone: (survey) => void,
  *   onActivate: (survey) => void,
- *   onDeactivate: (survey) => void,
- *   onDelete: (survey) => void,
  *   cloningId: string | null,
- *   confirmDeleteId: string | null,
  *   onConfirmDelete: (id) => void,
- *   onCancelDelete: () => void,
- *   confirmDeactivateId: string | null,
  *   onConfirmDeactivate: (id) => void,
- *   onCancelDeactivate: () => void,
  *   formatDate: (dateStr) => string,
  * }} props
  */
@@ -27,15 +21,9 @@ function SurveyCard({
   onBuilder,
   onClone,
   onActivate,
-  onDeactivate,
-  onDelete,
   cloningId,
-  confirmDeleteId,
   onConfirmDelete,
-  onCancelDelete,
-  confirmDeactivateId,
   onConfirmDeactivate,
-  onCancelDeactivate,
   formatDate,
 }) {
   const canDelete =

@@ -1829,7 +1829,7 @@ function SurveyForm() {
         navigate(`/surveyor/survey/${id}/success`, {
           state: { offline: true, survey_id: id },
         });
-      } catch (err) {
+      } catch {
         setSubmitError('Gagal menyimpan data secara lokal. Silakan coba kembali.');
       } finally {
         setSubmitting(false);
@@ -1962,6 +1962,9 @@ function SurveyForm() {
       setSubmitting(false);
       setMediaUploadMessage('');
     }
+    // Deps di-kurasi manual untuk handler submit besar ini; menyerahkan ke
+    // exhaustive-deps berisiko memicu pembuatan-ulang callback yang tak perlu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     validateRequiredQuestions,
     validationErrors,

@@ -425,7 +425,7 @@ function EditSurveyModal({ survey, onClose, onSaved }) {
 // ─── Import Questionnaire Modal ───────────────────────────────────────────────
 function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
   const [targetSurveyId, setTargetSurveyId] = useState('');
-  const [file, setFile] = useState(null);
+  const [, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState(null);

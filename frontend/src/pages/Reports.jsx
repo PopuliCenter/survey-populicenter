@@ -84,10 +84,7 @@ function ExportJobTracker({ job, onDone }) {
   }, [pollStatus]);
 
   function handleDownload() {
-    const token = localStorage.getItem('token');
-    const url = `${BASE_URL}/reports/exports/${job.jobId}/download`;
-    // Create a temporary anchor to trigger download with auth header via URL
-    // Since we can't set headers on window.open, we fetch the file as blob
+    // Unduh file sebagai blob (header auth otomatis via interceptor api).
     api
       .get(`/reports/exports/${job.jobId}/download`, { responseType: 'blob' })
       .then((res) => {
@@ -130,7 +127,7 @@ function ExportJobTracker({ job, onDone }) {
         {error && <span className="text-xs text-red-600">{error}</span>}
       </div>
 
-      <div className="ml-4 flex-shrink-0">
+      <div className="ml-4 flex-shrink-0 flex items-center gap-2">
         {status === 'completed' && (
           <button
             onClick={handleDownload}
@@ -159,6 +156,16 @@ function ExportJobTracker({ job, onDone }) {
         )}
         {status === 'failed' && (
           <span className="text-xs text-red-500">Ekspor gagal</span>
+        )}
+        {(status === 'completed' || status === 'failed') && (
+          <button
+            onClick={() => onDone(job.jobId)}
+            className="text-gray-400 hover:text-gray-600 px-1.5 py-1 text-sm"
+            aria-label="Tutup notifikasi ekspor"
+            title="Tutup"
+          >
+            ✕
+          </button>
         )}
       </div>
     </div>

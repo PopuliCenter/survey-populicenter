@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import SubmitSuccess from '../SubmitSuccess.jsx';

@@ -498,7 +498,7 @@ describe('UniqueIdField', () => {
   test('indikator ketersediaan "Nomor tersedia" ditampilkan setelah debounce', async () => {
     api.get.mockResolvedValue({ data: buildSurveyWithUniqueId() });
     // Mock check-unique to return available
-    api.post.mockImplementation((url, data) => {
+    api.post.mockImplementation((url) => {
       if (url === '/responses/check-unique') {
         return Promise.resolve({ data: { available: true } });
       }
@@ -531,7 +531,7 @@ describe('UniqueIdField', () => {
   test('indikator "Nomor sudah digunakan" ditampilkan jika tidak tersedia', async () => {
     api.get.mockResolvedValue({ data: buildSurveyWithUniqueId() });
     // Mock check-unique to return not available
-    api.post.mockImplementation((url, data) => {
+    api.post.mockImplementation((url) => {
       if (url === '/responses/check-unique') {
         return Promise.resolve({ data: { available: false } });
       }

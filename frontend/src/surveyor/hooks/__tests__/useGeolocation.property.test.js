@@ -16,7 +16,7 @@
  */
 
 import fc from 'fast-check';
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, test, vi, beforeEach, afterEach } from 'vitest';
 import useGeolocation from '../useGeolocation.js';
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
