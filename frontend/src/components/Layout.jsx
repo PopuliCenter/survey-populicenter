@@ -14,6 +14,7 @@ const NAV_ITEMS_BY_ROLE = {
     { label: 'Peta', path: '/map', icon: 'map' },
     { label: 'Log Audit', path: '/audit-log', icon: 'search' },
     { label: 'Status Sistem', path: '/system', icon: 'server' },
+    { label: 'Penyimpanan', path: '/penyimpanan', icon: 'database' },
     { label: 'Pembersihan Data', path: '/cleanup', icon: 'trash' },
   ],
   supervisor: [
@@ -78,6 +79,7 @@ const ICON_PATHS = {
   trash: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3',
   logout: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1',
   server: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-14 4h.01M17 16h.01',
+  database: 'M4 7c0-1.66 3.58-3 8-3s8 1.34 8 3-3.58 3-8 3-8-1.34-8-3zM4 7v10c0 1.66 3.58 3 8 3s8-1.34 8-3V7M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3',
 };
 
 // Preferensi sidebar dipertahankan antar-navigasi. Layout di-mount ulang tiap

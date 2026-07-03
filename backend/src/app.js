@@ -182,6 +182,7 @@ app.use('/responses', require('./routes/responses'));
 app.use('/reports', require('./routes/reports'));
 app.use('/dashboard', require('./routes/dashboard'));
 app.use('/monitoring', require('./routes/monitoring'));
+app.use('/storage', require('./routes/storage'));
 app.use('/map', require('./routes/map'));
 app.use('/upload', require('./routes/upload'));
 app.use('/audit-logs', require('./routes/audit-logs'));

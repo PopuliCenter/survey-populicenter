@@ -20,6 +20,7 @@ const importers = {
   audit: () => import('./pages/AuditLog'),
   cleanup: () => import('./pages/Cleanup'),
   systemStatus: () => import('./pages/SystemStatus'),
+  storage: () => import('./pages/Storage'),
 };
 
 const Dashboard = lazy(importers.dashboard);
@@ -34,6 +35,7 @@ const MapView = lazy(importers.map);
 const AuditLog = lazy(importers.audit);
 const Cleanup = lazy(importers.cleanup);
 const SystemStatus = lazy(importers.systemStatus);
+const Storage = lazy(importers.storage);
 const SurveyList = lazy(() => import('./surveyor/pages/SurveyList'));
 const SurveyForm = lazy(() => import('./surveyor/pages/SurveyForm'));
 const SubmitSuccess = lazy(() => import('./surveyor/pages/SubmitSuccess'));
@@ -250,6 +252,15 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <SystemStatus />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/penyimpanan"
+          element={
+            <ProtectedRoute role="admin">
+              <Storage />
             </ProtectedRoute>
           }
         />
