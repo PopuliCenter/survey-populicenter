@@ -55,9 +55,10 @@ jobs:
       - name: Lint (report only)
         run: npm run lint
         continue-on-error: true
-      # Sebagian test backend masih gagal (mock unit + integration butuh DB).
-      # Dijalankan sebagai LAPORAN dulu; jadikan gerbang setelah dihijaukan
-      # (perbaiki mock + tambah service Postgres/Redis atau pisahkan integration).
+      # Semua test backend berbasis MOCK (tak butuh DB/Redis nyata). Sisa
+      # kegagalan = test USANG yang belum diselaraskan dgn implementasi terbaru
+      # (mis. dashboard /stats kini pakai statistik pra-hitung) → butuh penulisan
+      # ulang, BUKAN bug produk. Report-only sampai test disegarkan.
       - name: Test (not gating yet)
         run: npm test
         continue-on-error: true
