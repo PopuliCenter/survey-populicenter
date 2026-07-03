@@ -151,14 +151,42 @@ router.get('/survey/:id/archive', async (req, res, next) => {
     const survey = await Survey.findByPk(id, { attributes: ['id', 'title'] });
     if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
 
-    const responses = await Response.findAll({
-      where: { survey_id: id, questionnaire_number: { [Op.notLike]: 'PENDING-%' } },
-      include: [{ model: Answer, as: 'answers', attributes: ['question_id', 'answer_value', 'answer_json', 'photo_path'] }],
-      order: [['created_at', 'ASC']],
-    });
+    // Ambil data RAW (tanpa hidrasi ORM/include) — jauh lebih ringan & tahan
+    // survei besar. Gabung jawaban ke tiap respons di JS.
+    const [respRows] = await sequelize.query(
+      `SELECT id, questionnaire_number, surveyor_id, created_at, latitude, longitude,
+              review_status, audio_path, signature_path, photo_paths
+       FROM responses
+       WHERE survey_id = :sid AND questionnaire_number NOT LIKE 'PENDING-%'
+       ORDER BY created_at ASC`,
+      { replacements: { sid: id } }
+    );
+    const respIds = respRows.map((r) => r.id);
 
-    // Kumpulkan path media dari respons ini.
-    const mediaPaths = await collectMediaPaths(sequelize, responses.map((r) => r.id));
+    let ansRows = [];
+    if (respIds.length > 0) {
+      [ansRows] = await sequelize.query(
+        `SELECT response_id, question_id, answer_value, answer_json, photo_path
+         FROM answers WHERE response_id IN (:ids)`,
+        { replacements: { ids: respIds } }
+      );
+    }
+    const ansByResp = {};
+    const mediaSet = new Set();
+    for (const a of ansRows) {
+      if (!ansByResp[a.response_id]) ansByResp[a.response_id] = [];
+      ansByResp[a.response_id].push({
+        question_id: a.question_id, answer_value: a.answer_value,
+        answer_json: a.answer_json, photo_path: a.photo_path,
+      });
+      if (a.photo_path) mediaSet.add(a.photo_path);
+    }
+    for (const r of respRows) {
+      if (r.audio_path) mediaSet.add(r.audio_path);
+      if (r.signature_path) mediaSet.add(r.signature_path);
+      if (Array.isArray(r.photo_paths)) for (const p of r.photo_paths) if (p) mediaSet.add(p);
+    }
+    const mediaPaths = [...mediaSet];
 
     const safe = (survey.title || 'survei').replace(/[^a-z0-9\-_]+/gi, '_').slice(0, 40);
     const stamp = new Date().toISOString().slice(0, 10);
@@ -166,11 +194,10 @@ router.get('/survey/:id/archive', async (req, res, next) => {
     res.setHeader('Content-Disposition', `attachment; filename="arsip-${safe}-${stamp}.zip"`);
 
     const archive = archiver('zip', { zlib: { level: 6 } });
-    archive.on('error', (err) => { try { res.destroy(err); } catch { /* noop */ } });
+    archive.on('error', (err) => { console.error('[storage/archive] archiver error:', err.message); try { res.destroy(err); } catch { /* noop */ } });
     archive.pipe(res);
 
-    // Data respons (JSON).
-    const data = responses.map((r) => ({
+    const data = respRows.map((r) => ({
       id: r.id,
       questionnaire_number: r.questionnaire_number,
       surveyor_id: r.surveyor_id,
@@ -178,12 +205,7 @@ router.get('/survey/:id/archive', async (req, res, next) => {
       latitude: r.latitude,
       longitude: r.longitude,
       review_status: r.review_status,
-      answers: (r.answers || []).map((a) => ({
-        question_id: a.question_id,
-        answer_value: a.answer_value,
-        answer_json: a.answer_json,
-        photo_path: a.photo_path,
-      })),
+      answers: ansByResp[r.id] || [],
     }));
     archive.append(JSON.stringify({ survey: { id: survey.id, title: survey.title }, count: data.length, responses: data }, null, 2), { name: 'responses.json' });
 
@@ -198,7 +220,8 @@ router.get('/survey/:id/archive', async (req, res, next) => {
 
     await archive.finalize();
   } catch (error) {
-    // Bila header belum terkirim, teruskan ke error handler.
+    // Log agar 500 tidak "senyap" (memudahkan diagnosa di produksi).
+    console.error('[storage/archive] gagal untuk survey', req.params.id, ':', error && (error.stack || error.message));
     if (!res.headersSent) return next(error);
     try { res.destroy(error); } catch { /* noop */ }
   }
