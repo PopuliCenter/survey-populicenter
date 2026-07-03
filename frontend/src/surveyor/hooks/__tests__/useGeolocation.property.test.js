@@ -46,6 +46,8 @@ function simulateGeolocationSuccess(lat, lng) {
     writable: true,
   });
 
+  // Sengaja memanggil hook di helper test (di luar komponen) untuk menguji getLocation.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const { getLocation } = useGeolocation();
   return getLocation();
 }

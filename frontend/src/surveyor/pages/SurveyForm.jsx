@@ -543,6 +543,14 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
 
   const usedSet = useMemo(() => new Set(usedNumbers || []), [usedNumbers]);
 
+  // Bersihkan timer debounce saat unmount. WAJIB dipanggil SEBELUM early-return
+  // di bawah agar urutan hook konsisten di kedua mode (rules-of-hooks).
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   // Jika ada assigned_numbers dari admin, tampilkan dropdown
   if (assignedNumbers && Array.isArray(assignedNumbers) && assignedNumbers.length > 0) {
     const availableNumbers = assignedNumbers.filter((num) => !usedSet.has(num));
@@ -648,12 +656,6 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
       setAvailability(null);
     }
   }
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
 
   return (
     <div className="space-y-1">
