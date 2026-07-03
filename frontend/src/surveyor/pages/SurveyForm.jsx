@@ -29,7 +29,11 @@ import ConfirmSheet from '../../components/ConfirmSheet';
 import AudioRecorderPanel from '../components/AudioRecorderPanel';
 import PhotoCapturePanel from '../components/PhotoCapturePanel';
 import SignaturePadCanvas from '../components/SignaturePadCanvas';
-import { addBackButtonListener } from '../../utils/capacitorBridge';
+import { addBackButtonListener, isNativePlatform } from '../../utils/capacitorBridge';
+
+// ─── Rekaman audio: batas & strategi "awal + akhir" ─────────────────────────────
+const AUDIO_TOTAL_MAX_SEC = 180;      // maksimal 3 menit total (terekam)
+const AUDIO_FIRST_SEGMENT_SEC = 90;   // ~1,5 menit pembukaan sebelum jeda otomatis
 
 // ─── Field Tools Settings ─────────────────────────────────────────────────────
 
@@ -1177,7 +1181,10 @@ function SurveyForm() {
   const { isOnline, isSyncing, pendingCount } = useSyncManager();
 
   // ─── Field tools hooks ──────────────────────────────────────────────────────
-  const audioRecorder = useAudioRecorder();
+  // Rekaman audio maks 3 menit total (sadar-jeda). Strategi "awal + akhir":
+  // rekam ~1,5 mnt pembukaan, jeda otomatis, lalu lanjut ~1,5 mnt saat sampai
+  // pertanyaan terakhir (lihat efek orkestrasi di bawah).
+  const audioRecorder = useAudioRecorder({ maxDurationSec: AUDIO_TOTAL_MAX_SEC });
   const photoCapture = usePhotoCapture();
   const signaturePad = useSignaturePad();
 
@@ -1436,6 +1443,33 @@ function SurveyForm() {
     audioRecorder.startRecording();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, survey, fieldToolsSettings.audio_mode, audioRecorder.isSupported]);
+
+  // ─── Orkestrasi rekaman "awal + akhir" ──────────────────────────────────────
+  // Jeda otomatis setelah segmen awal (~1,5 mnt) BILA belum di pertanyaan
+  // terakhir — sisa jatah dipakai merekam penutupan. Bila wawancara singkat
+  // (sampai pertanyaan terakhir sebelum jatah awal habis), rekaman lanjut terus.
+  useEffect(() => {
+    if (fieldToolsSettings.audio_mode === 'disabled') return;
+    const lastIndex = visibleQuestions.length - 1;
+    if (
+      audioRecorder.status === 'recording' &&
+      audioRecorder.duration >= AUDIO_FIRST_SEGMENT_SEC &&
+      currentStep < lastIndex
+    ) {
+      audioRecorder.pauseRecording();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioRecorder.status, audioRecorder.duration, currentStep, visibleQuestions.length, fieldToolsSettings.audio_mode]);
+
+  // Lanjutkan rekaman saat SAMPAI pertanyaan terakhir (menangkap penutupan).
+  useEffect(() => {
+    if (fieldToolsSettings.audio_mode === 'disabled') return;
+    const lastIndex = visibleQuestions.length - 1;
+    if (lastIndex >= 0 && currentStep === lastIndex && audioRecorder.status === 'paused') {
+      audioRecorder.resumeRecording();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, visibleQuestions.length, audioRecorder.status, fieldToolsSettings.audio_mode]);
 
   // Ambil lokasi GPS secara manual (tombol "Coba Ambil Lokasi").
   const refreshStartGeo = useCallback(async () => {
@@ -1728,8 +1762,18 @@ function SurveyForm() {
       return;
     }
 
+    // Auto-stop rekaman & ambil blob final sebelum menyusun payload — rekaman
+    // otomatis ikut terkirim tanpa perlu menekan tombol berhenti.
+    let recordedAudioBlob = audioRecorder.audioBlob;
+    if (
+      fieldToolsSettings.audio_mode !== 'disabled' &&
+      (audioRecorder.status === 'recording' || audioRecorder.status === 'paused')
+    ) {
+      recordedAudioBlob = await audioRecorder.stopAndGetBlob();
+    }
+
     const hasMediaUpload =
-      (fieldToolsSettings.audio_mode !== 'disabled' && audioRecorder.audioBlob) ||
+      (fieldToolsSettings.audio_mode !== 'disabled' && recordedAudioBlob) ||
       (fieldToolsSettings.photo_mode !== 'disabled' && photoCapture.photos.length > 0) ||
       (fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty);
 
@@ -1770,20 +1814,20 @@ function SurveyForm() {
             lat: startGeo.lat,
             lng: startGeo.lng,
           } : null,
-          has_audio: fieldToolsSettings.audio_mode !== 'disabled' && !!audioRecorder.audioBlob,
+          has_audio: fieldToolsSettings.audio_mode !== 'disabled' && !!recordedAudioBlob,
           has_signature: fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty,
           photo_count: fieldToolsSettings.photo_mode !== 'disabled' ? photoCapture.photos.length : 0,
         });
 
         // Save media files to offline storage in parallel (with compression)
         const offlineMediaSaves = [];
-        if (fieldToolsSettings.audio_mode !== 'disabled' && audioRecorder.audioBlob) {
+        if (fieldToolsSettings.audio_mode !== 'disabled' && recordedAudioBlob) {
           setMediaUploadMessage('Menyimpan rekaman audio...');
           offlineMediaSaves.push(
             saveMediaFile({
               localId,
               type: 'audio',
-              blob: audioRecorder.audioBlob,
+              blob: recordedAudioBlob,
               filename: 'recording.webm',
             })
           );
@@ -1849,9 +1893,9 @@ function SurveyForm() {
       const media_photo_paths = [];
 
       const uploadPromises = [];
-      if (fieldToolsSettings.audio_mode !== 'disabled' && audioRecorder.audioBlob) {
+      if (fieldToolsSettings.audio_mode !== 'disabled' && recordedAudioBlob) {
         const audioFormData = new FormData();
-        audioFormData.append('audio', audioRecorder.audioBlob, 'recording.webm');
+        audioFormData.append('audio', recordedAudioBlob, 'recording.webm');
         uploadPromises.push(
           api.post('/upload/audio', audioFormData, {
             headers: { 'Content-Type': 'multipart/form-data' },
@@ -2154,7 +2198,7 @@ function SurveyForm() {
                 <span className="text-xs font-medium text-gray-600">Rekaman Audio</span>
                 <FieldToolModeLabel mode={fieldToolsSettings.audio_mode} />
               </div>
-              <AudioRecorderPanel audioRecorder={audioRecorder} />
+              <AudioRecorderPanel audioRecorder={audioRecorder} hideControlsDefault={isNativePlatform()} />
             </div>
           )}
         </div>

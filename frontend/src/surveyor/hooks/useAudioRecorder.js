@@ -2,26 +2,21 @@
  * useAudioRecorder.js
  *
  * React hook that manages audio recording via the browser MediaRecorder API.
- * Implements a state machine: idle → recording → paused → stopped.
+ * State machine: idle → recording → paused → stopped.
  *
- * MIME type fallback order:
- *   audio/webm;codecs=opus → audio/mp4 → audio/webm
+ * Fitur:
+ *  - Cap durasi total berbasis durasi TEREKAM (sadar-jeda), default 3 menit.
+ *  - stopAndGetBlob(): hentikan lalu resolve dengan Blob final (untuk auto-stop
+ *    saat submit tanpa menunggu state async).
  *
- * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.8, 1.9
+ * MIME fallback: audio/webm;codecs=opus → audio/mp4 → audio/webm
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 
-/**
- * Detect the best supported MIME type for audio recording.
- * @returns {string|null} The first supported MIME type, or null if none.
- */
+/** MIME type terbaik yang didukung, atau null. */
 function getSupportedMimeType() {
-  const candidates = [
-    'audio/webm;codecs=opus',
-    'audio/mp4',
-    'audio/webm',
-  ];
+  const candidates = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'];
   for (const mime of candidates) {
     if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(mime)) {
       return mime;
@@ -31,22 +26,19 @@ function getSupportedMimeType() {
 }
 
 /**
- * useAudioRecorder
- *
+ * @param {{ maxDurationSec?: number }} [options]
  * @returns {{
- *   isSupported: boolean,
- *   permissionDenied: boolean,
- *   status: 'idle' | 'recording' | 'paused' | 'stopped',
- *   duration: number,
- *   audioBlob: Blob | null,
- *   startRecording: () => Promise<void>,
- *   pauseRecording: () => void,
- *   resumeRecording: () => void,
- *   stopRecording: () => void,
- *   resetRecording: () => void,
+ *   isSupported: boolean, permissionDenied: boolean,
+ *   status: 'idle'|'recording'|'paused'|'stopped', duration: number,
+ *   audioBlob: Blob|null, maxDurationSec: number,
+ *   startRecording: () => Promise<void>, pauseRecording: () => void,
+ *   resumeRecording: () => void, stopRecording: () => void,
+ *   stopAndGetBlob: () => Promise<Blob|null>, resetRecording: () => void,
  * }}
  */
-function useAudioRecorder() {
+function useAudioRecorder(options = {}) {
+  const maxDurationSec = options.maxDurationSec || 180; // 3 menit default
+
   const isSupported = typeof MediaRecorder !== 'undefined';
 
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -58,20 +50,14 @@ function useAudioRecorder() {
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
   const streamRef = useRef(null);
-  const autoStopRef = useRef(null);
+  const audioBlobRef = useRef(null);          // blob final (sinkron) untuk stopAndGetBlob
+  const pendingStopResolveRef = useRef(null); // resolver Promise stopAndGetBlob
+  const mimeTypeRef = useRef(null);
 
-  // Clean up on unmount
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      if (autoStopRef.current) {
-        clearTimeout(autoStopRef.current);
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
@@ -93,8 +79,7 @@ function useAudioRecorder() {
     if (!isSupported) return;
 
     try {
-      // Constraint suara: mono + peredam bising → lebih jernih untuk wawancara
-      // sekaligus memperkecil ukuran file.
+      // Mono + peredam bising/echo + AGC → suara wawancara lebih jernih.
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -107,56 +92,45 @@ function useAudioRecorder() {
       setPermissionDenied(false);
 
       const mimeType = getSupportedMimeType();
-      // Kompres di sumbernya: ~32 kbps cukup jelas untuk rekaman suara wawancara,
-      // namun jauh lebih kecil (≈1 MB untuk 5 menit) sehingga unggah cepat dan
-      // tidak membebani bandwidth/penyimpanan server.
-      const options = {
+      mimeTypeRef.current = mimeType;
+      // 64 kbps: lebih jernih dari 32k namun tetap kecil (~1,4 MB untuk 3 menit).
+      const recorder = new MediaRecorder(stream, {
         ...(mimeType ? { mimeType } : {}),
-        audioBitsPerSecond: 32000,
-      };
-      const recorder = new MediaRecorder(stream, options);
+        audioBitsPerSecond: 64000,
+      });
 
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
+        if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
       };
 
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, {
-          type: mimeType || 'audio/webm',
-        });
+        const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || 'audio/webm' });
+        audioBlobRef.current = blob;
         setAudioBlob(blob);
-        // Stop all tracks to release the microphone
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((t) => t.stop());
           streamRef.current = null;
         }
+        // Selesaikan Promise stopAndGetBlob yang menunggu (bila ada).
+        if (pendingStopResolveRef.current) {
+          pendingStopResolveRef.current(blob);
+          pendingStopResolveRef.current = null;
+        }
       };
 
       mediaRecorderRef.current = recorder;
-      // Collect data every 1 second for smaller chunks
-      recorder.start(1000);
+      recorder.start(1000); // chunk tiap 1 detik
       setStatus('recording');
       setDuration(0);
       setAudioBlob(null);
+      audioBlobRef.current = null;
       startTimer();
-
-      // Auto-stop after 5 minutes to prevent oversized files
-      autoStopRef.current = setTimeout(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-          mediaRecorderRef.current.stop();
-          setStatus('stopped');
-          stopTimer();
-        }
-      }, 5 * 60 * 1000);
     } catch {
-      // Permission denied or other error
       setPermissionDenied(true);
     }
-  }, [status, isSupported, startTimer, stopTimer]);
+  }, [status, isSupported, startTimer]);
 
   const pauseRecording = useCallback(() => {
     if (status !== 'recording') return;
@@ -164,7 +138,7 @@ function useAudioRecorder() {
     if (recorder && recorder.state === 'recording') {
       recorder.pause();
       setStatus('paused');
-      stopTimer();
+      stopTimer(); // durasi terekam berhenti bertambah saat dijeda
     }
   }, [status, stopTimer]);
 
@@ -186,21 +160,28 @@ function useAudioRecorder() {
       setStatus('stopped');
       stopTimer();
     }
-    if (autoStopRef.current) {
-      clearTimeout(autoStopRef.current);
-      autoStopRef.current = null;
-    }
   }, [status, stopTimer]);
 
+  /**
+   * Hentikan rekaman dan resolve dengan Blob final. Untuk auto-stop saat submit:
+   * pemanggil bisa `await` blob tanpa bergantung pada state React yang async.
+   * @returns {Promise<Blob|null>}
+   */
+  const stopAndGetBlob = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === 'inactive') {
+      return Promise.resolve(audioBlobRef.current);
+    }
+    return new Promise((resolve) => {
+      pendingStopResolveRef.current = resolve;
+      recorder.stop();
+      setStatus('stopped');
+      stopTimer();
+    });
+  }, [stopTimer]);
+
   const resetRecording = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (autoStopRef.current) {
-      clearTimeout(autoStopRef.current);
-      autoStopRef.current = null;
-    }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
@@ -210,11 +191,20 @@ function useAudioRecorder() {
     }
     mediaRecorderRef.current = null;
     chunksRef.current = [];
+    audioBlobRef.current = null;
+    pendingStopResolveRef.current = null;
     setStatus('idle');
     setDuration(0);
     setAudioBlob(null);
     setPermissionDenied(false);
   }, []);
+
+  // Cap durasi TOTAL terekam (sadar-jeda): hentikan otomatis saat mencapai batas.
+  useEffect(() => {
+    if (status === 'recording' && duration >= maxDurationSec) {
+      stopRecording();
+    }
+  }, [duration, status, maxDurationSec, stopRecording]);
 
   return {
     isSupported,
@@ -222,10 +212,12 @@ function useAudioRecorder() {
     status,
     duration,
     audioBlob,
+    maxDurationSec,
     startRecording,
     pauseRecording,
     resumeRecording,
     stopRecording,
+    stopAndGetBlob,
     resetRecording,
   };
 }
