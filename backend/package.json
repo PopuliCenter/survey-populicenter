@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@sentry/node": "^8.40.0",
-    "archiver": "^8.0.0",
+    "archiver": "^7.0.1",
     "bcrypt": "5.1.1",
     "bullmq": "^5.25.5",
     "compression": "^1.8.0",
