@@ -37,8 +37,10 @@ jest.mock('multer', () => {
   const multerMock = jest.fn().mockImplementation(() => ({
     single: jest.fn().mockReturnValue((req, res, next) => {
       if (mockMulterBehavior === 'success') {
+        const fname = `photo-123456789.${mockMulterMimeType === 'image/jpeg' ? 'jpg' : mockMulterMimeType === 'image/png' ? 'png' : 'webp'}`;
         req.file = {
-          filename: `photo-123456789.${mockMulterMimeType === 'image/jpeg' ? 'jpg' : mockMulterMimeType === 'image/png' ? 'png' : 'webp'}`,
+          filename: fname,
+          path: `uploads/photos/${fname}`, // dibutuhkan relUploadPath (path.relative)
           mimetype: mockMulterMimeType,
           size: 1024,
         };
