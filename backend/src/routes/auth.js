@@ -24,9 +24,14 @@ const loginLimiter = rateLimit({
   // Key per IP asli klien (dari Cloudflare), bukan IP nginx internal — agar
   // satu pengguna tidak memblokir semua pengguna lain yang berbagi proxy.
   keyGenerator: (req) => req.headers['cf-connecting-ip'] || req.ip,
-  store: new RedisStore({
-    sendCommand: (...args) => redis.call(...args),
-    prefix: 'rl:login:', // prefix unik agar tidak bentrok dengan limiter global (ERR_ERL_DOUBLE_COUNT)
+  // Di lingkungan test, JANGAN konstruksi RedisStore (konstruktornya memanggil
+  // redis.call yang di-mock → error saat import). Pakai memory store default;
+  // limiter juga di-skip via `skip` di bawah.
+  ...(process.env.NODE_ENV === 'test' ? {} : {
+    store: new RedisStore({
+      sendCommand: (...args) => redis.call(...args),
+      prefix: 'rl:login:', // prefix unik agar tidak bentrok dengan limiter global (ERR_ERL_DOUBLE_COUNT)
+    }),
   }),
   message: { error: 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.' },
   skip: () => process.env.NODE_ENV === 'test',
