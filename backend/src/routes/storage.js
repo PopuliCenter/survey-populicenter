@@ -9,6 +9,7 @@
 
 const express = require('express');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const archiver = require('archiver');
 const { Op } = require('sequelize');
@@ -190,12 +191,7 @@ router.get('/survey/:id/archive', async (req, res, next) => {
 
     const safe = (survey.title || 'survei').replace(/[^a-z0-9\-_]+/gi, '_').slice(0, 40);
     const stamp = new Date().toISOString().slice(0, 10);
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="arsip-${safe}-${stamp}.zip"`);
-
-    const archive = archiver('zip', { zlib: { level: 6 } });
-    archive.on('error', (err) => { console.error('[storage/archive] archiver error:', err.message); try { res.destroy(err); } catch { /* noop */ } });
-    archive.pipe(res);
+    const downloadName = `arsip-${safe}-${stamp}.zip`;
 
     const data = respRows.map((r) => ({
       id: r.id,
@@ -207,20 +203,35 @@ router.get('/survey/:id/archive', async (req, res, next) => {
       review_status: r.review_status,
       answers: ansByResp[r.id] || [],
     }));
-    archive.append(JSON.stringify({ survey: { id: survey.id, title: survey.title }, count: data.length, responses: data }, null, 2), { name: 'responses.json' });
 
-    // File media (hanya yang di dalam uploads/).
+    // Bangun ZIP ke FILE SEMENTARA dulu → dapat Content-Length pasti → klien
+    // (browser/nginx/Cloudflare) tahu kapan selesai (mencegah unduhan "menggantung").
+    const tmpFile = path.join(os.tmpdir(), `arsip-${req.params.id}-${Date.now()}.zip`);
+    const output = fs.createWriteStream(tmpFile);
+    const archive = archiver('zip', { zlib: { level: 6 } });
+
+    const zipDone = new Promise((resolve, reject) => {
+      output.on('close', resolve);
+      output.on('error', reject);
+      archive.on('error', reject);
+    });
+
+    archive.pipe(output);
+    archive.append(JSON.stringify({ survey: { id: survey.id, title: survey.title }, count: data.length, responses: data }, null, 2), { name: 'responses.json' });
     for (const rel of mediaPaths) {
       const full = path.resolve(PROJECT_ROOT, rel);
       if (full !== UPLOADS_ROOT && !full.startsWith(UPLOADS_ROOT + path.sep)) continue;
-      if (fs.existsSync(full)) {
-        archive.file(full, { name: `media/${rel.replace(/^uploads\//, '')}` });
-      }
+      if (fs.existsSync(full)) archive.file(full, { name: `media/${rel.replace(/^uploads\//, '')}` });
     }
+    archive.finalize();
+    await zipDone;
 
-    await archive.finalize();
+    // Kirim file dengan Content-Length, lalu bersihkan file sementara.
+    res.download(tmpFile, downloadName, (err) => {
+      fs.unlink(tmpFile, () => {});
+      if (err && !res.headersSent) next(err);
+    });
   } catch (error) {
-    // Log agar 500 tidak "senyap" (memudahkan diagnosa di produksi).
     console.error('[storage/archive] gagal untuk survey', req.params.id, ':', error && (error.stack || error.message));
     if (!res.headersSent) return next(error);
     try { res.destroy(error); } catch { /* noop */ }
