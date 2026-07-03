@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 const { sequelize, Response, Answer, AuditLog, ExportJob, Survey, Question, SurveyorQuota, User } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
+const { collectMediaPaths, deleteMediaFiles } = require('../utils/mediaFiles');
 
 const router = express.Router();
 
@@ -235,10 +236,16 @@ router.post('/responses', async (req, res, next) => {
     const ids = responseIds.map((r) => r.id);
     const affectedSurveyIds = [...new Set(responseIds.map((r) => r.survey_id))];
 
+    // Kumpulkan path media SEBELUM baris dihapus (agar bisa unlink file fisik).
+    const mediaPaths = await collectMediaPaths(sequelize, ids);
+
     await sequelize.transaction(async (t) => {
       await Answer.destroy({ where: { response_id: { [Op.in]: ids } }, transaction: t });
       await Response.destroy({ where: { id: { [Op.in]: ids } }, transaction: t });
     });
+
+    // Hapus file media fisik → disk langsung lega (non-kritis bila sebagian gagal).
+    const filesDeleted = deleteMediaFiles(mediaPaths);
 
     // Hitung ulang statistik pra-hitung untuk survei terdampak agar dashboard
     // tidak "drift" (best-effort; kegagalan tidak membatalkan penghapusan).
@@ -248,12 +255,12 @@ router.post('/responses', async (req, res, next) => {
       user_id: req.user.id,
       action: 'CLEANUP_RESPONSES',
       entity_type: 'response',
-      old_value: { count: ids.length, filters: { survey_id, year, month, before_date } },
+      old_value: { count: ids.length, files_deleted: filesDeleted, filters: { survey_id, year, month, before_date } },
       new_value: null,
       ip_address: req.ip,
     });
 
-    res.json({ deleted_count: ids.length, message: `${ids.length} respons berhasil dihapus` });
+    res.json({ deleted_count: ids.length, files_deleted: filesDeleted, message: `${ids.length} respons berhasil dihapus (${filesDeleted} file media dibersihkan)` });
   } catch (error) {
     next(error);
   }
@@ -309,6 +316,10 @@ router.post('/survey/:id', async (req, res, next) => {
       SurveyorQuota.count({ where: { survey_id: id } }),
     ]);
 
+    // Kumpulkan path media survei ini SEBELUM dihapus (untuk unlink file fisik).
+    const surveyResponseRows = await Response.findAll({ where: { survey_id: id }, attributes: ['id'], raw: true });
+    const mediaPaths = await collectMediaPaths(sequelize, surveyResponseRows.map((r) => r.id));
+
     // Cascade delete in transaction
     await sequelize.transaction(async (t) => {
       // 1. Delete answers (via response IDs)
@@ -349,6 +360,9 @@ router.post('/survey/:id', async (req, res, next) => {
       }
     });
 
+    // Hapus file media fisik survei → disk langsung lega.
+    const filesDeleted = deleteMediaFiles(mediaPaths);
+
     await AuditLog.create({
       user_id: req.user.id,
       action: 'CLEANUP_SURVEY',
@@ -359,13 +373,14 @@ router.post('/survey/:id', async (req, res, next) => {
         responses_deleted: responseCount,
         questions_deleted: questionCount,
         quotas_deleted: quotaCount,
+        files_deleted: filesDeleted,
       },
       new_value: null,
       ip_address: req.ip,
     });
 
     res.json({
-      message: `Survei "${survey.title}" beserta ${responseCount} respons, ${questionCount} pertanyaan, dan ${quotaCount} kuota berhasil dihapus.`,
+      message: `Survei "${survey.title}" beserta ${responseCount} respons, ${questionCount} pertanyaan, ${quotaCount} kuota, dan ${filesDeleted} file media berhasil dihapus.`,
     });
   } catch (error) {
     next(error);
