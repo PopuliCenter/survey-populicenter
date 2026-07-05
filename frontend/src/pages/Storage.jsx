@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
 
@@ -18,6 +18,12 @@ function Storage() {
   const [purging, setPurging] = useState(false);
   const [confirmPurge, setConfirmPurge] = useState(false);
   const [message, setMessage] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  // Lacak mount agar polling async tidak setState / memaksa unduh setelah
+  // pengguna meninggalkan halaman (cegah kebocoran + warning React).
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,7 +64,9 @@ function Storage() {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    // Tunda revoke — sebagian browser butuh URL tetap hidup sampai unduhan mulai
+    // (revoke segera bisa membuat file kosong/gagal untuk blob besar).
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
 
   // Survei besar diproses worker → polling status tiap 3 dtk lalu unduh.
@@ -66,10 +74,13 @@ function Storage() {
     const maxAttempts = 200; // ~10 menit @ 3 dtk
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise((r) => setTimeout(r, 3000));
+      if (!mountedRef.current) return; // pengguna sudah pindah halaman — hentikan polling
       const st = await api.get(`/storage/archive-jobs/${jobId}`);
+      if (!mountedRef.current) return;
       const status = st.data?.status;
       if (status === 'completed') {
         const dl = await api.get(`/storage/archive-jobs/${jobId}/download`, { responseType: 'blob', timeout: 600000 });
+        if (!mountedRef.current) return; // jangan paksa unduh setelah keluar halaman
         triggerBlobDownload(dl.data, survey);
         setMessage(`Arsip "${survey.title}" selesai & terunduh (${formatBytes(dl.data.size)}). Cek folder Unduhan.`);
         return;
@@ -109,16 +120,23 @@ function Storage() {
       triggerBlobDownload(blob, survey);
       setMessage(`Arsip "${survey.title}" berhasil diunduh (${formatBytes(blob.size)}). Cek folder Unduhan perangkat Anda.`);
     } catch (e) {
-      setError(`Gagal mengunduh arsip "${survey.title}": ${e.message || 'kesalahan tak dikenal'}`);
+      if (mountedRef.current) setError(`Gagal mengunduh arsip "${survey.title}": ${e.message || 'kesalahan tak dikenal'}`);
     } finally {
-      setBusyId(survey.id, false);
+      if (mountedRef.current) setBusyId(survey.id, false);
     }
   }
 
   async function handleDownloadSelected() {
-    for (const id of selected) {
-      const s = surveys.find((x) => x.id === id);
-      if (s) await downloadArchive(s); // berurutan agar tidak membebani
+    if (bulkBusy) return; // cegah klik ganda memulai loop paralel
+    setBulkBusy(true);
+    try {
+      for (const id of selected) {
+        if (!mountedRef.current) break;
+        const s = surveys.find((x) => x.id === id);
+        if (s) await downloadArchive(s); // berurutan agar tidak membebani
+      }
+    } finally {
+      if (mountedRef.current) setBulkBusy(false);
     }
   }
 
@@ -163,9 +181,9 @@ function Storage() {
               <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-3 flex items-center gap-3 flex-wrap">
                 <span className="text-sm text-gray-600">{selected.size} survei terpilih</span>
                 <div className="ml-auto flex items-center gap-2">
-                  <button type="button" onClick={handleDownloadSelected}
-                    className="px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg">
-                    Unduh arsip terpilih
+                  <button type="button" onClick={handleDownloadSelected} disabled={bulkBusy}
+                    className="px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-50 rounded-lg">
+                    {bulkBusy ? 'Mengunduh…' : 'Unduh arsip terpilih'}
                   </button>
                   <button type="button" onClick={() => setConfirmPurge(true)}
                     className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg">

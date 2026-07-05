@@ -68,10 +68,26 @@ function PageLoader() {
  *
  * @param {{ children: React.ReactNode, role?: string | string[] }} props
  */
+/** True bila JWT sudah kedaluwarsa (atau rusak). Cegah "login palsu" saat token
+ *  expired masih tersimpan — pengguna diarahkan ke login sebelum request gagal. */
+function isTokenExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (!payload || !payload.exp) return false; // tanpa exp → biarkan server yang putuskan
+    return Date.now() >= payload.exp * 1000;
+  } catch {
+    return true; // token rusak → anggap tak valid
+  }
+}
+
 function ProtectedRoute({ children, role }) {
   const token = localStorage.getItem('token');
 
-  if (!token) {
+  if (!token || isTokenExpired(token)) {
+    if (token) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
     return <Navigate to="/login" replace />;
   }
 
