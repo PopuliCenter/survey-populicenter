@@ -58,11 +58,15 @@ function AnswerCard({ answer, index }) {
   function resolveMediaUrl(path) {
     if (!path) return null;
     if (path.startsWith('http')) return path;
+    // /uploads kini butuh JWT + role. <img>/<a> tak bisa kirim header, jadi
+    // token dibawa lewat query ?t=.
+    const token = localStorage.getItem('token');
+    const q = token ? `?t=${encodeURIComponent(token)}` : '';
     // Di Capacitor native, perlu absolute URL
     const serverUrl = localStorage.getItem('api_server_url');
-    if (serverUrl) return `${serverUrl}/${path.replace(/^\//, '')}`;
+    if (serverUrl) return `${serverUrl}/${path.replace(/^\//, '')}${q}`;
     // Di web, relative path via nginx
-    return `/${path.replace(/^\//, '')}`;
+    return `/${path.replace(/^\//, '')}${q}`;
   }
 
   function renderValue() {
@@ -489,9 +493,12 @@ function ResponseDetail() {
               function mediaUrl(path) {
                 if (!path) return null;
                 if (path.startsWith('http')) return path;
+                // /uploads butuh JWT + role → bawa token via query ?t=.
+                const token = localStorage.getItem('token');
+                const q = token ? `?t=${encodeURIComponent(token)}` : '';
                 const serverUrl = localStorage.getItem('api_server_url');
-                if (serverUrl) return `${serverUrl}/${path.replace(/^\//, '')}`;
-                return `/${path.replace(/^\//, '')}`;
+                if (serverUrl) return `${serverUrl}/${path.replace(/^\//, '')}${q}`;
+                return `/${path.replace(/^\//, '')}${q}`;
               }
 
               return (

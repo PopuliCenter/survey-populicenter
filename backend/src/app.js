@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 // Fail-fast: validate required environment variables
-const REQUIRED_ENV = ['JWT_SECRET', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+const REQUIRED_ENV = ['JWT_SECRET', 'SESSION_SECRET', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     console.error(`[FATAL] Required environment variable ${key} is not set. Exiting.`);
@@ -150,17 +150,37 @@ if (process.env.NODE_ENV !== 'test' && process.env.RATE_LIMIT_DISABLED !== 'true
   app.use(globalLimiter);
 }
 
-// ─── Static Files (uploaded photos) ──────────────────────────────────────────
-// Protected media endpoint — requires valid JWT
-const { authMiddleware } = require('./middleware/auth');
-app.get('/uploads/*', authMiddleware, (req, res) => {
-  const filePath = path.join(__dirname, '..', req.path);
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      res.status(404).json({ error: 'File tidak ditemukan' });
+// ─── Static Files (uploaded media) ────────────────────────────────────────────
+// Media responden (foto/audio/tanda tangan) = PII. WAJIB JWT + role peninjau.
+// Karena <img>/<audio>/<a> tak bisa mengirim header Authorization, token boleh
+// lewat query ?t= (di-forward ke authMiddleware). Hanya admin/supervisor/viewer
+// (termasuk role turunan) — surveyor TIDAK boleh mengakses media orang lain.
+// Catatan keamanan: token di query bisa masuk log akses nginx; peningkatan
+// lanjutan = media-token berumur-pendek terpisah dari JWT sesi.
+const { authMiddleware, requireRole } = require('./middleware/auth');
+const { UPLOADS_ROOT } = require('./utils/mediaFiles');
+app.get(
+  '/uploads/*',
+  (req, _res, next) => {
+    if (!req.headers.authorization && req.query.t) {
+      req.headers.authorization = `Bearer ${req.query.t}`;
     }
-  });
-});
+    next();
+  },
+  authMiddleware,
+  requireRole(['admin', 'supervisor', 'viewer']),
+  (req, res) => {
+    const filePath = path.join(__dirname, '..', req.path);
+    // Guard: wajib di dalam uploads/ (cegah path traversal).
+    if (filePath !== UPLOADS_ROOT && !filePath.startsWith(UPLOADS_ROOT + path.sep)) {
+      return res.status(400).json({ error: 'Path tidak valid' });
+    }
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.sendFile(filePath, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'File tidak ditemukan' });
+    });
+  }
+);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
@@ -213,9 +233,39 @@ app.use((err, req, res, next) => {
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 
 function startServer() {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}] pid=${process.pid}`);
   });
+
+  // Graceful shutdown: berhenti terima koneksi baru → selesaikan in-flight →
+  // tutup pool DB & Redis. Mencegah transaksi terputus paksa saat redeploy.
+  let shuttingDown = false;
+  function shutdown(signal) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[shutdown] ${signal} diterima (pid=${process.pid}) — menutup server...`);
+    const force = setTimeout(() => {
+      console.error('[shutdown] batas waktu 15s — keluar paksa');
+      process.exit(1);
+    }, 15000);
+    force.unref();
+    server.close(async () => {
+      try {
+        const { sequelize } = require('./models');
+        await sequelize.close();
+      } catch (e) { console.error('[shutdown] gagal tutup DB:', e.message); }
+      try {
+        const redis = require('./config/redis');
+        if (redis && redis.quit) await redis.quit();
+      } catch (e) { console.error('[shutdown] gagal tutup Redis:', e.message); }
+      clearTimeout(force);
+      console.log('[shutdown] selesai — keluar');
+      process.exit(0);
+    });
+  }
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  return server;
 }
 
 // Dijalankan langsung (bukan saat di-import oleh test).
@@ -232,10 +282,24 @@ if (require.main === module) {
   if (process.env.NODE_ENV === 'production' && workerCount > 1 && cluster.isPrimary) {
     console.log(`[cluster] primary pid=${process.pid} memulai ${workerCount} worker`);
     for (let i = 0; i < workerCount; i++) cluster.fork();
+
+    let primaryShuttingDown = false;
     cluster.on('exit', (worker, code, signal) => {
-      console.warn(`[cluster] worker pid=${worker.process.pid} berhenti (${signal || code}) — fork ulang`);
-      cluster.fork();
+      if (primaryShuttingDown) return; // jangan fork ulang saat shutdown
+      // Backoff 1s agar worker yang crash-loop (mis. OOM) tak fork ketat tanpa henti.
+      console.warn(`[cluster] worker pid=${worker.process.pid} berhenti (${signal || code}) — fork ulang dalam 1s`);
+      setTimeout(() => { if (!primaryShuttingDown) cluster.fork(); }, 1000).unref();
     });
+
+    const stopPrimary = (signal) => {
+      if (primaryShuttingDown) return;
+      primaryShuttingDown = true;
+      console.log(`[cluster] primary ${signal} — menghentikan ${Object.keys(cluster.workers).length} worker...`);
+      for (const w of Object.values(cluster.workers)) w.kill('SIGTERM');
+      setTimeout(() => process.exit(0), 16000).unref();
+    };
+    process.on('SIGTERM', () => stopPrimary('SIGTERM'));
+    process.on('SIGINT', () => stopPrimary('SIGINT'));
   } else {
     startServer();
   }

@@ -14,8 +14,9 @@ const { Op } = Sequelize;
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const SESSION_SECRET = process.env.SESSION_SECRET || JWT_SECRET;
+// Wajib dari env (divalidasi fail-fast di app.js REQUIRED_ENV). TANPA fallback
+// string statis — fallback publik di source = celah pemalsuan token.
+const SESSION_SECRET = process.env.SESSION_SECRET;
 
 /**
  * POST /responses/start

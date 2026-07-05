@@ -53,8 +53,9 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - uploads:/app/uploads
-    ports:
-      - "3000:3000"
+    # TIDAK memetakan port ke host — backend hanya diakses via nginx (internal
+    # network). Mengekspos 3000 ke internet mem-bypass Cloudflare (WAF/rate-limit/
+    # TLS) & memungkinkan spoof CF-Connecting-IP.
     expose:
       - "3000"
 

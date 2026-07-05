@@ -1,3 +1,14 @@
 node_modules
 dist
 .kiro
+
+# Jangan ikutkan dokumen rahasia/artefak besar yang kebetulan ada di public/
+# ke dalam build (Vite menyalin isi public/ apa adanya ke dist → tersaji publik).
+public/*.pdf
+public/*.pptx
+public/*.ppt
+public/*.thmx
+public/*.docx
+public/*.doc
+public/*.xlsx
+public/*.sql
