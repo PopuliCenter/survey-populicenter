@@ -4,6 +4,5 @@ tests
 .env.*
 .kiro
 .git
-uploads
 coverage
 *.log

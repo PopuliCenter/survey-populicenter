@@ -71,7 +71,14 @@ async function cleanupStalePending() {
 
 // ─── M2: rekonsiliasi statistik ────────────────────────────────────────────────
 async function reconcileStats() {
-  const surveys = await Survey.findAll({ where: { status: 'active' }, attributes: ['id'], raw: true });
+  // Semua survei non-draft (draft belum punya respons committed). Termasuk
+  // 'inactive'/'completed' agar drift statistik pasca-purge/koreksi ikut pulih,
+  // bukan hanya survei aktif.
+  const surveys = await Survey.findAll({
+    where: { status: { [Op.ne]: 'draft' } },
+    attributes: ['id'],
+    raw: true,
+  });
   let ok = 0;
   for (const s of surveys) {
     try {

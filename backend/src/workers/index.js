@@ -61,6 +61,18 @@ worker.on('error', (err) => {
   console.error('[Worker] Worker error:', err.message);
 });
 
+// ─── Heartbeat untuk Docker healthcheck ────────────────────────────────────────
+// Tulis timestamp tiap 30s; healthcheck menganggap worker sehat bila file segar
+// (< 3 menit). Mendeteksi worker yang hang (event loop macet), bukan hanya mati.
+const fs = require('fs');
+const HEARTBEAT_FILE = '/tmp/worker-heartbeat';
+function beat() {
+  try { fs.writeFileSync(HEARTBEAT_FILE, String(Date.now())); } catch { /* abaikan */ }
+}
+beat();
+const heartbeatTimer = setInterval(beat, 30 * 1000);
+if (heartbeatTimer.unref) heartbeatTimer.unref();
+
 // Handle graceful shutdown
 async function shutdown(signal) {
   console.log(`[Worker] ${signal} received, closing worker...`);

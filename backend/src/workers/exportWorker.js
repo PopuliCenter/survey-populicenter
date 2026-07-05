@@ -282,6 +282,11 @@ async function processExportJob(job) {
   const { jobId, survey_id, format, filters } = job.data;
 
   try {
+    // Idempotensi: retry BullMQ tak boleh memproses ulang job yang sudah selesai.
+    const existing = await ExportJob.findByPk(jobId, { attributes: ['status'] });
+    if (!existing) return { success: false, skipped: 'job-record-missing' };
+    if (existing.status === 'completed') return { success: true, skipped: 'already-completed' };
+
     // Update job status to processing
     await ExportJob.update(
       { status: 'processing' },

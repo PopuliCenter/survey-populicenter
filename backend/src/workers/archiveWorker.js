@@ -18,6 +18,12 @@ async function processArchiveJob(job) {
   const { jobId, survey_id } = job.data;
 
   try {
+    // Idempotensi: bila retry BullMQ mengulang job yang sudah selesai, jangan
+    // bangun ulang ZIP (boros) — atau bila record sudah hilang, lewati.
+    const existing = await ExportJob.findByPk(jobId, { attributes: ['status'] });
+    if (!existing) return { success: false, skipped: 'job-record-missing' };
+    if (existing.status === 'completed') return { success: true, skipped: 'already-completed' };
+
     await ExportJob.update({ status: 'processing' }, { where: { id: jobId } });
 
     const exportsDir = path.join(__dirname, '..', '..', 'uploads', 'exports');
