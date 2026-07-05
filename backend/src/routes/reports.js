@@ -594,7 +594,14 @@ router.get('/exports/:jobId/download', authMiddleware, requireRole(['admin', 'su
       return res.status(404).json({ error: 'File ekspor tidak ditemukan' });
     }
 
-    const filePath = path.join(__dirname, '..', '..', exportJob.file_path);
+    const filePath = path.resolve(__dirname, '..', '..', exportJob.file_path);
+
+    // Guard: file WAJIB di dalam uploads/ (cegah path traversal bila file_path
+    // kelak bisa dipengaruhi input). Samakan dengan pola storage.js.
+    const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads');
+    if (filePath !== UPLOADS_ROOT && !filePath.startsWith(UPLOADS_ROOT + path.sep)) {
+      return res.status(400).json({ error: 'Path tidak valid' });
+    }
 
     // Check if file exists
     const fs = require('fs').promises;

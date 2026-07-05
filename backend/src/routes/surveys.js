@@ -6,6 +6,7 @@ const { Survey, Question, Response, AuditLog, PublishedResult, MonitoringReport,
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { validateFieldToolsSettings } = require('../utils/fieldToolsValidator');
 const { buildSnapshot, buildMonitoringSnapshot } = require('../utils/aggregateResults');
+const { isUUID } = require('../utils/uuid');
 
 /**
  * slugify — ubah judul menjadi kunci URL aman: huruf kecil, kata dipisah "-".
@@ -409,6 +410,7 @@ router.patch('/:id/activate', authMiddleware, requireRole(['admin', 'supervisor'
 
     // Create PostgreSQL sequence for questionnaire numbering
     // Replace hyphens with underscores in survey_id
+    if (!isUUID(id)) return res.status(422).json({ error: 'Format id tidak valid' });
     const seqName = `questionnaire_seq_${id.replace(/-/g, '_')}`;
     await sequelize.query(`CREATE SEQUENCE IF NOT EXISTS ${seqName}`);
 

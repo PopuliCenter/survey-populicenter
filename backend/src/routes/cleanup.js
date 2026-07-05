@@ -4,6 +4,7 @@ const { sequelize, Response, Answer, AuditLog, ExportJob, Survey, Question, Surv
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
 const { collectMediaPaths, deleteMediaFiles } = require('../utils/mediaFiles');
+const { isUUID } = require('../utils/uuid');
 
 const router = express.Router();
 
@@ -351,12 +352,15 @@ router.post('/survey/:id', async (req, res, next) => {
       // 6. Delete survey
       await Survey.destroy({ where: { id }, transaction: t });
 
-      // 7. Drop questionnaire sequence if exists
-      try {
-        const seqName = `questionnaire_seq_${id.replace(/-/g, '_')}`;
-        await sequelize.query(`DROP SEQUENCE IF EXISTS "${seqName}"`, { transaction: t });
-      } catch {
-        // Non-critical — sequence might not exist
+      // 7. Drop questionnaire sequence if exists (hanya bila id UUID valid —
+      //    guard defensif sebelum nama identifier SQL).
+      if (isUUID(id)) {
+        try {
+          const seqName = `questionnaire_seq_${id.replace(/-/g, '_')}`;
+          await sequelize.query(`DROP SEQUENCE IF EXISTS "${seqName}"`, { transaction: t });
+        } catch {
+          // Non-critical — sequence might not exist
+        }
       }
     });
 

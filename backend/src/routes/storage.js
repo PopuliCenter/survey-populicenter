@@ -47,7 +47,7 @@ router.get('/overview', async (req, res, next) => {
              COUNT(*)::int AS responses,
              COUNT(*) FILTER (WHERE audio_path IS NOT NULL)::int AS audio,
              COUNT(*) FILTER (WHERE signature_path IS NOT NULL)::int AS signatures,
-             COALESCE(SUM(CASE WHEN photo_paths IS NOT NULL THEN jsonb_array_length(photo_paths) ELSE 0 END), 0)::int AS resp_photos
+             COALESCE(SUM(CASE WHEN jsonb_typeof(photo_paths) = 'array' THEN jsonb_array_length(photo_paths) ELSE 0 END), 0)::int AS resp_photos
       FROM responses
       WHERE questionnaire_number NOT LIKE 'PENDING-%'
       GROUP BY survey_id

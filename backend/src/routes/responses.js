@@ -9,6 +9,7 @@ const { validateDateFormat, validateTimeFormat, validateDateAnswer, validateMatr
 const { validateFieldToolsSubmission } = require('../utils/fieldToolsValidator');
 const { incrementResponseStats } = require('../utils/statisticsUpdater');
 const { computeHiddenQuestions, buildAnswerMap } = require('../utils/skipLogicEvaluator');
+const { isUUID } = require('../utils/uuid');
 
 const { Op } = Sequelize;
 
@@ -391,6 +392,8 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
 
       // Generate questionnaire number using PostgreSQL sequence
       // Sequence name uses underscores (hyphens replaced) to match the name created at activation
+      // Guard defensif: survey_id WAJIB UUID sebelum masuk nama identifier SQL.
+      if (!isUUID(survey_id)) throw new Error('survey_id tidak valid');
       const seqName = `questionnaire_seq_${survey_id.replace(/-/g, '_')}`;
       const [[{ nextval }]] = await sequelize.query(
         `SELECT nextval('${seqName}') AS nextval`,
