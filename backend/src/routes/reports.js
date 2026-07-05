@@ -77,8 +77,8 @@ function buildResponseWhereClause(survey_id, { start_date, end_date, surveyor_id
 // ---------------------------------------------------------------------------
 // Shared helper: fetch responses with answers for a survey
 // ---------------------------------------------------------------------------
-async function fetchResponses(whereClause) {
-  return Response.findAll({
+async function fetchResponses(whereClause, opts = {}) {
+  const query = {
     where: whereClause,
     attributes: [
       'id',
@@ -112,7 +112,12 @@ async function fetchResponses(whereClause) {
       },
     ],
     order: [['created_at', 'ASC']],
-  });
+  };
+  // Paginasi opsional — dipakai endpoint VIEW agar tak memuat seluruh respons
+  // (puluhan ribu × jawaban) ke memori. Ekspor tetap tanpa limit (di worker).
+  if (opts.limit != null) query.limit = opts.limit;
+  if (opts.offset != null) query.offset = opts.offset;
+  return Response.findAll(query);
 }
 
 // ---------------------------------------------------------------------------
@@ -272,7 +277,13 @@ router.get('/surveys/:id', authMiddleware, requireRole(['admin', 'supervisor', '
       return res.status(422).json({ error: result.error });
     }
 
-    const responses = await fetchResponses(result.whereClause);
+    // Batasi memori: maksimal `limit` baris (default 1000, plafon 5000) + offset.
+    // Total sebenarnya diberikan lewat header agar konsumen tahu ada halaman lain
+    // (bukan pemotongan senyap). Untuk dump penuh → pakai endpoint /export.
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 1000, 1), 5000);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+    const total = await Response.count({ where: result.whereClause });
+    const responses = await fetchResponses(result.whereClause, { limit, offset });
 
     const data = responses.map((r) => ({
       id: r.id,
@@ -296,6 +307,8 @@ router.get('/surveys/:id', authMiddleware, requireRole(['admin', 'supervisor', '
       })),
     }));
 
+    res.set('X-Total-Count', String(total));
+    res.set('X-Returned-Count', String(data.length));
     res.json(data);
   } catch (error) {
     next(error);

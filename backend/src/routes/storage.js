@@ -131,7 +131,7 @@ router.post('/purge', async (req, res, next) => {
       }
     });
 
-    const filesDeleted = deleteMediaFiles(mediaPaths);
+    const filesDeleted = await deleteMediaFiles(mediaPaths);
     await cacheDel(UPLOADS_SIZE_KEY); // disk berubah → paksa hitung ulang berikutnya
     await Promise.allSettled(survey_ids.map((sid) => recomputeSurveyStats(sid)));
 

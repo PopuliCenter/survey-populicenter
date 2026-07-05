@@ -6,7 +6,7 @@
  * terjadwal). Path yang dihapus wajib berada di dalam folder uploads/.
  */
 
-const fs = require('fs');
+const fsp = require('fs').promises;
 const path = require('path');
 const { chunk } = require('./chunk');
 
@@ -53,25 +53,36 @@ async function collectMediaPaths(sequelize, responseIds) {
 
 /**
  * Hapus file fisik berdasarkan path relatif (mis. "uploads/photos/2024/01/x.jpg").
- * Aman: hanya menghapus file yang benar-benar di dalam uploads/ (cegah traversal).
+ * ASYNC + konkurensi terbatas agar tidak memblokir event loop saat menghapus
+ * ribuan file (purge survei besar). Aman: hanya menghapus file yang benar-benar
+ * di dalam uploads/ (cegah traversal).
  *
  * @param {string[]} relPaths
- * @returns {number} jumlah file yang berhasil dihapus
+ * @param {number} [concurrency=16]
+ * @returns {Promise<number>} jumlah file yang berhasil dihapus
  */
-function deleteMediaFiles(relPaths) {
+async function deleteMediaFiles(relPaths, concurrency = 16) {
+  const list = (relPaths || []).filter((r) => r && typeof r === 'string');
+  if (list.length === 0) return 0;
+
   let deleted = 0;
-  for (const rel of relPaths || []) {
-    if (!rel || typeof rel !== 'string') continue;
-    const full = path.resolve(PROJECT_ROOT, rel);
-    // Wajib berada di dalam uploads/ — cegah path traversal.
-    if (full !== UPLOADS_ROOT && !full.startsWith(UPLOADS_ROOT + path.sep)) continue;
-    try {
-      fs.unlinkSync(full);
-      deleted += 1;
-    } catch {
-      // File mungkin sudah tak ada / gagal — abaikan (non-kritis).
+  let idx = 0;
+  async function worker() {
+    while (idx < list.length) {
+      const rel = list[idx++];
+      const full = path.resolve(PROJECT_ROOT, rel);
+      // Wajib berada di dalam uploads/ — cegah path traversal.
+      if (full !== UPLOADS_ROOT && !full.startsWith(UPLOADS_ROOT + path.sep)) continue;
+      try {
+        await fsp.unlink(full);
+        deleted += 1;
+      } catch {
+        // File mungkin sudah tak ada / gagal — abaikan (non-kritis).
+      }
     }
   }
+  const n = Math.min(concurrency, list.length);
+  await Promise.all(Array.from({ length: n }, worker));
   return deleted;
 }
 

@@ -245,7 +245,7 @@ router.post('/responses', async (req, res, next) => {
     });
 
     // Hapus file media fisik → disk langsung lega (non-kritis bila sebagian gagal).
-    const filesDeleted = deleteMediaFiles(mediaPaths);
+    const filesDeleted = await deleteMediaFiles(mediaPaths);
 
     // Hitung ulang statistik pra-hitung untuk survei terdampak agar dashboard
     // tidak "drift" (best-effort; kegagalan tidak membatalkan penghapusan).
@@ -361,7 +361,7 @@ router.post('/survey/:id', async (req, res, next) => {
     });
 
     // Hapus file media fisik survei → disk langsung lega.
-    const filesDeleted = deleteMediaFiles(mediaPaths);
+    const filesDeleted = await deleteMediaFiles(mediaPaths);
 
     await AuditLog.create({
       user_id: req.user.id,
