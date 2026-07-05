@@ -19,6 +19,7 @@ require('dotenv').config();
 const { Worker } = require('bullmq');
 const { connection } = require('../config/queue');
 const { processExportJob } = require('./exportWorker');
+const { processArchiveJob } = require('./archiveWorker');
 const { captureException } = require('../config/sentry');
 
 // Initialize Sentry for worker process (no Express, just error capture)
@@ -36,7 +37,9 @@ console.log('[Worker] Starting export worker (BullMQ)...');
 const worker = new Worker(
   'export-jobs',
   async (job) => {
-    console.log(`[Worker] Processing job ${job.id} (attempt ${job.attemptsMade + 1})...`);
+    console.log(`[Worker] Processing job ${job.id} (${job.name}, attempt ${job.attemptsMade + 1})...`);
+    // Satu queue, dua jenis job dibedakan lewat nama.
+    if (job.name === 'archive') return processArchiveJob(job);
     return processExportJob(job);
   },
   {

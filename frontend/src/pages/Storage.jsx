@@ -49,11 +49,54 @@ function Storage() {
     return next;
   });
 
+  function triggerBlobDownload(blob, survey) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safe = (survey.title || 'survei').replace(/[^a-z0-9\-_]+/gi, '_').slice(0, 40);
+    a.href = url;
+    a.download = `arsip-${safe}-${new Date().toISOString().slice(0, 10)}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // Survei besar diproses worker → polling status tiap 3 dtk lalu unduh.
+  async function pollAndDownloadJob(jobId, survey) {
+    const maxAttempts = 200; // ~10 menit @ 3 dtk
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const st = await api.get(`/storage/archive-jobs/${jobId}`);
+      const status = st.data?.status;
+      if (status === 'completed') {
+        const dl = await api.get(`/storage/archive-jobs/${jobId}/download`, { responseType: 'blob', timeout: 600000 });
+        triggerBlobDownload(dl.data, survey);
+        setMessage(`Arsip "${survey.title}" selesai & terunduh (${formatBytes(dl.data.size)}). Cek folder Unduhan.`);
+        return;
+      }
+      if (status === 'failed') throw new Error('Proses arsip gagal di server. Coba lagi atau cek log.');
+      setMessage(`Memproses arsip "${survey.title}" di latar belakang… (${status})`);
+    }
+    throw new Error('Arsip masih diproses di server — tombol bisa dicoba lagi nanti.');
+  }
+
   async function downloadArchive(survey) {
     setBusyId(survey.id, true);
     setError(null);
     try {
       const res = await api.get(`/storage/survey/${survey.id}/archive`, { responseType: 'blob', timeout: 600000 });
+
+      // Survei besar → server balas 202 + JSON { jobId } (di dalam blob).
+      if (res.status === 202) {
+        let jobId;
+        try { jobId = JSON.parse(await res.data.text()).jobId; } catch { /* noop */ }
+        if (!jobId) throw new Error('Server tidak mengembalikan jobId untuk arsip async.');
+        setMessage(`Survei besar — arsip "${survey.title}" diproses di latar belakang…`);
+        await pollAndDownloadJob(jobId, survey);
+        return;
+      }
+
+      // Survei kecil → blob ZIP langsung.
       const blob = res.data;
       const ct = (res.headers && res.headers['content-type']) || blob.type || '';
       // Bila server balas non-ZIP (mis. HTML SPA karena rute belum ter-deploy,
@@ -63,15 +106,7 @@ function Storage() {
         try { const j = JSON.parse(await blob.text()); if (j.error) msg = j.error; } catch { /* biarkan pesan default */ }
         throw new Error(msg);
       }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const safe = (survey.title || 'survei').replace(/[^a-z0-9\-_]+/gi, '_').slice(0, 40);
-      a.href = url;
-      a.download = `arsip-${safe}-${new Date().toISOString().slice(0, 10)}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      triggerBlobDownload(blob, survey);
       setMessage(`Arsip "${survey.title}" berhasil diunduh (${formatBytes(blob.size)}). Cek folder Unduhan perangkat Anda.`);
     } catch (e) {
       setError(`Gagal mengunduh arsip "${survey.title}": ${e.message || 'kesalahan tak dikenal'}`);

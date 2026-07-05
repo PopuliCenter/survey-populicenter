@@ -3,7 +3,7 @@
 const { DataTypes } = require('sequelize');
 
 const JOB_STATUSES = ['pending', 'processing', 'completed', 'failed'];
-const EXPORT_FORMATS = ['xlsx', 'csv'];
+const EXPORT_FORMATS = ['xlsx', 'csv', 'zip'];
 
 module.exports = (sequelize) => {
   const ExportJob = sequelize.define('ExportJob', {

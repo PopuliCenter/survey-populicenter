@@ -31,12 +31,18 @@ const { chunk } = require('../utils/chunk');
 
 const UPLOAD_ROOT = path.join(__dirname, '..', '..', 'uploads');
 const MEDIA_DIRS = ['photos', 'audio', 'signatures'];
+const EXPORTS_DIR = path.join(UPLOAD_ROOT, 'exports');
 
 // Nama file arsip sementara yang dibuat route /storage/survey/:id/archive:
 // `arsip-<uuid>-<timestamp>.zip`. Regex sengaja ketat (UUID + angka) agar
 // sweeper TIDAK menyentuh file lain milik aplikasi/OS di tmpdir.
 const TMP_ARCHIVE_RE = /^arsip-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-\d+\.zip$/i;
 const TMP_ARCHIVE_MAX_AGE_MS = 60 * 60 * 1000; // 1 jam
+
+// File hasil job async di uploads/exports (export-*.xlsx/csv, archive-*.zip)
+// menumpuk seiring waktu. Sapu yang lebih tua dari ambang (default 48 jam).
+const EXPORT_FILE_RE = /^(export|archive)-.*\.(xlsx|csv|zip)$/i;
+const EXPORT_MAX_AGE_MS = (parseInt(process.env.EXPORT_TTL_HOURS, 10) || 48) * 60 * 60 * 1000;
 
 // ─── M3: hapus PENDING yatim ───────────────────────────────────────────────────
 async function cleanupStalePending() {
@@ -165,6 +171,27 @@ async function sweepTempArchives() {
   return removed;
 }
 
+// ─── Sweeper file ekspor/arsip lama (uploads/exports) ──────────────────────────
+// Hasil job async (export-*.xlsx/csv, archive-*.zip) tak terpakai selamanya —
+// hapus yang lebih tua dari EXPORT_TTL_HOURS agar disk tidak membengkak.
+async function sweepOldExports() {
+  const cutoff = Date.now() - EXPORT_MAX_AGE_MS;
+  let entries;
+  try { entries = await fsp.readdir(EXPORTS_DIR); } catch { return 0; }
+  let removed = 0;
+  for (const name of entries) {
+    if (!EXPORT_FILE_RE.test(name)) continue;
+    const full = path.join(EXPORTS_DIR, name);
+    try {
+      const st = await fsp.stat(full);
+      if (st.mtimeMs > cutoff) continue;
+      await fsp.unlink(full);
+      removed += 1;
+    } catch { /* sudah hilang / gagal — abaikan */ }
+  }
+  return removed;
+}
+
 // ─── Runner ──────────────────────────────────────────────────────────────────
 let running = false;
 async function runOnce() {
@@ -176,10 +203,12 @@ async function runOnce() {
     const stats = await reconcileStats();
     const media = await reapOrphanMedia();
     const tmpZips = await sweepTempArchives();
+    const oldExports = await sweepOldExports();
     console.log(
       `[maintenance] selesai dalam ${Date.now() - t0}ms | PENDING dihapus=${pending} | ` +
         `stats direkonsiliasi=${stats} | media yatim=${media.orphans} ` +
-        `(${media.enabled ? `dihapus=${media.deleted}` : 'dry-run'}) | arsip-tmp disapu=${tmpZips}`
+        `(${media.enabled ? `dihapus=${media.deleted}` : 'dry-run'}) | arsip-tmp disapu=${tmpZips} | ` +
+        `ekspor-lama disapu=${oldExports}`
     );
   } catch (err) {
     console.error('[maintenance] error:', err.message);
@@ -205,4 +234,5 @@ module.exports = {
   reconcileStats,
   reapOrphanMedia,
   sweepTempArchives,
+  sweepOldExports,
 };

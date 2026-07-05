@@ -11,15 +11,16 @@ const express = require('express');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const archiver = require('archiver');
 const { Op } = require('sequelize');
-const { sequelize, Survey, Response, Answer, AuditLog } = require('../models');
+const { sequelize, Survey, Response, Answer, AuditLog, ExportJob } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
 const { collectMediaPaths, deleteMediaFiles, UPLOADS_ROOT, PROJECT_ROOT } = require('../utils/mediaFiles');
 const { cacheGet, cacheSet, cacheDel } = require('../utils/cache');
 const { dirSizeBytes } = require('../utils/diskUsage');
 const { chunk } = require('../utils/chunk');
+const { buildSurveyArchive } = require('../utils/archiveBuilder');
+const { queue: exportQueue } = require('../config/queue');
 
 const router = express.Router();
 router.use(authMiddleware, requireRole('admin'));
@@ -31,6 +32,10 @@ const isUUID = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 // langsung tercermin.
 const UPLOADS_SIZE_KEY = 'storage:uploads_bytes';
 const UPLOADS_SIZE_TTL = 300; // detik
+
+// Di atas ambang ini, arsip dibangun di worker (async) — hindari lonjakan
+// memori (JSON.stringify seluruh respons) & timeout di request admin.
+const ARCHIVE_ASYNC_THRESHOLD = 5000;
 
 // ─── GET /storage/overview ─────────────────────────────────────────────────────
 router.get('/overview', async (req, res, next) => {
@@ -151,8 +156,9 @@ router.post('/purge', async (req, res, next) => {
 
 // ─── GET /storage/survey/:id/archive ───────────────────────────────────────────
 // Unduh ZIP: responses.json (data + jawaban) + folder media/ (foto/audio/ttd).
-// Streamed (cocok untuk ukuran wajar). Untuk dataset sangat besar, gunakan
-// backup server (lihat docs/ops/backup.md).
+// Survei kecil (≤ ambang): dibangun sinkron ke file temp lalu langsung diunduh.
+// Survei besar (> ambang): dikerjakan worker (202 + jobId) → klien polling
+// /archive-jobs/:jobId lalu unduh saat 'completed'.
 router.get('/survey/:id/archive', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -161,84 +167,33 @@ router.get('/survey/:id/archive', async (req, res, next) => {
     const survey = await Survey.findByPk(id, { attributes: ['id', 'title'] });
     if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
 
-    // Ambil data RAW (tanpa hidrasi ORM/include) — jauh lebih ringan & tahan
-    // survei besar. Gabung jawaban ke tiap respons di JS.
-    const [respRows] = await sequelize.query(
-      `SELECT id, questionnaire_number, surveyor_id, created_at, latitude, longitude,
-              review_status, audio_path, signature_path, photo_paths
-       FROM responses
-       WHERE survey_id = :sid AND questionnaire_number NOT LIKE 'PENDING-%'
-       ORDER BY created_at ASC`,
-      { replacements: { sid: id } }
-    );
-    // Jawaban diambil lewat JOIN via survey_id (bukan `IN (ribuan id)`) — pakai
-    // index survey_id, satu query, dan tahan survei sangat besar tanpa daftar
-    // bind-parameter raksasa. Filter PENDING disamakan agar konsisten.
-    let ansRows = [];
-    if (respRows.length > 0) {
-      [ansRows] = await sequelize.query(
-        `SELECT a.response_id, a.question_id, a.answer_value, a.answer_json, a.photo_path
-         FROM answers a
-         JOIN responses r ON r.id = a.response_id
-         WHERE r.survey_id = :sid AND r.questionnaire_number NOT LIKE 'PENDING-%'`,
-        { replacements: { sid: id } }
-      );
-    }
-    const ansByResp = {};
-    const mediaSet = new Set();
-    for (const a of ansRows) {
-      if (!ansByResp[a.response_id]) ansByResp[a.response_id] = [];
-      ansByResp[a.response_id].push({
-        question_id: a.question_id, answer_value: a.answer_value,
-        answer_json: a.answer_json, photo_path: a.photo_path,
-      });
-      if (a.photo_path) mediaSet.add(a.photo_path);
-    }
-    for (const r of respRows) {
-      if (r.audio_path) mediaSet.add(r.audio_path);
-      if (r.signature_path) mediaSet.add(r.signature_path);
-      if (Array.isArray(r.photo_paths)) for (const p of r.photo_paths) if (p) mediaSet.add(p);
-    }
-    const mediaPaths = [...mediaSet];
+    const count = await Response.count({
+      where: { survey_id: id, questionnaire_number: { [Op.notLike]: 'PENDING-%' } },
+    });
 
+    // Survei besar → antre ke worker (hindari lonjakan memori & timeout).
+    if (count > ARCHIVE_ASYNC_THRESHOLD) {
+      const job = await ExportJob.create({
+        survey_id: id, requested_by: req.user.id, status: 'pending', format: 'zip',
+      });
+      await exportQueue.add('archive', { jobId: job.id, survey_id: id });
+      return res.status(202).json({
+        async: true,
+        jobId: job.id,
+        count,
+        message: `Survei besar (${count.toLocaleString('id-ID')} respons) — arsip diproses di latar belakang.`,
+      });
+    }
+
+    // Survei kecil → bangun sinkron ke FILE SEMENTARA (Content-Length pasti →
+    // klien/nginx/Cloudflare tahu kapan selesai; cegah unduhan "menggantung").
     const safe = (survey.title || 'survei').replace(/[^a-z0-9\-_]+/gi, '_').slice(0, 40);
     const stamp = new Date().toISOString().slice(0, 10);
     const downloadName = `arsip-${safe}-${stamp}.zip`;
+    const tmpFile = path.join(os.tmpdir(), `arsip-${id}-${Date.now()}.zip`);
 
-    const data = respRows.map((r) => ({
-      id: r.id,
-      questionnaire_number: r.questionnaire_number,
-      surveyor_id: r.surveyor_id,
-      created_at: r.created_at,
-      latitude: r.latitude,
-      longitude: r.longitude,
-      review_status: r.review_status,
-      answers: ansByResp[r.id] || [],
-    }));
+    await buildSurveyArchive(id, tmpFile);
 
-    // Bangun ZIP ke FILE SEMENTARA dulu → dapat Content-Length pasti → klien
-    // (browser/nginx/Cloudflare) tahu kapan selesai (mencegah unduhan "menggantung").
-    const tmpFile = path.join(os.tmpdir(), `arsip-${req.params.id}-${Date.now()}.zip`);
-    const output = fs.createWriteStream(tmpFile);
-    const archive = archiver('zip', { zlib: { level: 6 } });
-
-    const zipDone = new Promise((resolve, reject) => {
-      output.on('close', resolve);
-      output.on('error', reject);
-      archive.on('error', reject);
-    });
-
-    archive.pipe(output);
-    archive.append(JSON.stringify({ survey: { id: survey.id, title: survey.title }, count: data.length, responses: data }, null, 2), { name: 'responses.json' });
-    for (const rel of mediaPaths) {
-      const full = path.resolve(PROJECT_ROOT, rel);
-      if (full !== UPLOADS_ROOT && !full.startsWith(UPLOADS_ROOT + path.sep)) continue;
-      if (fs.existsSync(full)) archive.file(full, { name: `media/${rel.replace(/^uploads\//, '')}` });
-    }
-    archive.finalize();
-    await zipDone;
-
-    // Kirim file dengan Content-Length, lalu bersihkan file sementara.
     res.download(tmpFile, downloadName, (err) => {
       fs.unlink(tmpFile, () => {});
       if (err && !res.headersSent) next(err);
@@ -247,6 +202,46 @@ router.get('/survey/:id/archive', async (req, res, next) => {
     console.error('[storage/archive] gagal untuk survey', req.params.id, ':', error && (error.stack || error.message));
     if (!res.headersSent) return next(error);
     try { res.destroy(error); } catch { /* noop */ }
+  }
+});
+
+// ─── GET /storage/archive-jobs/:jobId ──────────────────────────────────────────
+// Status job arsip async (untuk polling frontend).
+router.get('/archive-jobs/:jobId', async (req, res, next) => {
+  try {
+    const { jobId } = req.params;
+    if (!isUUID(jobId)) return res.status(422).json({ error: 'Format jobId tidak valid' });
+    const job = await ExportJob.findByPk(jobId, {
+      attributes: ['id', 'status', 'format', 'created_at', 'completed_at'],
+    });
+    if (!job || job.format !== 'zip') return res.status(404).json({ error: 'Job arsip tidak ditemukan' });
+    res.json({ id: job.id, status: job.status, created_at: job.created_at, completed_at: job.completed_at });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─── GET /storage/archive-jobs/:jobId/download ─────────────────────────────────
+// Unduh file arsip yang sudah selesai (dari uploads/exports).
+router.get('/archive-jobs/:jobId/download', async (req, res, next) => {
+  try {
+    const { jobId } = req.params;
+    if (!isUUID(jobId)) return res.status(422).json({ error: 'Format jobId tidak valid' });
+    const job = await ExportJob.findByPk(jobId, {
+      attributes: ['id', 'status', 'format', 'file_path'],
+    });
+    if (!job || job.format !== 'zip') return res.status(404).json({ error: 'Job arsip tidak ditemukan' });
+    if (job.status !== 'completed') return res.status(409).json({ error: 'Arsip belum selesai', status: job.status });
+    if (!job.file_path) return res.status(404).json({ error: 'File arsip tidak tersedia' });
+
+    const filePath = path.resolve(PROJECT_ROOT, job.file_path);
+    // Guard: file wajib di dalam uploads/ (cegah path traversal).
+    if (!filePath.startsWith(UPLOADS_ROOT + path.sep)) return res.status(400).json({ error: 'Path tidak valid' });
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File arsip sudah kedaluwarsa' });
+
+    res.download(filePath, `arsip-${jobId}.zip`);
+  } catch (error) {
+    next(error);
   }
 });
 
