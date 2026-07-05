@@ -5,6 +5,7 @@ const { authMiddleware, requireRole } = require('../middleware/auth');
 const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
 const { collectMediaPaths, deleteMediaFiles } = require('../utils/mediaFiles');
 const { isUUID } = require('../utils/uuid');
+const { WIB_OFFSET_MS } = require('../utils/time');
 
 const router = express.Router();
 
@@ -15,16 +16,25 @@ router.use(authMiddleware, requireRole('admin'));
 function buildDateFilter(field, { year, month, before_date }) {
   const conditions = {};
 
+  // Batas hari/bulan dihitung dalam WIB (Asia/Jakarta, UTC+7) lalu dinyatakan
+  // dalam UTC (kolom timestamptz). WIB tengah malam = UTC midnight − 7 jam.
+  // Konsisten dengan dashboard (time.js) — penting untuk operasi hapus permanen
+  // agar tidak meleset ±7 jam (mis. respons 30 Jun 17:00 WIB = 1 Jul UTC).
   if (year && month) {
-    const start = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
-    const end = new Date(Date.UTC(Number(year), Number(month), 0, 23, 59, 59, 999));
+    const start = new Date(Date.UTC(Number(year), Number(month) - 1, 1) - WIB_OFFSET_MS);
+    const end = new Date(Date.UTC(Number(year), Number(month), 0, 23, 59, 59, 999) - WIB_OFFSET_MS);
     conditions[field] = { [Op.between]: [start, end] };
   } else if (year) {
-    const start = new Date(Date.UTC(Number(year), 0, 1));
-    const end = new Date(Date.UTC(Number(year), 11, 31, 23, 59, 59, 999));
+    const start = new Date(Date.UTC(Number(year), 0, 1) - WIB_OFFSET_MS);
+    const end = new Date(Date.UTC(Number(year), 11, 31, 23, 59, 59, 999) - WIB_OFFSET_MS);
     conditions[field] = { [Op.between]: [start, end] };
   } else if (before_date) {
-    const cutoff = new Date(`${before_date}T23:59:59.999Z`);
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(before_date);
+    if (!m) {
+      return { error: 'Format before_date tidak valid. Gunakan YYYY-MM-DD' };
+    }
+    // Akhir hari WIB dari before_date (inklusif), dinyatakan dalam UTC.
+    const cutoff = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 23, 59, 59, 999) - WIB_OFFSET_MS);
     if (isNaN(cutoff.getTime())) {
       return { error: 'Format before_date tidak valid. Gunakan YYYY-MM-DD' };
     }

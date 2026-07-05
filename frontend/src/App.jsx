@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/Toast';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 
 // ─── Lazy-loaded pages (code-splitting per rute) ──────────────────────────────
@@ -136,6 +137,7 @@ function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
+      <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Public routes */}
@@ -322,6 +324,7 @@ function App() {
         />
       </Routes>
       </Suspense>
+      </ErrorBoundary>
       </ToastProvider>
     </BrowserRouter>
   );
