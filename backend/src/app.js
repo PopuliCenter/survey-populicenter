@@ -159,28 +159,46 @@ if (process.env.NODE_ENV !== 'test' && process.env.RATE_LIMIT_DISABLED !== 'true
 // lanjutan = media-token berumur-pendek terpisah dari JWT sesi.
 const { authMiddleware, requireRole } = require('./middleware/auth');
 const { UPLOADS_ROOT } = require('./utils/mediaFiles');
-app.get(
-  '/uploads/*',
-  (req, _res, next) => {
-    if (!req.headers.authorization && req.query.t) {
-      req.headers.authorization = `Bearer ${req.query.t}`;
+const { signMediaToken, verifyMediaToken, MEDIA_TTL_SEC } = require('./utils/mediaToken');
+const MEDIA_ROLES = ['admin', 'supervisor', 'viewer'];
+
+// Mint token media berumur-pendek — frontend memakainya di URL <img>/<audio>
+// alih-alih JWT sesi (kurangi paparan token sesi di log akses).
+app.get('/auth/media-token', authMiddleware, requireRole(MEDIA_ROLES), (req, res) => {
+  const token = signMediaToken({ id: req.user.id, role: req.user.role });
+  res.json({ token, expiresInSec: MEDIA_TTL_SEC });
+});
+
+// Gerbang media: jalur utama = media-token via ?t=; fallback = JWT sesi
+// (header, atau ?t= untuk kompat mundur). Keduanya butuh role peninjau.
+async function mediaAuth(req, res, next) {
+  const t = req.query.t;
+  if (t) {
+    const payload = verifyMediaToken(t);
+    if (payload) {
+      if (!MEDIA_ROLES.includes(payload.role)) {
+        return res.status(403).json({ error: 'Anda tidak memiliki izin untuk mengakses resource ini' });
+      }
+      req.user = { id: payload.id, role: payload.role };
+      return next();
     }
-    next();
-  },
-  authMiddleware,
-  requireRole(['admin', 'supervisor', 'viewer']),
-  (req, res) => {
-    const filePath = path.join(__dirname, '..', req.path);
-    // Guard: wajib di dalam uploads/ (cegah path traversal).
-    if (filePath !== UPLOADS_ROOT && !filePath.startsWith(UPLOADS_ROOT + path.sep)) {
-      return res.status(400).json({ error: 'Path tidak valid' });
-    }
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.sendFile(filePath, (err) => {
-      if (err && !res.headersSent) res.status(404).json({ error: 'File tidak ditemukan' });
-    });
+    // Bukan media-token valid → perlakukan sebagai kemungkinan JWT sesi (kompat).
+    if (!req.headers.authorization) req.headers.authorization = `Bearer ${t}`;
   }
-);
+  return authMiddleware(req, res, () => requireRole(MEDIA_ROLES)(req, res, next));
+}
+
+app.get('/uploads/*', mediaAuth, (req, res) => {
+  const filePath = path.join(__dirname, '..', req.path);
+  // Guard: wajib di dalam uploads/ (cegah path traversal).
+  if (filePath !== UPLOADS_ROOT && !filePath.startsWith(UPLOADS_ROOT + path.sep)) {
+    return res.status(400).json({ error: 'Path tidak valid' });
+  }
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.sendFile(filePath, (err) => {
+    if (err && !res.headersSent) res.status(404).json({ error: 'File tidak ditemukan' });
+  });
+});
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {

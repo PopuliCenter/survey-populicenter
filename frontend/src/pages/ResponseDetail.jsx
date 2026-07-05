@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import ReviewStatusBadge from '../components/ReviewStatusBadge';
 import api from '../services/api';
+import { getMediaToken } from '../services/mediaToken';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -53,15 +54,14 @@ function MetaRow({ label, value }) {
  *
  * @param {{ answer: object, index: number }} props
  */
-function AnswerCard({ answer, index }) {
+function AnswerCard({ answer, index, mediaToken }) {
   // Resolve media URL — gunakan server URL dari localStorage (Capacitor) atau relative path (web)
   function resolveMediaUrl(path) {
     if (!path) return null;
     if (path.startsWith('http')) return path;
-    // /uploads kini butuh JWT + role. <img>/<a> tak bisa kirim header, jadi
-    // token dibawa lewat query ?t=.
-    const token = localStorage.getItem('token');
-    const q = token ? `?t=${encodeURIComponent(token)}` : '';
+    // /uploads butuh token. <img>/<a> tak bisa kirim header → token media
+    // berumur-pendek dibawa lewat query ?t=.
+    const q = mediaToken ? `?t=${encodeURIComponent(mediaToken)}` : '';
     // Di Capacitor native, perlu absolute URL
     const serverUrl = localStorage.getItem('api_server_url');
     if (serverUrl) return `${serverUrl}/${path.replace(/^\//, '')}${q}`;
@@ -298,6 +298,7 @@ function ResponseDetail() {
   const [response, setResponse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
+  const [mediaToken, setMediaToken] = useState('');
 
   // ── Review panel state ────────────────────────────────────────────────────
   const [reviewStatus, setReviewStatus] = useState('unreviewed');
@@ -311,7 +312,13 @@ function ResponseDetail() {
       setLoading(true);
       setFetchError(null);
       try {
-        const res = await api.get(`/responses/${id}`);
+        // Ambil detail respons + token media (paralel). Token best-effort:
+        // kegagalannya tak memblokir tampilan data (hanya media yang terdampak).
+        const [res, mt] = await Promise.all([
+          api.get(`/responses/${id}`),
+          getMediaToken().catch(() => ''),
+        ]);
+        setMediaToken(mt);
         setResponse(res.data);
         // Populate review panel state from loaded data
         if (res.data.review_status) setReviewStatus(res.data.review_status);
@@ -493,9 +500,8 @@ function ResponseDetail() {
               function mediaUrl(path) {
                 if (!path) return null;
                 if (path.startsWith('http')) return path;
-                // /uploads butuh JWT + role → bawa token via query ?t=.
-                const token = localStorage.getItem('token');
-                const q = token ? `?t=${encodeURIComponent(token)}` : '';
+                // /uploads butuh token media berumur-pendek → bawa via query ?t=.
+                const q = mediaToken ? `?t=${encodeURIComponent(mediaToken)}` : '';
                 const serverUrl = localStorage.getItem('api_server_url');
                 if (serverUrl) return `${serverUrl}/${path.replace(/^\//, '')}${q}`;
                 return `/${path.replace(/^\//, '')}${q}`;
@@ -677,6 +683,7 @@ function ResponseDetail() {
                       key={idx}
                       answer={answer}
                       index={idx}
+                      mediaToken={mediaToken}
                     />
                   ))}
                 </div>
