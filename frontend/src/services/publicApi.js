@@ -7,7 +7,7 @@ import axios from 'axios';
  * meredirect ke /login saat 401 — dipakai oleh halaman embed hasil survei
  * yang disematkan di website (populicenter.org) tanpa autentikasi.
  */
-const PRODUCTION_SERVER = 'https://risetcenter.com';
+import { PRODUCTION_SERVER } from '../config/server';
 
 function getBaseURL() {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;

@@ -59,34 +59,6 @@ async function incrementResponseStats(surveyId, surveyorId) {
 }
 
 /**
- * Decrement statistik setelah response dihapus.
- *
- * @param {string} surveyId
- * @param {string} surveyorId
- */
-async function decrementResponseStats(surveyId, surveyorId) {
-  await sequelize.query(`
-    UPDATE survey_statistics
-    SET total_responses = GREATEST(0, total_responses - 1),
-        updated_at = NOW()
-    WHERE survey_id = :surveyId;
-  `, {
-    replacements: { surveyId },
-    type: sequelize.QueryTypes.RAW,
-  });
-
-  await sequelize.query(`
-    UPDATE surveyor_statistics
-    SET total_responses = GREATEST(0, total_responses - 1),
-        updated_at = NOW()
-    WHERE survey_id = :surveyId AND surveyor_id = :surveyorId;
-  `, {
-    replacements: { surveyId, surveyorId },
-    type: sequelize.QueryTypes.RAW,
-  });
-}
-
-/**
  * Hitung ulang (reconcile) statistik sebuah survei dari tabel `responses`.
  * Dipakai setelah penghapusan massal (cleanup) agar statistik pra-hitung tidak
  * "drift" (membengkak). Idempoten & menyembuhkan drift yang mungkin sudah ada.
@@ -196,7 +168,6 @@ async function getSurveyorResponseCounts(surveyId) {
 
 module.exports = {
   incrementResponseStats,
-  decrementResponseStats,
   recomputeSurveyStats,
   getDashboardStats,
   getSurveyorResponseCounts,
