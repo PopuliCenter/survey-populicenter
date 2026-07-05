@@ -17,26 +17,20 @@ const { sequelize, Survey, Response, Answer, AuditLog } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
 const { collectMediaPaths, deleteMediaFiles, UPLOADS_ROOT, PROJECT_ROOT } = require('../utils/mediaFiles');
+const { cacheGet, cacheSet, cacheDel } = require('../utils/cache');
+const { dirSizeBytes } = require('../utils/diskUsage');
+const { chunk } = require('../utils/chunk');
 
 const router = express.Router();
 router.use(authMiddleware, requireRole('admin'));
 
 const isUUID = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s || '');
 
-/** Jumlah total byte semua file di sebuah folder (rekursif). Aman-gagal. */
-function dirSizeBytes(dir) {
-  let total = 0;
-  let entries;
-  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return 0; }
-  for (const e of entries) {
-    const full = path.join(dir, e.name);
-    if (e.isDirectory()) total += dirSizeBytes(full);
-    else {
-      try { total += fs.statSync(full).size; } catch { /* abaikan */ }
-    }
-  }
-  return total;
-}
+// Ukuran folder uploads berubah lambat & mahal dihitung (walk rekursif seluruh
+// disk), jadi di-cache singkat. Di-invalidasi saat purge agar disk yang lega
+// langsung tercermin.
+const UPLOADS_SIZE_KEY = 'storage:uploads_bytes';
+const UPLOADS_SIZE_TTL = 300; // detik
 
 // ─── GET /storage/overview ─────────────────────────────────────────────────────
 router.get('/overview', async (req, res, next) => {
@@ -77,9 +71,19 @@ router.get('/overview', async (req, res, next) => {
       };
     }).sort((a, b) => b.media_count - a.media_count);
 
+    // Ukuran disk: pakai cache bila ada (hitung ulang async saat miss agar tidak
+    // memblokir event loop / mengulang walk mahal saat banyak akses).
+    let uploadsBytes = await cacheGet(UPLOADS_SIZE_KEY);
+    const uploadsCached = uploadsBytes != null;
+    if (!uploadsCached) {
+      uploadsBytes = await dirSizeBytes(UPLOADS_ROOT);
+      await cacheSet(UPLOADS_SIZE_KEY, uploadsBytes, UPLOADS_SIZE_TTL);
+    }
+
     res.json({
       surveys: items,
-      uploads_bytes: dirSizeBytes(UPLOADS_ROOT),
+      uploads_bytes: uploadsBytes,
+      uploads_cached: uploadsCached,
       generated_at: new Date().toISOString(),
     });
   } catch (error) {
@@ -114,11 +118,16 @@ router.post('/purge', async (req, res, next) => {
     const mediaPaths = await collectMediaPaths(sequelize, ids);
 
     await sequelize.transaction(async (t) => {
-      await Answer.destroy({ where: { response_id: { [Op.in]: ids } }, transaction: t });
-      await Response.destroy({ where: { id: { [Op.in]: ids } }, transaction: t });
+      for (const part of chunk(ids)) {
+        await Answer.destroy({ where: { response_id: { [Op.in]: part } }, transaction: t });
+      }
+      for (const part of chunk(ids)) {
+        await Response.destroy({ where: { id: { [Op.in]: part } }, transaction: t });
+      }
     });
 
     const filesDeleted = deleteMediaFiles(mediaPaths);
+    await cacheDel(UPLOADS_SIZE_KEY); // disk berubah → paksa hitung ulang berikutnya
     await Promise.allSettled(survey_ids.map((sid) => recomputeSurveyStats(sid)));
 
     await AuditLog.create({
@@ -162,14 +171,17 @@ router.get('/survey/:id/archive', async (req, res, next) => {
        ORDER BY created_at ASC`,
       { replacements: { sid: id } }
     );
-    const respIds = respRows.map((r) => r.id);
-
+    // Jawaban diambil lewat JOIN via survey_id (bukan `IN (ribuan id)`) — pakai
+    // index survey_id, satu query, dan tahan survei sangat besar tanpa daftar
+    // bind-parameter raksasa. Filter PENDING disamakan agar konsisten.
     let ansRows = [];
-    if (respIds.length > 0) {
+    if (respRows.length > 0) {
       [ansRows] = await sequelize.query(
-        `SELECT response_id, question_id, answer_value, answer_json, photo_path
-         FROM answers WHERE response_id IN (:ids)`,
-        { replacements: { ids: respIds } }
+        `SELECT a.response_id, a.question_id, a.answer_value, a.answer_json, a.photo_path
+         FROM answers a
+         JOIN responses r ON r.id = a.response_id
+         WHERE r.survey_id = :sid AND r.questionnaire_number NOT LIKE 'PENDING-%'`,
+        { replacements: { sid: id } }
       );
     }
     const ansByResp = {};

@@ -8,6 +8,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { chunk } = require('./chunk');
 
 const PROJECT_ROOT = path.join(__dirname, '..', '..');
 const UPLOADS_ROOT = path.join(PROJECT_ROOT, 'uploads');
@@ -25,23 +26,27 @@ async function collectMediaPaths(sequelize, responseIds) {
   const paths = new Set();
   if (!responseIds || responseIds.length === 0) return [];
 
-  const [resRows] = await sequelize.query(
-    `SELECT audio_path, signature_path, photo_paths FROM responses WHERE id IN (:ids)`,
-    { replacements: { ids: responseIds } }
-  );
-  for (const r of resRows) {
-    if (r.audio_path) paths.add(r.audio_path);
-    if (r.signature_path) paths.add(r.signature_path);
-    if (Array.isArray(r.photo_paths)) {
-      for (const p of r.photo_paths) if (p) paths.add(p);
+  // Pecah per potongan agar daftar `IN (...)` tak melampaui batas bind-parameter
+  // Postgres (65535) pada purge/cleanup survei besar.
+  for (const ids of chunk(responseIds)) {
+    const [resRows] = await sequelize.query(
+      `SELECT audio_path, signature_path, photo_paths FROM responses WHERE id IN (:ids)`,
+      { replacements: { ids } }
+    );
+    for (const r of resRows) {
+      if (r.audio_path) paths.add(r.audio_path);
+      if (r.signature_path) paths.add(r.signature_path);
+      if (Array.isArray(r.photo_paths)) {
+        for (const p of r.photo_paths) if (p) paths.add(p);
+      }
     }
-  }
 
-  const [ansRows] = await sequelize.query(
-    `SELECT photo_path FROM answers WHERE response_id IN (:ids) AND photo_path IS NOT NULL`,
-    { replacements: { ids: responseIds } }
-  );
-  for (const a of ansRows) if (a.photo_path) paths.add(a.photo_path);
+    const [ansRows] = await sequelize.query(
+      `SELECT photo_path FROM answers WHERE response_id IN (:ids) AND photo_path IS NOT NULL`,
+      { replacements: { ids } }
+    );
+    for (const a of ansRows) if (a.photo_path) paths.add(a.photo_path);
+  }
 
   return [...paths];
 }

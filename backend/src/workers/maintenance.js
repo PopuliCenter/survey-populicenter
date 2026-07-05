@@ -21,13 +21,22 @@
  */
 
 const fs = require('fs');
+const fsp = require('fs').promises;
+const os = require('os');
 const path = require('path');
 const { Op } = require('sequelize');
 const { sequelize, Response, Answer, Survey } = require('../models');
 const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
+const { chunk } = require('../utils/chunk');
 
 const UPLOAD_ROOT = path.join(__dirname, '..', '..', 'uploads');
 const MEDIA_DIRS = ['photos', 'audio', 'signatures'];
+
+// Nama file arsip sementara yang dibuat route /storage/survey/:id/archive:
+// `arsip-<uuid>-<timestamp>.zip`. Regex sengaja ketat (UUID + angka) agar
+// sweeper TIDAK menyentuh file lain milik aplikasi/OS di tmpdir.
+const TMP_ARCHIVE_RE = /^arsip-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-\d+\.zip$/i;
+const TMP_ARCHIVE_MAX_AGE_MS = 60 * 60 * 1000; // 1 jam
 
 // ─── M3: hapus PENDING yatim ───────────────────────────────────────────────────
 async function cleanupStalePending() {
@@ -44,8 +53,12 @@ async function cleanupStalePending() {
   const ids = pending.map((r) => r.id);
   if (ids.length === 0) return 0;
   await sequelize.transaction(async (t) => {
-    await Answer.destroy({ where: { response_id: { [Op.in]: ids } }, transaction: t });
-    await Response.destroy({ where: { id: { [Op.in]: ids } }, transaction: t });
+    for (const part of chunk(ids)) {
+      await Answer.destroy({ where: { response_id: { [Op.in]: part } }, transaction: t });
+    }
+    for (const part of chunk(ids)) {
+      await Response.destroy({ where: { id: { [Op.in]: part } }, transaction: t });
+    }
   });
   return ids.length;
 }
@@ -130,6 +143,28 @@ async function reapOrphanMedia() {
   return { orphans, deleted, enabled };
 }
 
+// ─── Sweeper arsip sementara (temuan review #3) ────────────────────────────────
+// Route arsip membangun ZIP ke os.tmpdir() lalu menghapusnya setelah terkirim.
+// Bila proses restart/crash di tengah, file bisa tertinggal — sapu yang tua.
+async function sweepTempArchives() {
+  const dir = os.tmpdir();
+  const cutoff = Date.now() - TMP_ARCHIVE_MAX_AGE_MS;
+  let entries;
+  try { entries = await fsp.readdir(dir); } catch { return 0; }
+  let removed = 0;
+  for (const name of entries) {
+    if (!TMP_ARCHIVE_RE.test(name)) continue;
+    const full = path.join(dir, name);
+    try {
+      const st = await fsp.stat(full);
+      if (st.mtimeMs > cutoff) continue; // masih baru — mungkin unduhan berjalan
+      await fsp.unlink(full);
+      removed += 1;
+    } catch { /* sudah hilang / gagal — abaikan */ }
+  }
+  return removed;
+}
+
 // ─── Runner ──────────────────────────────────────────────────────────────────
 let running = false;
 async function runOnce() {
@@ -140,10 +175,11 @@ async function runOnce() {
     const pending = await cleanupStalePending();
     const stats = await reconcileStats();
     const media = await reapOrphanMedia();
+    const tmpZips = await sweepTempArchives();
     console.log(
       `[maintenance] selesai dalam ${Date.now() - t0}ms | PENDING dihapus=${pending} | ` +
         `stats direkonsiliasi=${stats} | media yatim=${media.orphans} ` +
-        `(${media.enabled ? `dihapus=${media.deleted}` : 'dry-run'})`
+        `(${media.enabled ? `dihapus=${media.deleted}` : 'dry-run'}) | arsip-tmp disapu=${tmpZips}`
     );
   } catch (err) {
     console.error('[maintenance] error:', err.message);
@@ -168,4 +204,5 @@ module.exports = {
   cleanupStalePending,
   reconcileStats,
   reapOrphanMedia,
+  sweepTempArchives,
 };

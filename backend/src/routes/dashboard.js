@@ -5,26 +5,9 @@ const { authMiddleware, requireRole } = require('../middleware/auth');
 const { getDashboardStats, getSurveyorResponseCounts } = require('../utils/statisticsUpdater');
 const { wibDateString, wibDayRangeUTC } = require('../utils/time');
 const { normalizeProvince } = require('../utils/province');
-const redis = require('../config/redis');
+const { cacheGet, cacheSet } = require('../utils/cache');
 
 const router = express.Router();
-
-// Cache ringan via Redis (gagal-aman: bila Redis bermasalah, tetap hitung).
-async function cacheGet(key) {
-  try {
-    const v = await redis.get(key);
-    return v ? JSON.parse(v) : null;
-  } catch {
-    return null;
-  }
-}
-async function cacheSet(key, value, ttlSeconds) {
-  try {
-    await redis.setex(key, ttlSeconds, JSON.stringify(value));
-  } catch {
-    /* abaikan kegagalan cache */
-  }
-}
 
 // TTL pendek untuk endpoint inti: tahan beban query identik saat banyak akses
 // berbarengan (mis. banyak orang buka dashboard ketika TPD input deras),
