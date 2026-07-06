@@ -50,8 +50,9 @@ jest.mock('../../src/config/redis', () => ({
 }));
 
 const app = require('../../src/app');
-const { User, AuditLog, SurveyorQuota, Response, Survey, Sequelize } = require('../../src/models');
+const { User, AuditLog, SurveyorQuota, Response, Survey } = require('../../src/models');
 const redis = require('../../src/config/redis');
+const { Op } = require('sequelize'); // simbol Op nyata (surveyors.js pakai sequelize langsung)
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -104,6 +105,9 @@ describe('Surveyor Management Module - GET /surveyors', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     redis.get.mockResolvedValue(null); // token not blacklisted
+    // List kini juga mengambil kuota per-TPD (grouping per survei) — default []
+    // agar tak "allQuotas is not iterable"; tes tertentu boleh menimpanya.
+    SurveyorQuota.findAll.mockResolvedValue([]);
   });
 
   test('daftar surveyor berhasil dikembalikan dengan response_count', async () => {
@@ -134,15 +138,7 @@ describe('Surveyor Management Module - GET /surveyors', () => {
       { id: 'surveyor-uuid-001', name: 'Surveyor Active', email: 'active@example.com', is_active: true, created_at: new Date().toISOString() },
     ]);
     Survey.findAll.mockResolvedValue([{ id: 'survey-active-001' }]);
-    Response.findAll.mockImplementation(({ where }) => {
-      expect(where).toEqual({
-        surveyor_id: { [Sequelize.Op.in]: ['surveyor-uuid-001'] },
-        end_time: { [Sequelize.Op.ne]: null },
-        questionnaire_number: { [Sequelize.Op.notLike]: 'PENDING-%' },
-        survey_id: { [Sequelize.Op.in]: ['survey-active-001'] },
-      });
-      return Promise.resolve([{ surveyor_id: 'surveyor-uuid-001', count: '3' }]);
-    });
+    Response.findAll.mockResolvedValue([{ surveyor_id: 'surveyor-uuid-001', count: '3' }]);
 
     const res = await request(app)
       .get('/surveyors')
@@ -150,6 +146,9 @@ describe('Surveyor Management Module - GET /surveyors', () => {
 
     expect(res.status).toBe(200);
     expect(res.body[0]).toHaveProperty('response_count', 3);
+    // Query hitung memfilter hanya survei aktif (pakai Op nyata).
+    const firstWhere = Response.findAll.mock.calls[0][0].where;
+    expect(firstWhere.survey_id[Op.in]).toEqual(['survey-active-001']);
   });
 
   test('tanpa token - mengembalikan 401', async () => {
@@ -386,7 +385,7 @@ describe('Surveyor Management Module - PUT /surveyors/:id', () => {
       .send({ name: 'Name' });
 
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: 'Surveyor tidak ditemukan' });
+    expect(res.body).toEqual({ error: 'TPD tidak ditemukan' });
   });
 
   test('email duplikat saat update - mengembalikan 409', async () => {
@@ -475,7 +474,7 @@ describe('Surveyor Management Module - PATCH /surveyors/:id/deactivate', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: 'Surveyor tidak ditemukan' });
+    expect(res.body).toEqual({ error: 'TPD tidak ditemukan' });
   });
 
   test('supervisor dapat menonaktifkan surveyor - mengembalikan 200', async () => {
@@ -543,7 +542,7 @@ describe('Surveyor Management Module - PATCH /surveyors/:id/activate', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: 'Surveyor tidak ditemukan' });
+    expect(res.body).toEqual({ error: 'TPD tidak ditemukan' });
   });
 
   test('supervisor dapat mengaktifkan surveyor - mengembalikan 200', async () => {
@@ -591,9 +590,11 @@ describe('Surveyor Management Module - GET /surveyors/:id/quota (ringkasan aktiv
         survey: { id: 'survey-uuid-001', title: 'Survey A' },
       },
     ]);
-    Response.findAll.mockResolvedValue([
-      { survey_id: 'survey-uuid-001', count: '7' },
-    ]);
+    // Handler memanggil Response.findAll dua kali: (1) hitung 'filled', lalu
+    // (2) ambil nomor kuesioner terkirim. Beri return berbeda per panggilan.
+    Response.findAll
+      .mockResolvedValueOnce([{ survey_id: 'survey-uuid-001', count: '7' }])
+      .mockResolvedValueOnce([]);
 
     const res = await request(app)
       .get('/surveyors/surveyor-uuid-001/quota')
@@ -618,7 +619,7 @@ describe('Surveyor Management Module - GET /surveyors/:id/quota (ringkasan aktiv
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: 'Surveyor tidak ditemukan' });
+    expect(res.body).toEqual({ error: 'TPD tidak ditemukan' });
   });
 });
 
@@ -661,7 +662,7 @@ describe('Surveyor Management Module - DELETE /surveyors/:id', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: 'Surveyor tidak ditemukan' });
+    expect(res.body).toEqual({ error: 'TPD tidak ditemukan' });
   });
 
   test('supervisor mencoba delete surveyor - mengembalikan 403 (override requireRole)', async () => {
@@ -877,6 +878,6 @@ describe('Surveyor Management Module - POST /surveyors/:id/quota', () => {
       .send({ survey_id: 'survey-uuid-001', quota: 10 });
 
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: 'Surveyor tidak ditemukan' });
+    expect(res.body).toEqual({ error: 'TPD tidak ditemukan' });
   });
 });
