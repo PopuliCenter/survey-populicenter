@@ -375,16 +375,23 @@ router.get('/surveyor-summary', authMiddleware, requireRole(['admin', 'superviso
       });
     }
 
-    // Count today's responses per surveyor (exclude PENDING)
-    const todayRows = await Response.findAll({
-      attributes: ['surveyor_id', [fn('COUNT', col('id')), 'count']],
-      where: {
-        created_at: { [Op.between]: [todayStart, todayEnd] },
-        questionnaire_number: { [Op.notLike]: 'PENDING-%' },
-      },
-      group: ['surveyor_id'],
-      raw: true,
-    });
+    // Count today's responses per surveyor (exclude PENDING).
+    // H3: WAJIB difilter ke survei aktif — sama seperti responseRows. Tanpa ini,
+    // "responsesToday" ikut menghitung survei non-aktif/arsip → angka menggelembung
+    // & tak konsisten dengan /stats.
+    let todayRows = [];
+    if (activeSurveyIds.length > 0) {
+      todayRows = await Response.findAll({
+        attributes: ['surveyor_id', [fn('COUNT', col('id')), 'count']],
+        where: {
+          survey_id: activeSurveyIds,
+          created_at: { [Op.between]: [todayStart, todayEnd] },
+          questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+        },
+        group: ['surveyor_id'],
+        raw: true,
+      });
+    }
 
     // Build lookup maps
     const quotaMap = {};
