@@ -590,6 +590,7 @@ router.post('/:id/clone', authMiddleware, requireRole(['admin', 'supervisor'], {
         order_index: q.order_index,
         is_required: q.is_required,
         randomize_options: q.randomize_options,
+        allow_other: q.allow_other, // H4: jangan hilangkan opsi "Lainnya" saat clone
         options: q.options,
         skip_logic: remapSkipLogic(q.skip_logic, idMap),
       }));
