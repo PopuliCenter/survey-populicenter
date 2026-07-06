@@ -394,8 +394,29 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
           await existingResponse.destroy();
           return res.status(403).json({ error: 'Kuota pengisian survei Anda sudah tercapai' });
         }
+      } else {
+        // M4: baris kuota hilang antara /start dan /submit (mis. admin re-assign
+        // kuota). JANGAN diam-diam lolos tanpa batas — kuota diberlakukan di
+        // aplikasi tanpa backstop DB, jadi hilangnya baris = tak terbatas. Tolak.
+        await transaction.rollback();
+        await existingResponse.destroy();
+        return res.status(403).json({ error: 'Anda tidak memiliki akses untuk survei ini' });
       }
       // --- End quota re-check ---
+
+      // M3: kunci baris response (FOR UPDATE) & pastikan MASIH PENDING. Bila
+      // submit konkuren (double-tap/retry jaringan) sudah mengklaim record ini
+      // lebih dulu, re-fetch berpredikat PENDING mengembalikan null → 409;
+      // mencegah jawaban duplikat / dua nomor kuesioner untuk satu sesi.
+      const lockedPending = await Response.findOne({
+        where: { id: response_id, questionnaire_number: { [Op.like]: 'PENDING-%' } },
+        lock: transaction.LOCK.UPDATE,
+        transaction,
+      });
+      if (!lockedPending) {
+        await transaction.rollback();
+        return res.status(409).json({ error: 'Sesi pengisian ini sudah disubmit' });
+      }
 
       // Generate questionnaire number using PostgreSQL sequence
       // Sequence name uses underscores (hyphens replaced) to match the name created at activation
