@@ -130,7 +130,12 @@ function walkFiles(dir) {
 
 async function reapOrphanMedia() {
   const enabled = process.env.MEDIA_REAPER_ENABLED === 'true';
-  const ageHours = parseInt(process.env.MEDIA_REAPER_AGE_HOURS, 10) || 48;
+  // M7: default 168 jam (7 hari) — media yang diunggah tapi respons-nya belum
+  // ter-submit (draft lapangan tertunda: sinyal buruk / kuesioner panjang) TIDAK
+  // direferensikan baris mana pun, jadi hanya usia yang melindunginya. Ambang 7
+  // hari membuat penghapusan draft yang masih akan disubmit praktis mustahil,
+  // sementara orphan sejati tetap dibersihkan (beberapa hari lebih lambat).
+  const ageHours = parseInt(process.env.MEDIA_REAPER_AGE_HOURS, 10) || 168;
   const cutoffMs = Date.now() - ageHours * 60 * 60 * 1000;
   const referenced = await getReferencedMediaPaths();
 
