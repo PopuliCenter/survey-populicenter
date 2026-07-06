@@ -34,4 +34,22 @@ async function cacheDel(key) {
   }
 }
 
-module.exports = { cacheGet, cacheSet, cacheDel };
+/**
+ * Hapus semua key yang cocok pola (mis. 'dash:*') memakai SCAN (non-blocking,
+ * tak seperti KEYS). Dipakai untuk invalidasi cache dashboard setelah perubahan
+ * data besar (cleanup/purge). Gagal-aman.
+ */
+async function cacheDelPattern(pattern) {
+  try {
+    const stream = redis.scanStream({ match: pattern, count: 100 });
+    const keys = [];
+    for await (const batch of stream) {
+      if (batch.length) keys.push(...batch);
+    }
+    if (keys.length) await redis.del(...keys);
+  } catch {
+    /* abaikan kegagalan cache */
+  }
+}
+
+module.exports = { cacheGet, cacheSet, cacheDel, cacheDelPattern };

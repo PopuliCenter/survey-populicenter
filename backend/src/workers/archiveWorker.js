@@ -41,7 +41,7 @@ async function processArchiveJob(job) {
     return { success: true, file_path: `uploads/exports/${fileName}`, count };
   } catch (error) {
     await ExportJob.update(
-      { status: 'failed', completed_at: new Date() },
+      { status: 'failed', completed_at: new Date(), error_message: String(error && error.message || 'Kesalahan tak dikenal').slice(0, 500) },
       { where: { id: jobId } }
     );
     throw error;

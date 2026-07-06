@@ -16,7 +16,7 @@ const { sequelize, Survey, Response, Answer, AuditLog, ExportJob } = require('..
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
 const { collectMediaPaths, deleteMediaFiles, UPLOADS_ROOT, PROJECT_ROOT } = require('../utils/mediaFiles');
-const { cacheGet, cacheSet, cacheDel } = require('../utils/cache');
+const { cacheGet, cacheSet, cacheDel, cacheDelPattern } = require('../utils/cache');
 const { dirSizeBytes } = require('../utils/diskUsage');
 const { chunk } = require('../utils/chunk');
 const { buildSurveyArchive } = require('../utils/archiveBuilder');
@@ -133,6 +133,7 @@ router.post('/purge', async (req, res, next) => {
 
     const filesDeleted = await deleteMediaFiles(mediaPaths);
     await cacheDel(UPLOADS_SIZE_KEY); // disk berubah → paksa hitung ulang berikutnya
+    await cacheDelPattern('dash:*'); // L5: total dashboard berubah → invalidasi
     await Promise.allSettled(survey_ids.map((sid) => recomputeSurveyStats(sid)));
 
     await AuditLog.create({

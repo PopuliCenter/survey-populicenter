@@ -541,7 +541,7 @@ router.get('/exports/:jobId', authMiddleware, requireRole(['admin', 'supervisor'
     const { jobId } = req.params;
 
     const exportJob = await ExportJob.findByPk(jobId, {
-      attributes: ['id', 'status', 'format', 'created_at', 'completed_at', 'requested_by'],
+      attributes: ['id', 'status', 'format', 'created_at', 'completed_at', 'requested_by', 'error_message'],
     });
 
     if (!exportJob) {
@@ -560,6 +560,8 @@ router.get('/exports/:jobId', authMiddleware, requireRole(['admin', 'supervisor'
       format: exportJob.format,
       created_at: exportJob.created_at,
       completed_at: exportJob.completed_at,
+      // L6: sertakan alasan bila gagal (null bila tidak).
+      error_message: exportJob.status === 'failed' ? (exportJob.error_message || null) : null,
     });
   } catch (error) {
     next(error);

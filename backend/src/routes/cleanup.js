@@ -6,6 +6,7 @@ const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
 const { collectMediaPaths, deleteMediaFiles } = require('../utils/mediaFiles');
 const { isSafeSqlIdent } = require('../utils/uuid');
 const { WIB_OFFSET_MS } = require('../utils/time');
+const { cacheDelPattern } = require('../utils/cache');
 
 const router = express.Router();
 
@@ -257,6 +258,7 @@ router.post('/responses', async (req, res, next) => {
 
     // Hapus file media fisik → disk langsung lega (non-kritis bila sebagian gagal).
     const filesDeleted = await deleteMediaFiles(mediaPaths);
+    await cacheDelPattern('dash:*'); // L5: total dashboard berubah → invalidasi
 
     // Hitung ulang statistik pra-hitung untuk survei terdampak agar dashboard
     // tidak "drift" (best-effort; kegagalan tidak membatalkan penghapusan).
@@ -376,6 +378,7 @@ router.post('/survey/:id', async (req, res, next) => {
 
     // Hapus file media fisik survei → disk langsung lega.
     const filesDeleted = await deleteMediaFiles(mediaPaths);
+    await cacheDelPattern('dash:*'); // L5: total dashboard berubah → invalidasi
 
     await AuditLog.create({
       user_id: req.user.id,
