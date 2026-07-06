@@ -15,7 +15,8 @@
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
     "cap:build": "vite build && npx cap sync android",
-    "cap:run": "npx cap run android"
+    "cap:run": "npx cap run android",
+    "cap:release": "node scripts/release-android.cjs"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^8.1.0",

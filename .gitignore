@@ -36,6 +36,10 @@ certs/
 *.bak.*
 .env.bak.*
 
+# Backup database (berisi seluruh isi DB — rahasia). Simpan di luar git.
+backups/
+*.dump
+
 # Berkas referensi/template laporan — JANGAN di-commit/deploy (rahasia & besar)
 frontend/public/Final Report*
 frontend/public/*.thmx
