@@ -101,11 +101,65 @@ function validateAnswer(answerValue, question) {
 }
 
 /**
+ * Kumpulan nilai opsi yang sah untuk pertanyaan pilihan.
+ * `options` pertanyaan pilihan berupa array `[{value,label}, ...]` (bisa juga
+ * string/angka polos). Untuk tipe non-pilihan (options objek/absen) → null.
+ * @returns {Set<string>|null}
+ */
+function optionValueSet(question) {
+  const opts = question && question.options;
+  if (!Array.isArray(opts)) return null;
+  const set = new Set();
+  for (const o of opts) {
+    if (o && typeof o === 'object' && 'value' in o) set.add(String(o.value));
+    else if (typeof o === 'string' || typeof o === 'number') set.add(String(o));
+  }
+  return set;
+}
+
+function isAllowedChoiceValue(val, validSet, allowOther) {
+  if (val === null || val === undefined || val === '') return true; // required check terpisah
+  const s = String(val);
+  if (allowOther && s.startsWith('__other__:')) return true; // "Lainnya" bila diizinkan
+  return validSet.has(s);
+}
+
+/**
+ * Validasi bahwa nilai jawaban pilihan benar-benar termasuk opsi yang sah
+ * (cegah "kategori siluman" mencemari agregat). Hanya single_choice &
+ * multiple_choice; `__other__:` diperbolehkan bila question.allow_other.
+ * @returns {{ valid: boolean, error?: string }}
+ */
+function validateChoiceMembership(answer, question) {
+  const validSet = optionValueSet(question);
+  if (!validSet || validSet.size === 0) return { valid: true }; // opsi tak terdefinisi → lewati
+  const allowOther = question.allow_other === true;
+
+  if (question.type === 'single_choice') {
+    const v = answer.answer_value != null ? answer.answer_value : answer.answer_json;
+    if (Array.isArray(v)) return { valid: false, error: 'Jawaban pilihan tunggal tidak boleh berupa daftar' };
+    if (!isAllowedChoiceValue(v, validSet, allowOther)) {
+      return { valid: false, error: 'Nilai jawaban tidak ada dalam opsi yang tersedia' };
+    }
+  } else if (question.type === 'multiple_choice') {
+    const arr = Array.isArray(answer.answer_json)
+      ? answer.answer_json
+      : (answer.answer_value != null && answer.answer_value !== '' ? [answer.answer_value] : []);
+    for (const v of arr) {
+      if (!isAllowedChoiceValue(v, validSet, allowOther)) {
+        return { valid: false, error: 'Salah satu nilai jawaban tidak ada dalam opsi yang tersedia' };
+      }
+    }
+  }
+  return { valid: true };
+}
+
+/**
  * Validasi semua jawaban dalam satu submission.
  * Pure function — tidak ada dependensi database.
  *
  * @param {Array<{question_id, answer_value, answer_json}>} answers
- * @param {Array<{id, type, options, is_required}>} questions
+ * @param {Array<{id, type, options, is_required, allow_other}>} questions
  * @returns {{ valid: boolean, errors: Array<{question_id, error}> }}
  */
 function validateAllAnswers(answers, questions) {
@@ -123,6 +177,12 @@ function validateAllAnswers(answers, questions) {
     const result = validateAnswer(answer.answer_value, question);
     if (!result.valid) {
       errors.push({ question_id: answer.question_id, error: result.error });
+      continue;
+    }
+    // Keanggotaan opsi pilihan (single/multiple_choice).
+    const membership = validateChoiceMembership(answer, question);
+    if (!membership.valid) {
+      errors.push({ question_id: answer.question_id, error: membership.error });
     }
   }
 

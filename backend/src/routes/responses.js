@@ -9,7 +9,7 @@ const { validateDateFormat, validateTimeFormat, validateDateAnswer, validateMatr
 const { validateFieldToolsSubmission } = require('../utils/fieldToolsValidator');
 const { incrementResponseStats } = require('../utils/statisticsUpdater');
 const { computeHiddenQuestions, buildAnswerMap } = require('../utils/skipLogicEvaluator');
-const { isUUID } = require('../utils/uuid');
+const { isSafeSqlIdent } = require('../utils/uuid');
 
 const { Op } = Sequelize;
 
@@ -211,7 +211,7 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     // Get all questions for this survey (terurut untuk evaluasi skip logic)
     const questions = await Question.findAll({
       where: { survey_id },
-      attributes: ['id', 'is_required', 'type', 'options', 'order_index', 'skip_logic'],
+      attributes: ['id', 'is_required', 'type', 'options', 'order_index', 'skip_logic', 'allow_other'],
       order: [['order_index', 'ASC']],
     });
 
@@ -222,8 +222,15 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     const answerMap = buildAnswerMap(answers, questionTypeMap);
     const hiddenQuestionIds = computeHiddenQuestions(questions, answerMap);
 
+    // H1: BUANG jawaban untuk pertanyaan yang TERSEMBUNYI oleh skip logic —
+    // otoritas di server. Jawaban di cabang mati tak boleh masuk dataset
+    // (mencemari agregat) maupun mengklaim nomor kuesioner (unique_id tersembunyi).
+    // Skip logic dievaluasi memakai `answers` penuh di atas; downstream memakai
+    // `visibleAnswers` yang sudah bersih.
+    const visibleAnswers = answers.filter((a) => !hiddenQuestionIds.has(a.question_id));
+
     // Validate required questions are answered (kecuali yang tersembunyi cabang)
-    const answeredQuestionIds = new Set(answers.map((a) => a.question_id));
+    const answeredQuestionIds = new Set(visibleAnswers.map((a) => a.question_id));
     const missingQuestions = questions
       .filter((q) => q.is_required && !hiddenQuestionIds.has(q.id) && !answeredQuestionIds.has(q.id))
       .map((q) => q.id);
@@ -236,7 +243,7 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     }
 
     // Validate answers against validation rules configured on questions
-    const validationResult = validateAllAnswers(answers, questions);
+    const validationResult = validateAllAnswers(visibleAnswers, questions);
     if (!validationResult.valid) {
       return res.status(422).json({
         error: 'Validasi jawaban gagal',
@@ -251,7 +258,7 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     }
 
     // Validate phone_number and unique_id answers
-    for (const ans of answers) {
+    for (const ans of visibleAnswers) {
       const q = questionMap[ans.question_id];
       if (!q) continue;
 
@@ -392,8 +399,9 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
 
       // Generate questionnaire number using PostgreSQL sequence
       // Sequence name uses underscores (hyphens replaced) to match the name created at activation
-      // Guard defensif: survey_id WAJIB UUID sebelum masuk nama identifier SQL.
-      if (!isUUID(survey_id)) throw new Error('survey_id tidak valid');
+      // Guard anti-injeksi: survey_id (dari session token) hanya boleh karakter
+      // aman sebelum disisipkan ke nama sequence. Melindungi bila token dipalsukan.
+      if (!isSafeSqlIdent(survey_id)) throw new Error('survey_id tidak valid');
       const seqName = `questionnaire_seq_${survey_id.replace(/-/g, '_')}`;
       const [[{ nextval }]] = await sequelize.query(
         `SELECT nextval('${seqName}') AS nextval`,
@@ -401,8 +409,9 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
       );
 
       // Check if surveyor provided a unique_id answer — use it as the suffix instead of auto-sequence
+      // (dari visibleAnswers → unique_id di cabang tersembunyi tak mengklaim nomor)
       let uniqueIdValue = null;
-      for (const ans of answers) {
+      for (const ans of visibleAnswers) {
         const q = questionMap[ans.question_id];
         if (q && q.type === 'unique_id' && ans.answer_value) {
           uniqueIdValue = ans.answer_value;
@@ -444,9 +453,9 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
         { transaction }
       );
 
-      // Save all answers
-      if (answers.length > 0) {
-        const answerRecords = answers.map((a) => ({
+      // Save all answers (hanya yang terlihat — jawaban cabang tersembunyi dibuang)
+      if (visibleAnswers.length > 0) {
+        const answerRecords = visibleAnswers.map((a) => ({
           response_id,
           question_id: a.question_id,
           answer_value: a.answer_value || null,
