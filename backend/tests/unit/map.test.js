@@ -40,6 +40,7 @@ jest.mock('../../src/config/redis', () => ({
 const app = require('../../src/app');
 const { Response, User, Survey } = require('../../src/models');
 const redis = require('../../src/config/redis');
+const { Op } = require('sequelize'); // simbol Op nyata (map.js pakai sequelize langsung)
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -144,7 +145,7 @@ describe('GET /map/points', () => {
     expect(typeof point.end_time).toBe('string'); // ISO timestamp
   });
 
-  it('queries Response with geo_status=available filter', async () => {
+  it('TIDAK memfilter geo_status (semua titik dgn koordinat tampil)', async () => {
     Response.findAll.mockResolvedValue([]);
 
     const token = createAdminToken();
@@ -154,10 +155,12 @@ describe('GET /map/points', () => {
 
     expect(Response.findAll).toHaveBeenCalled();
     const callArgs = Response.findAll.mock.calls[0][0];
-    expect(callArgs.where.geo_status).toBe('available');
+    // Perilaku terkini: map menampilkan semua titik ber-koordinat, tak lagi
+    // menyaring berdasarkan geo_status.
+    expect(callArgs.where.geo_status).toBeUndefined();
   });
 
-  it('queries Response with non-null latitude and longitude', async () => {
+  it('memfilter response yang punya koordinat (Op.or end/start-location)', async () => {
     Response.findAll.mockResolvedValue([]);
 
     const token = createAdminToken();
@@ -167,8 +170,8 @@ describe('GET /map/points', () => {
 
     expect(Response.findAll).toHaveBeenCalled();
     const callArgs = Response.findAll.mock.calls[0][0];
-    expect(callArgs.where.latitude).toBeDefined();
-    expect(callArgs.where.longitude).toBeDefined();
+    expect(callArgs.where[Op.or]).toBeDefined();
+    expect(Array.isArray(callArgs.where[Op.or])).toBe(true);
   });
 
   it('includes surveyor association in query', async () => {
@@ -471,7 +474,7 @@ describe('GET /map/points - Filter by date range', () => {
     expect(res.status).toBe(200);
     
     const callArgs = Response.findAll.mock.calls[0][0];
-    expect(callArgs.where.created_at).toBeDefined();
+    expect(callArgs.where.end_time).toBeDefined();
   });
 
   it('filters responses by end_date', async () => {
@@ -494,7 +497,7 @@ describe('GET /map/points - Filter by date range', () => {
     expect(res.status).toBe(200);
     
     const callArgs = Response.findAll.mock.calls[0][0];
-    expect(callArgs.where.created_at).toBeDefined();
+    expect(callArgs.where.end_time).toBeDefined();
   });
 
   it('filters responses by both start_date and end_date', async () => {
@@ -517,7 +520,7 @@ describe('GET /map/points - Filter by date range', () => {
     expect(res.status).toBe(200);
     
     const callArgs = Response.findAll.mock.calls[0][0];
-    expect(callArgs.where.created_at).toBeDefined();
+    expect(callArgs.where.end_time).toBeDefined();
   });
 
   it('returns empty array when no responses match date filter', async () => {
@@ -561,7 +564,7 @@ describe('GET /map/points - Combined filters', () => {
     const callArgs = Response.findAll.mock.calls[0][0];
     expect(callArgs.where.survey_id).toBe('survey-uuid-001');
     expect(callArgs.where.surveyor_id).toBe('surveyor-uuid-001');
-    expect(callArgs.where.created_at).toBeDefined();
+    expect(callArgs.where.end_time).toBeDefined();
   });
 
   it('returns correct data when multiple filters match', async () => {
@@ -626,7 +629,7 @@ describe('GET /map/points - Data completeness', () => {
     expect(point.end_time).toBe('2024-01-01T08:10:00.000Z');
   });
 
-  it('only returns points with geo_status=available (Requirement 16.10)', async () => {
+  it('menampilkan titik tanpa menyaring geo_status (perilaku terkini)', async () => {
     Response.findAll.mockResolvedValue([]);
 
     const token = createAdminToken();
@@ -636,12 +639,11 @@ describe('GET /map/points - Data completeness', () => {
 
     expect(Response.findAll).toHaveBeenCalled();
     const callArgs = Response.findAll.mock.calls[0][0];
-    
-    // Requirement 16.10: geo_status selain "available" tidak ditampilkan
-    expect(callArgs.where.geo_status).toBe('available');
+    // Semua titik ber-koordinat tampil; tak ada filter geo_status.
+    expect(callArgs.where.geo_status).toBeUndefined();
   });
 
-  it('orders results by created_at DESC', async () => {
+  it('orders results by end_time DESC', async () => {
     Response.findAll.mockResolvedValue([]);
 
     const token = createAdminToken();
@@ -651,6 +653,6 @@ describe('GET /map/points - Data completeness', () => {
 
     expect(Response.findAll).toHaveBeenCalled();
     const callArgs = Response.findAll.mock.calls[0][0];
-    expect(callArgs.order).toEqual([['created_at', 'DESC']]);
+    expect(callArgs.order).toEqual([['end_time', 'DESC']]);
   });
 });
