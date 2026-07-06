@@ -50,13 +50,19 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm install
-      - name: Lint (report only)
+      # GERBANG: lint backend (0 error; warning kosmetik tak menggagalkan).
+      - name: Lint
         run: npm run lint
-        continue-on-error: true
-      # Semua test backend berbasis MOCK (tak butuh DB/Redis nyata). Sisa
-      # kegagalan = test USANG yang belum diselaraskan dgn implementasi terbaru
-      # (mis. dashboard /stats kini pakai statistik pra-hitung) → butuh penulisan
-      # ulang, BUKAN bug produk. Report-only sampai test disegarkan.
-      - name: Test (not gating yet)
+      # GERBANG: seluruh test backend (664/664 hijau, berbasis MOCK — tak butuh
+      # DB/Redis nyata). Env dummy hanya untuk lolos fail-fast REQUIRED_ENV di
+      # app.js saat modul di-require; bukan rahasia nyata.
+      - name: Test
         run: npm test
-        continue-on-error: true
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ci-dummy-jwt-secret
+          SESSION_SECRET: ci-dummy-session-secret
+          DB_HOST: localhost
+          DB_NAME: ci_test
+          DB_USER: ci_test
+          DB_PASSWORD: ci_test
