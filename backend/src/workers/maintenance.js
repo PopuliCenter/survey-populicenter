@@ -26,7 +26,7 @@ const os = require('os');
 const path = require('path');
 const { Op } = require('sequelize');
 const { sequelize, Response, Answer, Survey } = require('../models');
-const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
+const { recomputeSurveyStats, drainDirtyStats } = require('../utils/statisticsUpdater');
 const { chunk } = require('../utils/chunk');
 
 const UPLOAD_ROOT = path.join(__dirname, '..', '..', 'uploads');
@@ -207,13 +207,14 @@ async function runOnce() {
   const t0 = Date.now();
   try {
     const pending = await cleanupStalePending();
+    const dirtyStats = await drainDirtyStats(); // M6: heal survei "dirty" lebih dulu
     const stats = await reconcileStats();
     const media = await reapOrphanMedia();
     const tmpZips = await sweepTempArchives();
     const oldExports = await sweepOldExports();
     console.log(
       `[maintenance] selesai dalam ${Date.now() - t0}ms | PENDING dihapus=${pending} | ` +
-        `stats direkonsiliasi=${stats} | media yatim=${media.orphans} ` +
+        `stats-dirty di-recompute=${dirtyStats} | stats direkonsiliasi=${stats} | media yatim=${media.orphans} ` +
         `(${media.enabled ? `dihapus=${media.deleted}` : 'dry-run'}) | arsip-tmp disapu=${tmpZips} | ` +
         `ekspor-lama disapu=${oldExports}`
     );

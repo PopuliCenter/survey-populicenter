@@ -7,7 +7,7 @@ const { createAuditLog } = require('../middleware/auditLog');
 const { validateAllAnswers } = require('../utils/answerValidator');
 const { validateDateFormat, validateTimeFormat, validateDateAnswer, validateMatrixAnswer } = require('../utils/validators');
 const { validateFieldToolsSubmission } = require('../utils/fieldToolsValidator');
-const { incrementResponseStats } = require('../utils/statisticsUpdater');
+const { incrementResponseStats, markStatsDirty } = require('../utils/statisticsUpdater');
 const { computeHiddenQuestions, buildAnswerMap } = require('../utils/skipLogicEvaluator');
 const { isSafeSqlIdent } = require('../utils/uuid');
 
@@ -504,9 +504,12 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
       return res.status(500).json({ error: 'Gagal menyimpan data. Silakan coba kembali' });
     }
 
-    // Update aggregated statistics (non-blocking, fire-and-forget)
+    // Update aggregated statistics (non-blocking, fire-and-forget).
+    // M6: bila gagal (mis. deadlock/timeout transient), tandai survei "dirty"
+    // agar maintenance me-recompute-nya → drift statistik tak permanen.
     incrementResponseStats(survey_id, surveyor_id).catch((err) => {
       console.error('[Stats] Failed to update statistics:', err.message);
+      markStatsDirty(survey_id);
     });
 
     res.status(201).json({

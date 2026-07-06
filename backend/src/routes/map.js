@@ -4,6 +4,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { Response, User, Survey } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
+const { WIB_OFFSET_MS } = require('../utils/time');
 
 const router = express.Router();
 
@@ -60,24 +61,27 @@ router.get('/points', authMiddleware, requireRole(['admin', 'supervisor', 'viewe
       whereClause.surveyor_id = surveyor_id;
     }
 
-    // Filter by date range (berdasarkan end_time, bukan created_at)
+    // Filter by date range (berdasarkan end_time, bukan created_at).
+    // M5: batas hari dihitung dalam WIB (bukan UTC) — konsisten dengan dashboard
+    // (time.js). Tanpa ini, titik peta bisa masuk/keluar bucket tanggal salah
+    // hingga 7 jam. WIB tengah malam = UTC midnight − 7 jam.
     if (start_date || end_date) {
       whereClause.end_time = {};
 
       if (start_date) {
-        const start = new Date(`${start_date}T00:00:00.000Z`);
-        if (isNaN(start.getTime())) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(start_date);
+        if (!m) {
           return res.status(422).json({ error: 'Format start_date tidak valid. Gunakan YYYY-MM-DD' });
         }
-        whereClause.end_time[Op.gte] = start;
+        whereClause.end_time[Op.gte] = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0, 0) - WIB_OFFSET_MS);
       }
 
       if (end_date) {
-        const end = new Date(`${end_date}T23:59:59.999Z`);
-        if (isNaN(end.getTime())) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(end_date);
+        if (!m) {
           return res.status(422).json({ error: 'Format end_date tidak valid. Gunakan YYYY-MM-DD' });
         }
-        whereClause.end_time[Op.lte] = end;
+        whereClause.end_time[Op.lte] = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 23, 59, 59, 999) - WIB_OFFSET_MS);
       }
     }
 

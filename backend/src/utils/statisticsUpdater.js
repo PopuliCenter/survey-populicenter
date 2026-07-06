@@ -12,6 +12,18 @@
 
 const { sequelize } = require('../models');
 const { wibDateString } = require('./time');
+const redis = require('../config/redis');
+
+// M6: set Redis berisi survey_id yang statistiknya perlu dihitung ulang karena
+// increment fire-and-forget gagal. Maintenance men-drain-nya (heal terarah &
+// cepat), selain reconcile berkala penuh.
+const STATS_DIRTY_KEY = 'stats:dirty';
+
+/** Tandai survei perlu recompute (gagal-aman bila Redis mati). */
+async function markStatsDirty(surveyId) {
+  if (!surveyId) return;
+  try { await redis.sadd(STATS_DIRTY_KEY, String(surveyId)); } catch { /* abaikan */ }
+}
 
 /**
  * Increment statistik setelah response baru berhasil disimpan.
@@ -166,9 +178,32 @@ async function getSurveyorResponseCounts(surveyId) {
   return map;
 }
 
+/**
+ * M6: proses semua survei "dirty" — recompute statistiknya lalu buang dari set.
+ * Yang gagal recompute dibiarkan di set untuk siklus berikutnya. Gagal-aman.
+ * @returns {Promise<number>} jumlah survei yang berhasil di-recompute
+ */
+async function drainDirtyStats() {
+  let ids = [];
+  try { ids = await redis.smembers(STATS_DIRTY_KEY); } catch { return 0; }
+  let ok = 0;
+  for (const id of ids) {
+    try {
+      await recomputeSurveyStats(id);
+      await redis.srem(STATS_DIRTY_KEY, id);
+      ok += 1;
+    } catch (err) {
+      console.error('[Stats] drain recompute gagal untuk survey', id, ':', err.message);
+    }
+  }
+  return ok;
+}
+
 module.exports = {
   incrementResponseStats,
   recomputeSurveyStats,
   getDashboardStats,
   getSurveyorResponseCounts,
+  markStatsDirty,
+  drainDirtyStats,
 };
