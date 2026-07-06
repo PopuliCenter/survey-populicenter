@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex,follow" />
+<title>Panduan Manajemen Survei — Populi Survey</title>
+<link rel="icon" href="logopopuli.ico" />
+<style>
+  :root{
+    --ground:#FBFAF8; --panel:#FFFFFF; --ink:#211D1A; --muted:#6E6862;
+    --line:#E8E3DC; --line-strong:#DAD3C9;
+    --accent:#D65A1E; --accent-ink:#9C3D0F; --accent-soft:#FBEEE3;
+    --good:#2E7D5B; --good-soft:#E8F1EC;
+    --warn:#B23A2E; --warn-soft:#F8EAE7;
+    --info:#2C5B8A; --info-soft:#E9F0F7;
+    --sans:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SFMono-Regular","Cascadia Code",Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0}
+  .doc{
+    background:var(--ground); color:var(--ink); font-family:var(--sans);
+    line-height:1.65; font-size:16px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:880px; margin:0 auto; padding:0 22px}
+  a{color:var(--accent-ink)}
+
+  /* Header */
+  .masthead{padding:44px 0 30px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin:0 0 12px}
+  h1{font-size:clamp(28px,5vw,40px); line-height:1.1; font-weight:800; letter-spacing:-.02em; margin:0 0 12px; text-wrap:balance}
+  .lede{font-size:18px; color:var(--muted); max-width:64ch; margin:0}
+  .meta{display:flex; flex-wrap:wrap; gap:8px; margin-top:20px}
+  .tag{font-size:12.5px; font-weight:600; color:var(--muted); background:var(--panel); border:1px solid var(--line); padding:4px 11px; border-radius:999px}
+
+  /* TOC */
+  nav.toc{margin:26px 0 8px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px}
+  nav.toc p{margin:0 0 12px; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+  nav.toc ol{margin:0; padding:0; list-style:none; counter-reset:t; display:grid; grid-template-columns:1fr 1fr; gap:8px 26px}
+  nav.toc li{counter-increment:t; font-size:15px}
+  nav.toc li a{display:flex; gap:10px; text-decoration:none; color:var(--ink); padding:3px 0; border-radius:6px}
+  nav.toc li a::before{content:counter(t,decimal-leading-zero); font-family:var(--mono); font-size:12.5px; color:var(--accent); font-weight:600; padding-top:2px}
+  nav.toc li a:hover{color:var(--accent-ink)}
+
+  /* Sections */
+  section{padding:40px 0; border-bottom:1px solid var(--line)}
+  section:last-of-type{border-bottom:none}
+  h2{font-size:24px; font-weight:800; letter-spacing:-.01em; margin:0 0 6px; text-wrap:balance; scroll-margin-top:16px}
+  h2 .n{font-family:var(--mono); font-size:15px; color:var(--accent); font-weight:600; margin-right:12px}
+  .sub{color:var(--muted); margin:0 0 22px; max-width:66ch}
+  h3{font-size:17px; font-weight:700; margin:26px 0 8px; letter-spacing:-.01em}
+  p{max-width:68ch}
+  strong{font-weight:700}
+  code{font-family:var(--mono); font-size:.86em; background:#F3EEE7; border:1px solid var(--line); padding:1px 6px; border-radius:5px; color:var(--accent-ink)}
+
+  /* Steps */
+  ol.steps{list-style:none; counter-reset:s; margin:0; padding:0; display:flex; flex-direction:column; gap:14px}
+  ol.steps>li{counter-increment:s; position:relative; padding-left:52px; min-height:34px}
+  ol.steps>li::before{content:counter(s); position:absolute; left:0; top:-2px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; background:var(--accent); color:#fff; font-weight:700; font-size:15px; border-radius:9px; font-variant-numeric:tabular-nums}
+  ol.steps>li b{display:block; font-weight:700; margin-bottom:1px}
+  ol.steps>li span{color:var(--muted); font-size:15px}
+
+  /* Reference table */
+  .tablewrap{overflow-x:auto; border:1px solid var(--line); border-radius:12px; margin:8px 0}
+  table{width:100%; border-collapse:collapse; font-size:14.5px; min-width:560px}
+  thead th{text-align:left; background:#F4EFE8; color:var(--ink); font-weight:700; font-size:12.5px; letter-spacing:.03em; text-transform:uppercase; padding:11px 14px; border-bottom:1px solid var(--line-strong)}
+  tbody td{padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#FCF8F3}
+  .qt{font-weight:700; white-space:nowrap}
+  .qt code{font-size:11.5px; display:block; background:none; border:none; padding:0; color:var(--muted); font-weight:500; margin-top:2px}
+  .cfg{color:var(--muted)}
+
+  /* Callouts */
+  .note{border:1px solid var(--line); border-radius:11px; padding:15px 17px 15px; margin:20px 0; background:var(--panel)}
+  .note .h{display:flex; align-items:center; gap:9px; font-weight:700; font-size:14px; margin-bottom:5px; letter-spacing:.01em}
+  .note p{margin:0; font-size:14.5px; color:#3a3531; max-width:64ch}
+  .note .ic{width:20px; height:20px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#fff; flex:0 0 auto}
+  .note.tip{background:var(--good-soft); border-color:#CDE3D6}
+  .note.tip .ic{background:var(--good)} .note.tip .h{color:#215B41}
+  .note.warn{background:var(--warn-soft); border-color:#EED6D1}
+  .note.warn .ic{background:var(--warn)} .note.warn .h{color:#8C2C22}
+  .note.info{background:var(--info-soft); border-color:#D3E0EE}
+  .note.info .ic{background:var(--info)} .note.info .h{color:#234B72}
+
+  /* Branch diagram */
+  .flow{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px; margin:18px 0; overflow-x:auto}
+  .flow pre{margin:0; font-family:var(--mono); font-size:13px; line-height:1.7; color:var(--ink); white-space:pre}
+  .flow .hl{color:var(--accent); font-weight:700}
+
+  /* Rule table small */
+  .settings{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:10px 0}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:16px 18px}
+  .card h4{margin:0 0 4px; font-size:15px}
+  .card p{margin:0; font-size:14px; color:var(--muted)}
+  .pill{display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:2px 8px; border-radius:999px; margin-bottom:8px}
+  .pill.req{background:var(--accent-soft); color:var(--accent-ink)}
+  .pill.opt{background:#EFEBE4; color:var(--muted)}
+
+  .foot{padding:30px 0 60px; color:var(--muted); font-size:13.5px}
+  .foot p{max-width:none}
+
+  @media (max-width:620px){
+    nav.toc ol{grid-template-columns:1fr}
+    .settings{grid-template-columns:1fr}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    nav.toc li a{transition:color .15s ease}
+    tbody tr{transition:background .12s ease}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+  <header class="masthead">
+    <div class="wrap">
+      <img src="logo-populi-center.png" alt="Populi Center" width="40" height="40" style="display:block;margin:0 0 16px" />
+      <p class="eyebrow">Panduan Manajemen Survei · PopuliCenter</p>
+      <h1>Membuat Survei, Kuesioner &amp; Menyusun Pertanyaan</h1>
+      <p class="lede">Panduan praktis untuk admin &amp; supervisor: dari membuat survei, menyusun 13 tipe pertanyaan, hingga mengatur percabangan (skip logic) agar setiap responden mendapat jalur yang tepat.</p>
+      <div class="meta">
+        <span class="tag">Untuk Admin / Supervisor</span>
+        <span class="tag">Buat survei → pertanyaan</span>
+        <span class="tag">13 tipe pertanyaan</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <nav class="toc" aria-label="Daftar isi">
+      <p>Isi Panduan</p>
+      <ol>
+        <li><a href="#alur">Alur dasar &amp; status survei</a></li>
+        <li><a href="#survei-baru">Membuat survei baru</a></li>
+        <li><a href="#buat">Menambah pertanyaan (langkah)</a></li>
+        <li><a href="#tipe">Referensi 13 tipe pertanyaan</a></li>
+        <li><a href="#atur">Wajib, acak, &amp; "Lainnya"</a></li>
+        <li><a href="#cabang">Percabangan (skip logic)</a></li>
+        <li><a href="#import">Import pertanyaan (JSON)</a></li>
+        <li><a href="#tips">Praktik baik &amp; kesalahan umum</a></li>
+      </ol>
+    </nav>
+  </div>
+
+  <div class="wrap">
+
+    <!-- 1 -->
+    <section id="alur">
+      <h2><span class="n">01</span>Alur dasar &amp; status survei</h2>
+      <p class="sub">Sebuah survei melewati tiga status. Anda bebas menyusun pertanyaan selama survei masih <strong>Draft</strong>; setelah <strong>Aktif</strong>, perubahan pada pertanyaan harus dihindari karena memengaruhi data yang sudah masuk.</p>
+
+      <div class="settings">
+        <div class="card"><span class="pill opt">Draft</span><h4>Menyusun</h4><p>Tambah/ubah/hapus pertanyaan bebas. Atur kuota per surveyor. Survei belum bisa diisi TPD.</p></div>
+        <div class="card"><span class="pill req">Aktif</span><h4>Mengumpulkan</h4><p>TPD mulai mengisi via aplikasi. Nomor kuesioner otomatis berjalan. Jangan ubah struktur pertanyaan.</p></div>
+        <div class="card"><span class="pill opt">Nonaktif</span><h4>Selesai</h4><p>Berhenti menerima respons. Data siap dilihat di Laporan, diekspor, atau ditayangkan.</p></div>
+        <div class="card"><span class="pill opt">Salin</span><h4>Clone</h4><p>Gandakan survei sebagai Draft baru untuk gelombang berikutnya, lalu sesuaikan.</p></div>
+      </div>
+
+      <p>Urutan yang disarankan: <strong>Buat survei (Draft) → susun pertanyaan → tetapkan kuota surveyor → Aktifkan</strong>. Pertanyaan disusun di halaman <strong>Builder</strong> survei.</p>
+    </section>
+
+    <!-- 2 -->
+    <section id="survei-baru">
+      <h2><span class="n">02</span>Membuat survei baru</h2>
+      <p class="sub">Sebelum menyusun pertanyaan, buat dulu "wadah" surveinya. Dari halaman <strong>Survei</strong>, klik <strong>Buat Survei</strong> — survei baru selalu lahir sebagai <span class="pill opt">Draft</span>.</p>
+
+      <ol class="steps">
+        <li><b>Judul</b><span>Wajib diisi. Nama survei yang tampil di daftar, laporan, dan aplikasi TPD (mis. "Survei Nasional Preferensi Publik — Feb 2025").</span></li>
+        <li><b>Deskripsi</b><span>Opsional. Catatan singkat konteks/tujuan survei untuk tim internal.</span></li>
+        <li><b>Tipe survei</b><span>Pilih <strong>Nasional</strong>, <strong>Daerah</strong>, atau <strong>Lainnya</strong>. Tipe hanya label pengelompokan &amp; filter — tidak mengubah cara pengisian.</span></li>
+        <li><b>Tanggal Mulai &amp; Berakhir</b><span>Opsional. Jendela periode survei. Tanggal berakhir harus setelah tanggal mulai.</span></li>
+        <li><b>Buat Survei</b><span>Survei tersimpan sebagai Draft. Selanjutnya buka <strong>Builder</strong> untuk mulai menyusun pertanyaan (bagian 03).</span></li>
+      </ol>
+
+      <h3>Mengelola survei setelah dibuat</h3>
+      <p class="sub">Dari baris survei di daftar, tersedia aksi berikut:</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Aksi</th><th>Kapan &amp; efeknya</th></tr></thead>
+          <tbody>
+            <tr><td class="qt">Kelola pertanyaan</td><td>Buka Builder untuk menambah/menyusun pertanyaan. Bebas selama status Draft.</td></tr>
+            <tr><td class="qt">Ubah info</td><td>Sunting judul, deskripsi, tipe, dan periode survei.</td></tr>
+            <tr><td class="qt">Aktifkan</td><td>Draft → <span class="pill req">Aktif</span>. TPD mulai bisa mengisi. Setelah ini hindari mengubah struktur pertanyaan.</td></tr>
+            <tr><td class="qt">Nonaktifkan</td><td>Aktif → Nonaktif. Berhenti menerima respons; bisa diaktifkan kembali sewaktu-waktu.</td></tr>
+            <tr><td class="qt">Duplikat</td><td>Menyalin seluruh pertanyaan ke survei Draft baru — untuk gelombang berikutnya.</td></tr>
+            <tr><td class="qt">Hapus</td><td>Hanya untuk Draft yang belum punya respons. Survei yang sudah terisi tidak bisa dihapus.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note info">
+        <div class="h"><span class="ic">i</span>Kuota surveyor</div>
+        <p>Batasan berapa responden yang boleh diisi tiap TPD diatur lewat <strong>kuota surveyor</strong>. Tetapkan sebelum atau selama survei aktif — submit dari TPD akan mengikuti kuota yang berlaku.</p>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="buat">
+      <h2><span class="n">03</span>Menambah pertanyaan</h2>
+      <p class="sub">Di halaman Builder, setiap pertanyaan dibuat dengan pola yang sama. Untuk tipe pilihan, Anda menambahkan daftar opsi jawaban.</p>
+
+      <ol class="steps">
+        <li><b>Tambah Pertanyaan</b><span>Klik "Tambah Pertanyaan" — sebuah kartu pertanyaan baru muncul di urutan paling bawah.</span></li>
+        <li><b>Pilih tipe</b><span>Tentukan tipe pertanyaan (lihat referensi di bawah). Kolom konfigurasi menyesuaikan tipe yang dipilih.</span></li>
+        <li><b>Tulis teks pertanyaan</b><span>Gunakan bahasa yang persis akan dibaca surveyor ke responden. Singkat, jelas, satu maksud.</span></li>
+        <li><b>Isi opsi jawaban</b><span>Untuk Pilihan Tunggal/Ganda: tambah tiap opsi. Nyalakan "Lainnya" bila responden boleh mengisi di luar daftar.</span></li>
+        <li><b>Atur wajib &amp; acak</b><span>Tandai <strong>Wajib</strong> bila harus dijawab; nyalakan <strong>Acak opsi</strong> bila urutan jawaban perlu diacak per responden.</span></li>
+        <li><b>Susun urutan</b><span>Atur posisi pertanyaan. Urutan penting untuk percabangan (lihat bagian 06).</span></li>
+        <li><b>Simpan</b><span>Simpan survei. Ulangi untuk pertanyaan berikutnya.</span></li>
+      </ol>
+
+      <div class="note info">
+        <div class="h"><span class="ic">i</span>Foto, audio, tanda tangan, &amp; GPS bukan "pertanyaan"</div>
+        <p>Pengambilan foto, rekaman audio, tanda tangan, dan lokasi GPS diatur di <strong>Pengaturan Alat Lapangan (Field Tools)</strong> survei — bukan sebagai pertanyaan. Kecuali tipe <code>Upload Foto</code> yang memang bisa jadi pertanyaan tersendiri.</p>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="tipe">
+      <h2><span class="n">04</span>Referensi 13 tipe pertanyaan</h2>
+      <p class="sub">Pilih tipe yang paling sesuai dengan bentuk data yang ingin dikumpulkan. Kolom "Kapan dipakai" membantu memilih cepat.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>Tipe</th><th>Kapan dipakai</th><th>Konfigurasi</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="qt">Pilihan Tunggal<code>single_choice</code></td><td>Satu jawaban dari daftar (mis. jenis kelamin, pilihan sikap).</td><td class="cfg">Daftar opsi · "Lainnya" · acak opsi</td></tr>
+            <tr><td class="qt">Pilihan Ganda<code>multiple_choice</code></td><td>Boleh lebih dari satu jawaban (mis. sumber informasi yang dipakai).</td><td class="cfg">Daftar opsi · "Lainnya" · acak opsi</td></tr>
+            <tr><td class="qt">Teks Pendek<code>short_text</code></td><td>Jawaban singkat satu baris (mis. nama, kota).</td><td class="cfg">—</td></tr>
+            <tr><td class="qt">Teks Panjang<code>long_text</code></td><td>Jawaban bebas/paragraf (mis. saran, alasan).</td><td class="cfg">—</td></tr>
+            <tr><td class="qt">Skala Numerik<code>numeric_scale</code></td><td>Angka pada rentang tetap (mis. usia, skor 0–10).</td><td class="cfg">Nilai min &amp; maks · label ujung skala</td></tr>
+            <tr><td class="qt">Rating Scale<code>rating_scale</code></td><td>Penilaian berskala (mis. kepuasan 1–5).</td><td class="cfg">Nilai min &amp; maks · label ujung</td></tr>
+            <tr><td class="qt">Tanggal<code>date</code></td><td>Tanggal (mis. tanggal lahir, tanggal kejadian).</td><td class="cfg">Format YYYY-MM-DD · batas min/maks (opsional)</td></tr>
+            <tr><td class="qt">Waktu<code>time</code></td><td>Jam (mis. waktu wawancara), format 24 jam.</td><td class="cfg">Format HH:mm</td></tr>
+            <tr><td class="qt">Nomor Telepon<code>phone_number</code></td><td>Nomor telepon (hanya angka).</td><td class="cfg">Batas panjang minimum/maksimum</td></tr>
+            <tr><td class="qt">Nomor Kuesioner Unik<code>unique_id</code></td><td>ID unik per responden — mencegah data ganda &amp; jadi bagian nomor kuesioner.</td><td class="cfg">Batas panjang · dicek unik per survei</td></tr>
+            <tr><td class="qt">Upload Foto<code>photo</code></td><td>Surveyor mengambil/mengunggah foto sebagai jawaban.</td><td class="cfg">—</td></tr>
+            <tr><td class="qt">Matrix / Grid<code>matrix</code></td><td>Beberapa pernyataan dinilai pada skala yang sama (hemat tempat).</td><td class="cfg">Daftar baris (pernyataan) · skala kolom</td></tr>
+            <tr><td class="qt">Wilayah Indonesia<code>indonesia_region</code></td><td>Pilih wilayah bertingkat: Provinsi → Kab/Kota → Kecamatan → Desa.</td><td class="cfg">Kedalaman wilayah · data lokal (tanpa internet)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note tip">
+        <div class="h"><span class="ic">✓</span>Pilih tipe yang mempermudah analisis</div>
+        <p>Untuk data yang akan dihitung/ditayangkan (grafik, peta), gunakan tipe <strong>pilihan, skala, matriks, atau wilayah</strong> — bukan teks bebas. Teks panjang &amp; foto dikecualikan dari agregat publik demi privasi.</p>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="atur">
+      <h2><span class="n">05</span>Wajib, acak opsi, &amp; "Lainnya"</h2>
+      <p class="sub">Tiga sakelar kecil yang berpengaruh besar pada kualitas &amp; keluwesan pengisian.</p>
+
+      <h3>Wajib (bertanda <span style="color:var(--warn)">*</span>)</h3>
+      <p>Pertanyaan wajib harus dijawab sebelum data bisa disimpan. Validasi berjalan di aplikasi <em>dan</em> di server. Penting: pertanyaan wajib yang <strong>tersembunyi oleh percabangan</strong> tidak akan menghambat submit (lihat bagian 05).</p>
+
+      <h3>Acak opsi</h3>
+      <p>Mengacak urutan tampilan opsi jawaban per responden untuk mengurangi bias urutan. Yang diacak hanya <em>tampilan</em>; nilai jawaban tetap sama, sehingga percabangan &amp; hasil tetap konsisten.</p>
+
+      <h3>"Lainnya" (isian bebas)</h3>
+      <p>Menambahkan opsi "Lainnya…" pada pertanyaan pilihan, sehingga responden bisa menuliskan jawaban di luar daftar. Aktifkan bila daftar opsi mungkin tidak mencakup semua kemungkinan.</p>
+    </section>
+
+    <!-- 5 -->
+    <section id="cabang">
+      <h2><span class="n">06</span>Percabangan (skip logic)</h2>
+      <p class="sub">Percabangan membuat responden hanya melihat pertanyaan yang relevan dengan jawabannya. Modelnya: <strong>daftar pertanyaan berurutan + aturan "lompat"</strong>. Ketika sebuah aturan menyala, pertanyaan di antara sumber dan tujuan disembunyikan.</p>
+
+      <h3>Contoh: satu pertanyaan inti bercabang tiga</h3>
+      <div class="flow" role="img" aria-label="Diagram alur percabangan">
+<pre>Q1–Q12   pertanyaan inti (demografi + topik)
+<span class="hl">Q13</span>      PEMICU — "isu paling penting?"
+          ├─ Ekonomi     → Q14 → Q15 → Q16 ─┐
+          ├─ Pemerintah  → Q17 → Q18 ───────┤→  <span class="hl">Q20</span> penutup → SIMPAN
+          └─ Media       → Q19 ─────────────┘</pre>
+      </div>
+      <p>Setiap cabang berisi pertanyaan berbeda, lalu semua bertemu di pertanyaan penutup bersama sebelum disimpan. Aturan yang dipasang pada contoh di atas:</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Pasang di</th><th>Jika jawaban…</th><th>Lompat ke</th><th>Efek</th></tr></thead>
+          <tbody>
+            <tr><td class="qt">Q13</td><td>Q13 = "Kinerja pemerintah"</td><td class="qt">Q17</td><td class="cfg">sembunyikan Q14–Q16</td></tr>
+            <tr><td class="qt">Q13</td><td>Q13 = "Kualitas media"</td><td class="qt">Q19</td><td class="cfg">sembunyikan Q14–Q18</td></tr>
+            <tr><td class="qt">Q16</td><td>Q13 = "Kondisi ekonomi"</td><td class="qt">Q20</td><td class="cfg">akhir cabang ekonomi — sembunyikan Q17–Q19</td></tr>
+            <tr><td class="qt">Q18</td><td>Q13 = "Kinerja pemerintah"</td><td class="qt">Q20</td><td class="cfg">akhir cabang pemerintah — sembunyikan Q19</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note warn">
+        <div class="h"><span class="ic">!</span>Kesalahan paling umum: lupa "lompat ke penutup"</div>
+        <p>Setiap cabang <strong>wajib</strong> punya aturan lompat ke pertanyaan penutup di pertanyaan terakhirnya, agar pertanyaan cabang lain tersembunyi. Jika lupa, pertanyaan wajib cabang lain akan dianggap "belum dijawab" dan submit tertahan.</p>
+      </div>
+
+      <div class="note info">
+        <div class="h"><span class="ic">i</span>Batasan model percabangan</div>
+        <p>Hanya <strong>lompat maju</strong> (tujuan berada setelah sumber dalam urutan). Semua jalur akhirnya bertemu di pertanyaan penutup bersama. Tata <em>urutan</em> pertanyaan dengan cermat: cabang harus berupa blok berurutan.</p>
+      </div>
+
+      <div class="note tip">
+        <div class="h"><span class="ic">✓</span>Selalu uji tiap jalur sebelum go-live</div>
+        <p>Isi survei percobaan sekali untuk <em>setiap</em> pilihan pemicu. Pastikan pertanyaan yang muncul benar dan submit berhasil tanpa error "wajib belum dijawab".</p>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="import">
+      <h2><span class="n">07</span>Import pertanyaan (JSON)</h2>
+      <p class="sub">Untuk survei besar, susun pertanyaan di file JSON lalu unggah sekaligus — lebih cepat daripada satu per satu.</p>
+
+      <ol class="steps">
+        <li><b>Siapkan file JSON</b><span>Berisi <code>{ "questions": [ … ] }</code>. Tiap pertanyaan minimal punya <code>text</code> dan <code>type</code>; opsional <code>is_required</code>, <code>options</code>, <code>randomize_options</code>, <code>allow_other</code>.</span></li>
+        <li><b>Buat survei kosong</b><span>Import menambahkan pertanyaan ke survei yang sudah ada.</span></li>
+        <li><b>Survei → Import Kuesioner</b><span>Pilih survei tujuan, unggah file <code>.json</code>, tinjau, lalu konfirmasi.</span></li>
+        <li><b>Pasang percabangan</b><span>Setelah pertanyaan masuk, atur aturan skip logic di Builder (lihat bagian 05).</span></li>
+      </ol>
+
+      <div class="note warn">
+        <div class="h"><span class="ic">!</span>Percabangan tidak ikut ter-import</div>
+        <p>Aturan skip logic tidak dibawa oleh file import — karena aturan merujuk ID pertanyaan yang baru terbentuk setelah import. Jadi <strong>pasang percabangan secara manual di Builder</strong> setelah pertanyaan berhasil di-import.</p>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="tips">
+      <h2><span class="n">08</span>Praktik baik &amp; kesalahan umum</h2>
+      <p class="sub">Ringkasan hal yang paling sering menyelamatkan (atau merusak) sebuah survei.</p>
+
+      <div class="note tip">
+        <div class="h"><span class="ic">✓</span>Yang sebaiknya dilakukan</div>
+        <p>Selesaikan &amp; uji seluruh struktur saat masih <strong>Draft</strong> · gunakan <code>unique_id</code> bila perlu mencegah responden ganda · pilih tipe pilihan/skala untuk data yang akan dianalisis · uji tiap jalur percabangan · tetapkan kuota surveyor sebelum aktivasi.</p>
+      </div>
+      <div class="note warn">
+        <div class="h"><span class="ic">!</span>Yang sebaiknya dihindari</div>
+        <p>Mengubah opsi/urutan/tipe pertanyaan setelah survei <strong>Aktif</strong> (merusak keselarasan data yang sudah masuk) · lupa aturan "lompat ke penutup" pada cabang · membuat pertanyaan wajib pada cabang tanpa menyembunyikan cabang lain · mengandalkan teks bebas untuk data yang ingin dihitung.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <div class="wrap">
+      <p>Panduan internal PopuliCenter — Manajemen Survei. Sesuaikan istilah tombol dengan versi aplikasi Anda bila berbeda. Untuk struktur pertanyaan yang rumit (percabangan bertingkat), uji setiap jalur sebelum diserahkan ke klien.</p>
+    </div>
+  </footer>
+</div>
+
+</body>
+</html>
