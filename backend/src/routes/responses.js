@@ -258,9 +258,19 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     }
 
     // Validate phone_number and unique_id answers
+    const SCALAR_TYPES = ['phone_number', 'unique_id', 'date', 'time'];
     for (const ans of visibleAnswers) {
       const q = questionMap[ans.question_id];
       if (!q) continue;
+
+      // L3: tipe skalar menaruh nilai di answer_value. Bila klien menyelundupkan
+      // nilai lewat answer_json (mem-bypass validasi format di bawah) → tolak.
+      if (SCALAR_TYPES.includes(q.type) && !ans.answer_value) {
+        const j = ans.answer_json;
+        if ((typeof j === 'string' && j.trim() !== '') || typeof j === 'number') {
+          return res.status(422).json({ error: 'Format jawaban tidak valid untuk tipe pertanyaan ini' });
+        }
+      }
 
       if (q.type === 'phone_number' && ans.answer_value) {
         // Hanya digit
@@ -340,16 +350,21 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
         }
       }
 
-      if (q.type === 'indonesia_region' && q.is_required) {
+      if (q.type === 'indonesia_region') {
         const val = ans.answer_json;
-        const config = q.options || {};
-        const depth = config.depth || 'village';
-        let invalid = !val || typeof val !== 'object' || !val.province_id;
-        if (!invalid && depth === 'regency') invalid = !val.regency_id;
-        if (!invalid && depth === 'district') invalid = !val.regency_id || !val.district_id;
-        if (!invalid && depth === 'village') invalid = !val.regency_id || !val.district_id || !val.village_id;
-        if (invalid) {
-          return res.status(422).json({ error: 'Jawaban wilayah Indonesia tidak lengkap sesuai konfigurasi pertanyaan' });
+        // L4: validasi struktur bila WAJIB, atau bila opsional TAPI diisi
+        // (jangan biarkan objek wilayah sembarang lolos tanpa cek).
+        const provided = val != null && !(typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length === 0);
+        if (q.is_required || provided) {
+          const config = q.options || {};
+          const depth = config.depth || 'village';
+          let invalid = !val || typeof val !== 'object' || !val.province_id;
+          if (!invalid && depth === 'regency') invalid = !val.regency_id;
+          if (!invalid && depth === 'district') invalid = !val.regency_id || !val.district_id;
+          if (!invalid && depth === 'village') invalid = !val.regency_id || !val.district_id || !val.village_id;
+          if (invalid) {
+            return res.status(422).json({ error: 'Jawaban wilayah Indonesia tidak lengkap sesuai konfigurasi pertanyaan' });
+          }
         }
       }
     }
