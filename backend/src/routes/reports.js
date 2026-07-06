@@ -541,11 +541,17 @@ router.get('/exports/:jobId', authMiddleware, requireRole(['admin', 'supervisor'
     const { jobId } = req.params;
 
     const exportJob = await ExportJob.findByPk(jobId, {
-      attributes: ['id', 'status', 'format', 'created_at', 'completed_at'],
+      attributes: ['id', 'status', 'format', 'created_at', 'completed_at', 'requested_by'],
     });
 
     if (!exportJob) {
       return res.status(404).json({ error: 'Job ekspor tidak ditemukan' });
+    }
+
+    // L1: batasi ke pemohon job (admin boleh semua) — cegah pihak lain melihat
+    // status/mengunduh ekspor survei lain hanya dengan menebak/tahu jobId.
+    if (exportJob.requested_by !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Anda tidak berhak mengakses ekspor ini' });
     }
 
     res.json({
@@ -576,11 +582,16 @@ router.get('/exports/:jobId/download', authMiddleware, requireRole(['admin', 'su
     const { jobId } = req.params;
 
     const exportJob = await ExportJob.findByPk(jobId, {
-      attributes: ['id', 'status', 'format', 'file_path'],
+      attributes: ['id', 'status', 'format', 'file_path', 'requested_by'],
     });
 
     if (!exportJob) {
       return res.status(404).json({ error: 'Job ekspor tidak ditemukan' });
+    }
+
+    // L1: batasi ke pemohon job (admin boleh semua).
+    if (exportJob.requested_by !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Anda tidak berhak mengakses ekspor ini' });
     }
 
     if (exportJob.status !== 'completed') {

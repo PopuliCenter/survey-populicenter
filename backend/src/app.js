@@ -84,8 +84,12 @@ app.use(cors({
       'http://localhost:3000',
     ].filter(Boolean);
 
-    // Allow requests with no origin (native apps, mobile)
-    if (!origin || allowed.some(u => origin.startsWith(u))) {
+    // L2: cocokkan origin PENUH (bukan prefix) — `startsWith` bocor ke
+    // `http://localhost.evil.com` / `https://frontend.evil.com`. Normalisasi
+    // trailing slash agar env FRONTEND_URL toleran.
+    const norm = (u) => u.replace(/\/+$/, '');
+    const allowedSet = new Set(allowed.map(norm));
+    if (!origin || allowedSet.has(norm(origin))) {
       callback(null, true);
     } else {
       callback(null, false);
