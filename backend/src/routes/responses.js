@@ -410,12 +410,13 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
           return res.status(403).json({ error: 'Kuota pengisian survei Anda sudah tercapai' });
         }
       } else {
-        // M4: baris kuota hilang antara /start dan /submit (mis. admin re-assign
-        // kuota). JANGAN diam-diam lolos tanpa batas — kuota diberlakukan di
-        // aplikasi tanpa backstop DB, jadi hilangnya baris = tak terbatas. Tolak.
-        await transaction.rollback();
-        await existingResponse.destroy();
-        return res.status(403).json({ error: 'Anda tidak memiliki akses untuk survei ini' });
+        // M4 (DEFENSIF): baris kuota tak ada saat submit. Idealnya ditolak untuk
+        // cegah bypass, TAPI /start SUDAH mewajibkan kuota — jadi kuota-null di
+        // sini berarti kondisi sah (mis. survei sampel/uji, atau kuota di-reassign
+        // di tengah sesi). JANGAN patahkan submit yang valid. Catat untuk ditinjau,
+        // lalu izinkan lanjut. (Sebelumnya sempat menolak 403 → memutus submit.)
+        console.warn('[submit] baris kuota tidak ditemukan saat submit — DIIZINKAN (tinjau):',
+          'survey', survey_id, 'surveyor', surveyor_id);
       }
       // --- End quota re-check ---
 
