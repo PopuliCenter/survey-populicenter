@@ -49,14 +49,14 @@ const app = express();
 // rate-limit (lihat rateLimitKey & loginLimiter).
 app.set('trust proxy', 1);
 
-// Jadikan req.ip = IP klien ASLI dari Cloudflare (CF-Connecting-IP) agar access
-// log (morgan), audit log, dan rate-limit mencatat IP pengunjung sebenarnya —
-// bukan IP Cloudflare/nginx. Header ini diset Cloudflare & tak bisa dipalsukan
-// klien selama origin hanya menerima trafik via Cloudflare (batasi firewall ke
-// rentang IP Cloudflare untuk jaminan penuh). Dipasang paling awal agar berlaku
-// untuk semua middleware & route di bawahnya.
+// M2: req.ip = X-Real-IP yang DISET nginx (bukan header cf-connecting-ip mentah).
+// nginx memakai modul real_ip dgn rentang IP Cloudflare (lihat nginx-common.conf),
+// sehingga X-Real-IP hanya berisi IP klien yang TERVALIDASI berasal dari CF —
+// tak bisa dipalsukan attacker yang menembus origin langsung. Backend tak dapat
+// diakses selain via nginx (port tak diekspos), jadi X-Real-IP selalu di-set
+// server, bukan klien. Dipakai morgan, audit log, dan rate-limit login.
 app.use((req, res, next) => {
-  const realIp = req.headers['cf-connecting-ip'];
+  const realIp = req.headers['x-real-ip'];
   if (realIp) {
     Object.defineProperty(req, 'ip', { value: realIp, configurable: true });
   }

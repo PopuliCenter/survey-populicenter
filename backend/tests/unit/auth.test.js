@@ -489,11 +489,18 @@ describe('Auth Module - Logout Invalidates Token', () => {
   test('token yang sudah di-logout tidak bisa digunakan untuk /auth/me', async () => {
     const token = createToken({ id: 'user-uuid', role: 'admin', email: 'admin@example.com' });
 
-    // First call: token not blacklisted (for logout)
-    // Second call: token is blacklisted (for /auth/me after logout)
-    redis.get
-      .mockResolvedValueOnce(null)  // logout check
-      .mockResolvedValueOnce('1');  // /auth/me check after logout
+    // Key-aware mock (authMiddleware kini juga cek 'user_revoked:*' untuk M1):
+    //  - user_revoked:* → selalu null (user tak dicabut)
+    //  - blacklist:*    → null pada cek logout (1x), '1' pada /auth/me setelahnya
+    let blacklistCalls = 0;
+    redis.get.mockImplementation(async (key) => {
+      if (String(key).startsWith('user_revoked:')) return null;
+      if (String(key).startsWith('blacklist:')) {
+        blacklistCalls += 1;
+        return blacklistCalls >= 2 ? '1' : null;
+      }
+      return null;
+    });
 
     redis.setex.mockResolvedValue('OK');
 

@@ -46,5 +46,17 @@ module.exports = (sequelize) => {
     updatedAt: 'updated_at',
   });
 
+  // M1: cabut sesi aktif saat akun dinonaktifkan/dihapus (terpusat via hook agar
+  // tak ada jalur yang terlewat). Re-aktivasi membersihkan pembatalan.
+  const { revokeUser, clearRevocation } = require('../utils/sessionRevocation');
+  User.afterUpdate(async (user) => {
+    if (!user.changed('is_active')) return;
+    if (user.is_active === false) await revokeUser(user.id);
+    else await clearRevocation(user.id);
+  });
+  User.afterDestroy(async (user) => {
+    await revokeUser(user.id);
+  });
+
   return User;
 };
