@@ -180,7 +180,7 @@ function buildExportData(responses, questions) {
       } else if (answer.answer_json !== null && answer.answer_json !== undefined) {
         questionValues.push(
           Array.isArray(answer.answer_json)
-            ? answer.answer_json.map((v) => v.startsWith('__other__:') ? v.replace('__other__:', '') : v).join(', ')
+            ? answer.answer_json.map((v) => (typeof v === 'string' && v.startsWith('__other__:')) ? v.replace('__other__:', '') : v).join(', ')
             : JSON.stringify(answer.answer_json)
         );
       } else {
