@@ -14,7 +14,7 @@
  *       jika sukses, naikkan appVersionCode di version.properties.
  *
  * Lintas-platform (Windows/macOS/Linux). versionCode WAJIB naik tiap unggah ke
- * Play Console — skрip ini menjaganya otomatis.
+ * Play Console — skrip ini menjaganya otomatis.
  */
 'use strict';
 

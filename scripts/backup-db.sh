@@ -5,7 +5,7 @@
 # Jalankan di VPS produksi, dari root repo ATAU folder mana pun:
 #   bash scripts/backup-db.sh
 #
-# Hasil: file .dump (format custom pg_dump, terkompресi & bisa di-restore
+# Hasil: file .dump (format custom pg_dump, terkompresi & bisa di-restore
 # selektif) di folder ./backups, dengan stempel waktu. Rotasi otomatis:
 # menyimpan N backup terbaru (default 14), sisanya dihapus.
 #
@@ -51,7 +51,7 @@ TS="$(date +%Y%m%d_%H%M%S)"
 OUT="$BACKUP_DIR/${DB_NAME}_${TS}.dump"
 
 echo "▶ Backup '$DB_NAME' → $OUT"
-# -Fc  : format custom (terkompресi, untuk pg_restore)
+# -Fc  : format custom (terkompresi, untuk pg_restore)
 # -T   : jangan alokasikan TTY (wajib agar redirect biner tidak korup)
 # Koneksi via socket lokal di dalam container (trust) → tak perlu password.
 if ! $DC exec -T "$PG_SERVICE" pg_dump -U "$DB_USER" -Fc "$DB_NAME" > "$OUT"; then

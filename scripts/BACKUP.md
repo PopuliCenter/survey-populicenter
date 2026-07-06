@@ -1,15 +1,15 @@
 # Backup & Restore Database — Populi Survey
 
 Backup PostgreSQL (`web_survey_platform`) dari container Docker, dengan rotasi
-otomatis dan uji-restore yang aman. Semua skрip berjalan di **VPS produksi**.
+otomatis dan uji-restore yang aman. Semua skrip berjalan di **VPS produksi**.
 
-| Skрip | Fungsi | Sifat |
+| Skrip | Fungsi | Sifat |
 |-------|--------|-------|
 | `backup-db.sh` | Buat backup `.dump` + rotasi (simpan N terbaru) | Aman |
 | `verify-restore.sh` | **Uji** backup ke DB sementara, sanity-check, hapus | Aman |
 | `restore-db.sh` | **Pemulihan bencana** ke DB produksi | ⚠ Destruktif |
 
-Format backup: `pg_dump -Fc` (custom, terkompресi, bisa di-restore selektif).
+Format backup: `pg_dump -Fc` (custom, terkompresi, bisa di-restore selektif).
 Koneksi lewat socket lokal di dalam container → **tidak butuh password**.
 
 ## Pakai

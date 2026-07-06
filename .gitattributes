@@ -1,11 +1,11 @@
 # ─── Akhir baris (line endings) ──────────────────────────────────────────────
-# Skрip shell WAJIB LF — bila ter-checkout CRLF di Linux/VPS akan gagal
+# Skrip shell WAJIB LF — bila ter-checkout CRLF di Linux/VPS akan gagal
 # ("$'\r': command not found" / "bad interpreter").
 *.sh                        text eol=lf
 frontend/android/gradlew    text eol=lf
 deploy.sh                   text eol=lf
 
-# Skрip Windows tetap CRLF.
+# Skrip Windows tetap CRLF.
 *.bat                       text eol=crlf
 
 # ─── Berkas biner — jangan pernah dikonversi/di-diff sebagai teks ────────────
