@@ -81,9 +81,15 @@ if (!signed) console.log('  ⚠ Lanjut membangun artefak unsigned. Untuk rilis P
 
 // ── Helper jalankan perintah (stream output apa adanya) ──────────────────────
 function run(cmd, args, cwd) {
-  console.log(`\n▶ ${cmd} ${args.join(' ')}   (di ${path.relative(FRONTEND_DIR, cwd) || '.'})`);
-  const res = spawnSync(cmd, args, { cwd, stdio: 'inherit', shell: isWin });
-  if (res.status !== 0) die(`Perintah gagal (exit ${res.status}): ${cmd} ${args.join(' ')}`);
+  const display = `${cmd} ${args.join(' ')}`;
+  console.log(`\n▶ ${display}   (di ${path.relative(FRONTEND_DIR, cwd) || '.'})`);
+  // Windows: .bat/.cmd (npm, gradlew.bat) butuh shell. Untuk menghindari
+  // DeprecationWarning DEP0190, saat shell:true berikan SATU string perintah
+  // (bukan array args). Argumen sudah divalidasi (versionName/Code) → aman.
+  const res = isWin
+    ? spawnSync(display, { cwd, stdio: 'inherit', shell: true })
+    : spawnSync(cmd, args, { cwd, stdio: 'inherit' });
+  if (res.status !== 0) die(`Perintah gagal (exit ${res.status}): ${display}`);
 }
 
 // ── 1) Build web + sync Capacitor ────────────────────────────────────────────
