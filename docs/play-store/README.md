@@ -2,11 +2,16 @@
 
 Checklist & berkas pendukung untuk menerbitkan aplikasi ke Google Play (publik).
 
+> ▶ **Mulai dari [`CHECKLIST.md`](CHECKLIST.md)** — checklist induk berurut yang
+> menautkan semua berkas di bawah.
+
 | Berkas | Isi |
 |--------|-----|
+| `CHECKLIST.md` | **Checklist induk berurut — mulai di sini** |
 | `listing.md` | Judul, deskripsi, kategori, kebutuhan aset grafis |
 | `data-safety.md` | Jawaban form Data Safety |
 | `reviewer-access.md` | Akun demo untuk reviewer + jalur hapus data |
+| `keystore-setup.md` | Buat keystore, signing AAB, Play App Signing, backup |
 
 ## Status
 
@@ -33,8 +38,9 @@ Checklist & berkas pendukung untuk menerbitkan aplikasi ke Google Play (publik).
 - [ ] Ikon 512×512, Feature graphic 1024×500, 2–6 screenshot HP
 
 **Teknis rilis:**
-- [ ] Buat keystore + aktifkan **Play App Signing**
-- [ ] `npm run cap:build` → `gradlew.bat bundleRelease` → **uji AAB di perangkat** (R8)
+- [x] Buat keystore + build **AAB signed** (v1.0.0/code 1) via `npm run cap:release`
+      → lihat `keystore-setup.md`. (Aktifkan **Play App Signing** saat upload pertama.)
+- [ ] **Uji AAB/APK di perangkat** (R8/minify)
 - [ ] Negara distribusi + harga (gratis)
 
 ## Urutan disarankan
