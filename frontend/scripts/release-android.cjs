@@ -70,9 +70,9 @@ console.log('  Rilis Android — Populi Survey');
 console.log('─────────────────────────────────────────────');
 console.log(`  Artefak      : ${artifact}`);
 console.log(`  versionName  : ${name}`);
-console.log(`  versionCode  : ${code}`);
-console.log(`  Auto-bump    : ${NO_BUMP ? 'tidak' : `ya → ${code + 1} setelah sukses`}`);
 const signed = fs.existsSync(KEYSTORE_FILE);
+console.log(`  versionCode  : ${code}`);
+console.log(`  Auto-bump    : ${NO_BUMP ? 'tidak (--no-bump)' : (signed ? `ya → ${code + 1} setelah sukses` : 'tidak (unsigned — build verifikasi)')}`);
 console.log(`  Signing      : ${signed ? 'keystore.properties ditemukan (ditandatangani)' : '⚠ TANPA keystore → artefak UNSIGNED (tak bisa diunggah ke Play)'}`);
 console.log('─────────────────────────────────────────────');
 
@@ -97,7 +97,12 @@ run(gradlew, [gradleTask, `-PappVersionCode=${code}`, `-PappVersionName=${name}`
 if (!fs.existsSync(outPath)) die(`Build selesai tapi artefak tak ditemukan di ${outPath}`);
 const sizeMB = (fs.statSync(outPath).size / 1048576).toFixed(1);
 
-if (!NO_BUMP) {
+if (NO_BUMP) {
+  // Bump dilewati atas permintaan (--no-bump).
+} else if (!signed) {
+  // Artefak unsigned tak bisa diunggah ke Play → jangan buang-buang versionCode.
+  console.log('\n▶ versionCode TIDAK dinaikkan — artefak unsigned (build verifikasi, belum bisa diunggah).');
+} else {
   const nextCode = code + 1;
   const updated = raw
     .replace(/^(\s*appVersionCode\s*=\s*).*$/m, `$1${nextCode}`)
