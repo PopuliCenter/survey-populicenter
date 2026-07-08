@@ -9,6 +9,7 @@ import BulkAssignModal from '../components/BulkAssignModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import IconButton from '../components/IconButton';
 import PasswordInput from '../components/PasswordInput';
+import BulkActionBar from '../components/BulkActionBar';
 import { useToast } from '../components/Toast';
 import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
@@ -422,10 +423,27 @@ function Surveyors() {
   const [surveySearch, setSurveySearch] = useState('');
   const [surveyTypeFilter, setSurveyTypeFilter] = useState(''); // '' = semua tipe
 
-  // Bulk upload / assign modal state
+  // Bulk upload / assign modal state (berbasis file CSV)
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
   const [surveys, setSurveys] = useState([]);
+
+  // ── Seleksi massal berbasis baris (tampilan tabel) ──────────────────────────
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkConfirm, setBulkConfirm] = useState(null); // { type: 'deactivate'|'delete'|'unassign', ids: string[] }
+  const [assignPickerOpen, setAssignPickerOpen] = useState(false);
+  const [assignSurveyId, setAssignSurveyId] = useState('');
+  const [assignQuota, setAssignQuota] = useState('');
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
   // Filter state
   const [filterName, setFilterName] = useState('');
@@ -465,6 +483,11 @@ function Surveyors() {
     fetchSurveyors();
     fetchSurveys();
   }, [fetchSurveyors, fetchSurveys]);
+
+  // Reset seleksi saat filter/tampilan berubah (hindari aksi ke baris tak tampak).
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [filterName, filterSurveyId, filterYear, filterMonth, viewMode]);
 
   // ── Deactivate handler ──────────────────────────────────────────────────────
   async function handleDeactivate(tpd) {
@@ -520,6 +543,35 @@ function Surveyors() {
     } finally {
       setDeleting(false);
     }
+  }
+
+  // ── Aksi massal (loop endpoint per-item yang sudah teruji) ──────────────────
+  async function runBulk(ids, fn, verb) {
+    setBulkBusy(true);
+    const results = await Promise.allSettled(ids.map(fn));
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const fail = results.length - ok;
+    if (ok) toast.success(`${ok} TPD ${verb}.`);
+    if (fail) toast.error(`${fail} TPD gagal diproses.`);
+    setBulkBusy(false);
+    setBulkConfirm(null);
+    clearSelection();
+    fetchSurveyors();
+  }
+  const bulkActivate = (ids) => runBulk(ids, (id) => api.patch(`/surveyors/${id}/activate`), 'diaktifkan');
+  const bulkDeactivate = (ids) => runBulk(ids, (id) => api.patch(`/surveyors/${id}/deactivate`), 'dinonaktifkan');
+  const bulkDelete = (ids) => runBulk(ids, (id) => api.delete(`/surveyors/${id}`), 'dihapus');
+  const bulkUnassign = (ids) => runBulk(ids, (id) => api.delete(`/surveyors/${id}/quota/${filterSurveyId}`), 'dilepas dari survei');
+
+  function submitBulkAssign() {
+    const quotaNum = Number(assignQuota);
+    if (!assignSurveyId) { toast.error('Pilih survei tujuan dulu.'); return; }
+    if (!Number.isInteger(quotaNum) || quotaNum < 1) { toast.error('Kuota harus bilangan bulat ≥ 1.'); return; }
+    const ids = [...selectedIds];
+    setAssignPickerOpen(false);
+    runBulk(ids, (id) => api.post(`/surveyors/${id}/quota`, { survey_id: assignSurveyId, quota: quotaNum }), 'ditugaskan ke survei');
+    setAssignSurveyId('');
+    setAssignQuota('');
   }
 
   // ── Lepas TPD dari survei terpilih (hapus penugasan, akun tetap ada) ─────────
@@ -582,6 +634,15 @@ function Surveyors() {
   const currentPage = Math.min(page, totalPages);
   const pageStart = (currentPage - 1) * pageSize;
   const paginatedSurveyors = filteredSurveyors.slice(pageStart, pageStart + pageSize);
+
+  // Seleksi massal beroperasi pada SELURUH hasil filter (lintas halaman).
+  const filteredIds = filteredSurveyors.map((t) => t.id);
+  const allSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
+  const someSelected = filteredIds.some((id) => selectedIds.has(id)) && !allSelected;
+  const toggleSelectAll = () => {
+    if (allSelected) clearSelection();
+    else setSelectedIds(new Set(filteredIds));
+  };
 
   // Reset to page 1 whenever the search/filter atau jumlah baris per halaman berubah.
   useEffect(() => {
@@ -916,10 +977,66 @@ function Surveyors() {
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div>
+              <BulkActionBar count={selectedIds.size} onClear={clearSelection} busy={bulkBusy}>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => bulkActivate([...selectedIds])}
+                  className="px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                >
+                  Aktifkan
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => setBulkConfirm({ type: 'deactivate', ids: [...selectedIds] })}
+                  className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                >
+                  Nonaktifkan
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => setAssignPickerOpen(true)}
+                  className="px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-100 hover:bg-primary-200 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-300"
+                >
+                  Tugaskan ke Survei
+                </button>
+                {filterSurveyId ? (
+                  <button
+                    type="button"
+                    disabled={bulkBusy}
+                    onClick={() => setBulkConfirm({ type: 'unassign', ids: [...selectedIds] })}
+                    className="px-3 py-1.5 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  >
+                    Lepas dari Survei
+                  </button>
+                ) : currentUser.role === 'admin' ? (
+                  <button
+                    type="button"
+                    disabled={bulkBusy}
+                    onClick={() => setBulkConfirm({ type: 'delete', ids: [...selectedIds] })}
+                    className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-300"
+                  >
+                    Hapus
+                  </button>
+                ) : null}
+              </BulkActionBar>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
+                    <th className="px-5 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                        onChange={toggleSelectAll}
+                        aria-label="Pilih semua TPD (semua halaman)"
+                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-400"
+                      />
+                    </th>
                     <th className="px-5 py-3 font-medium text-gray-500">Nama</th>
                     <th className="px-5 py-3 font-medium text-gray-500">Email</th>
                     <th className="px-5 py-3 font-medium text-gray-500">Status</th>
@@ -940,7 +1057,18 @@ function Surveyors() {
 
                     return (
                       <React.Fragment key={tpd.id}>
-                        <tr className="hover:bg-gray-50 transition-colors">
+                        <tr className={`transition-colors ${selectedIds.has(tpd.id) ? 'bg-primary-50/60' : 'hover:bg-gray-50'}`}>
+                          {/* Pilih */}
+                          <td className="px-5 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(tpd.id)}
+                              onChange={() => toggleSelect(tpd.id)}
+                              aria-label={`Pilih ${tpd.name}`}
+                              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-400"
+                            />
+                          </td>
+
                           {/* Name */}
                           <td className="px-5 py-3 font-medium text-gray-800">
                             {tpd.name}
@@ -1029,7 +1157,7 @@ function Surveyors() {
                         {/* Expandable quota panel row */}
                         {isQuotaExpanded && (
                           <tr>
-                            <td colSpan={6} className="p-0">
+                            <td colSpan={7} className="p-0">
                               <QuotaPanel surveyorId={tpd.id} />
                             </td>
                           </tr>
@@ -1039,6 +1167,7 @@ function Surveyors() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
@@ -1188,6 +1317,87 @@ function Surveyors() {
         onConfirm={() => unassignTarget && handleUnassign(unassignTarget)}
         onCancel={() => setUnassignTarget(null)}
       />
+
+      {/* Konfirmasi aksi massal (nonaktifkan / hapus / lepas) */}
+      <ConfirmDialog
+        open={!!bulkConfirm}
+        title={
+          bulkConfirm?.type === 'delete'
+            ? `Hapus ${bulkConfirm.ids.length} TPD terpilih?`
+            : bulkConfirm?.type === 'unassign'
+              ? `Lepas ${bulkConfirm.ids.length} TPD dari survei ini?`
+              : `Nonaktifkan ${bulkConfirm?.ids.length || ''} TPD terpilih?`
+        }
+        description={
+          bulkConfirm?.type === 'delete'
+            ? `${bulkConfirm.ids.length} akun TPD akan dihapus permanen beserta data terkaitnya. Tindakan ini tidak dapat dibatalkan.`
+            : bulkConfirm?.type === 'unassign'
+              ? `Penugasan ${bulkConfirm.ids.length} TPD untuk survei "${selectedSurvey?.title || 'ini'}" akan dihapus. Akun TPD tetap ada.`
+              : `${bulkConfirm?.ids.length || 0} akun TPD akan dinonaktifkan dan tidak dapat login hingga diaktifkan kembali.`
+        }
+        confirmLabel={
+          bulkConfirm?.type === 'delete' ? 'Ya, Hapus'
+            : bulkConfirm?.type === 'unassign' ? 'Lepas dari Survei'
+              : 'Nonaktifkan'
+        }
+        cancelLabel="Batal"
+        tone="danger"
+        loading={bulkBusy}
+        onConfirm={() => {
+          if (!bulkConfirm) return;
+          const { type, ids } = bulkConfirm;
+          if (type === 'delete') bulkDelete(ids);
+          else if (type === 'unassign') bulkUnassign(ids);
+          else bulkDeactivate(ids);
+        }}
+        onCancel={() => setBulkConfirm(null)}
+      />
+
+      {/* Tugaskan massal ke survei (pilih survei + kuota, lalu loop /quota) */}
+      {assignPickerOpen && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Tugaskan ke survei">
+          <button type="button" aria-label="Tutup" onClick={() => setAssignPickerOpen(false)} className="absolute inset-0 bg-black/50 cursor-default" />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Tugaskan {selectedIds.size} TPD ke Survei</h3>
+            <p className="text-sm text-gray-500 mb-4">Pilih survei tujuan dan kuota responden untuk tiap TPD terpilih.</p>
+
+            <label htmlFor="bulk-assign-survey-pick" className="block text-sm font-medium text-gray-700 mb-1">Survei</label>
+            <select
+              id="bulk-assign-survey-pick"
+              value={assignSurveyId}
+              onChange={(e) => setAssignSurveyId(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            >
+              <option value="">— Pilih survei —</option>
+              {surveys.map((s) => (
+                <option key={s.id} value={s.id}>{s.title} ({s.status})</option>
+              ))}
+            </select>
+
+            <label htmlFor="bulk-assign-quota" className="block text-sm font-medium text-gray-700 mb-1">Kuota per TPD</label>
+            <input
+              id="bulk-assign-quota"
+              type="number"
+              min={1}
+              value={assignQuota}
+              onChange={(e) => setAssignQuota(e.target.value)}
+              placeholder="mis. 30"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-5 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            />
+
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setAssignPickerOpen(false)} disabled={bulkBusy}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50">
+                Batal
+              </button>
+              <button type="button" onClick={submitBulkAssign} disabled={bulkBusy}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-60">
+                {bulkBusy ? 'Memproses…' : 'Tugaskan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
