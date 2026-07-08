@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Layout from '../components/Layout';
 import IconButton from '../components/IconButton';
+import PasswordInput from '../components/PasswordInput';
 import api from '../services/api';
 
 // ─── Tab Configuration ────────────────────────────────────────────────────────
@@ -289,9 +290,8 @@ function UserFormModal({ mode, initial, tabKey, currentUserRole, onClose, onSave
                 </span>
               )}
             </label>
-            <input
+            <PasswordInput
               id="user-password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${

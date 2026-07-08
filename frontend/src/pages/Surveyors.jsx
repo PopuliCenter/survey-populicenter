@@ -8,6 +8,7 @@ import BulkUploadModal from '../components/BulkUploadModal';
 import BulkAssignModal from '../components/BulkAssignModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import IconButton from '../components/IconButton';
+import PasswordInput from '../components/PasswordInput';
 import { useToast } from '../components/Toast';
 import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
@@ -255,9 +256,8 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
               {!isEdit && <span aria-hidden="true" className="text-red-500">*</span>}
               {isEdit && <span className="text-gray-400 font-normal text-xs ml-1">(kosongkan jika tidak ingin mengubah)</span>}
             </label>
-            <input
+            <PasswordInput
               id="tpd-password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${fieldErrors.password ? 'border-red-400' : 'border-gray-300'}`}
