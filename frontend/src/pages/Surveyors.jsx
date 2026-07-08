@@ -68,6 +68,12 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
   const [quota, setQuota] = useState('');
   // Fitur #1: nomor kuesioner yang ditugaskan ke surveyor
   const [assignedNumbersText, setAssignedNumbersText] = useState('');
+  // Generator rentang nomor kuesioner (agar tak perlu ketik satu per satu)
+  const [rangeFrom, setRangeFrom] = useState('');
+  const [rangeTo, setRangeTo] = useState('');
+  const [rangePrefix, setRangePrefix] = useState('');
+  const [rangePad, setRangePad] = useState('3');
+  const [rangeError, setRangeError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -84,6 +90,41 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
       .split(/[\n,]+/)
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
+  }
+
+  // Buat daftar nomor dari rentang (Dari–Sampai) + awalan + nol di depan,
+  // lalu gabungkan ke daftar yang ada (tanpa duplikat).
+  function handleGenerateRange() {
+    setRangeError('');
+    const a = parseInt(rangeFrom, 10);
+    const b = parseInt(rangeTo, 10);
+    if (!Number.isInteger(a) || !Number.isInteger(b)) {
+      setRangeError('Isi angka "Dari" dan "Sampai".');
+      return;
+    }
+    if (a > b) {
+      setRangeError('"Dari" harus lebih kecil atau sama dengan "Sampai".');
+      return;
+    }
+    const count = b - a + 1;
+    if (count > 2000) {
+      setRangeError(`Rentang terlalu besar (${count}). Maksimal 2000 nomor sekali buat.`);
+      return;
+    }
+    const pad = parseInt(rangePad, 10);
+    const prefix = rangePrefix.trim();
+    const generated = [];
+    for (let i = a; i <= b; i++) {
+      const num = Number.isInteger(pad) && pad > 0 ? String(i).padStart(pad, '0') : String(i);
+      generated.push(`${prefix}${num}`);
+    }
+    const existing = parseAssignedNumbers(assignedNumbersText) || [];
+    const seen = new Set(existing);
+    const merged = [...existing];
+    for (const n of generated) {
+      if (!seen.has(n)) { seen.add(n); merged.push(n); }
+    }
+    setAssignedNumbersText(merged.join('\n'));
   }
 
   function validate() {
@@ -319,6 +360,50 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                   Nomor Kuesioner yang Ditugaskan{' '}
                   <span className="text-gray-400 font-normal text-xs ml-1">(opsional)</span>
                 </label>
+
+                {/* Generator rentang — isi cepat tanpa ketik satu per satu */}
+                <div className="mb-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Buat cepat dari rentang</p>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div>
+                      <label htmlFor="range-from" className="block text-[11px] text-gray-500 mb-0.5">Dari</label>
+                      <input id="range-from" type="number" inputMode="numeric" value={rangeFrom}
+                        onChange={(e) => setRangeFrom(e.target.value)} placeholder="1"
+                        className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
+                    </div>
+                    <div>
+                      <label htmlFor="range-to" className="block text-[11px] text-gray-500 mb-0.5">Sampai</label>
+                      <input id="range-to" type="number" inputMode="numeric" value={rangeTo}
+                        onChange={(e) => setRangeTo(e.target.value)} placeholder="50"
+                        className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
+                    </div>
+                    <div>
+                      <label htmlFor="range-prefix" className="block text-[11px] text-gray-500 mb-0.5">Awalan</label>
+                      <input id="range-prefix" type="text" value={rangePrefix}
+                        onChange={(e) => setRangePrefix(e.target.value)} placeholder="mis. SBY-"
+                        className="w-24 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
+                    </div>
+                    <div>
+                      <label htmlFor="range-pad" className="block text-[11px] text-gray-500 mb-0.5" title="Jumlah digit dengan nol di depan; 0/kosong = tanpa nol">Digit</label>
+                      <input id="range-pad" type="number" inputMode="numeric" min={0} value={rangePad}
+                        onChange={(e) => setRangePad(e.target.value)} placeholder="3"
+                        className="w-16 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
+                    </div>
+                    <button type="button" onClick={handleGenerateRange}
+                      className="px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300">
+                      Tambahkan
+                    </button>
+                    {assignedNumbersText.trim() && (
+                      <button type="button" onClick={() => setAssignedNumbersText('')}
+                        className="px-2 py-1.5 text-xs text-gray-500 hover:text-gray-700 focus:outline-none focus:underline">
+                        Kosongkan
+                      </button>
+                    )}
+                  </div>
+                  {rangeError && <p className="mt-1.5 text-xs text-red-600">{rangeError}</p>}
+                  <p className="mt-1.5 text-[11px] text-gray-400">Contoh: Dari <b>1</b>, Sampai <b>50</b>, Digit <b>3</b> → 001…050. Awalan opsional (mis. "SBY-001"). Hasil bisa diedit manual di bawah.</p>
+                </div>
+
                 <textarea
                   id="tpd-assigned-numbers"
                   value={assignedNumbersText}
