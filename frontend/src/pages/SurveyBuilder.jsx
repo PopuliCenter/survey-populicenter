@@ -7,6 +7,7 @@ import ValidationRulesEditor from '../components/ValidationRulesEditor';
 import IconButton from '../components/IconButton';
 import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
+import ExportQuestionnaireModal from '../components/ExportQuestionnaireModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -1178,6 +1179,7 @@ function SurveyBuilder() {
   // Modal state
   const [modalMode, setModalMode] = useState(null); // 'create' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   // Inline delete confirmation
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -1500,6 +1502,17 @@ function SurveyBuilder() {
                   Panduan
                 </a>
                 <button
+                  type="button"
+                  onClick={() => setExportOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  title="Export pertanyaan ke JSON / CSV / Excel"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                  </svg>
+                  Export
+                </button>
+                <button
                   onClick={() => {
                     setEditTarget(null);
                     setModalMode('create');
@@ -1777,6 +1790,13 @@ function SurveyBuilder() {
             );
             fetchSurvey();
           }}
+        />
+      )}
+
+      {exportOpen && survey && (
+        <ExportQuestionnaireModal
+          survey={survey}
+          onClose={() => setExportOpen(false)}
         />
       )}
     </Layout>

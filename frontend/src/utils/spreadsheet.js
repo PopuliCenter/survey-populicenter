@@ -37,6 +37,14 @@ export async function downloadXlsx(filename, sheetName, headers, rows) {
   );
 }
 
+/** Unduh objek sebagai file .json (rapi/indented). */
+export function downloadJson(filename, obj) {
+  saveBlob(
+    new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json;charset=utf-8;' }),
+    filename
+  );
+}
+
 /** Unduh file .csv dari header + baris (array of array). */
 export function downloadCsv(filename, headers, rows) {
   const esc = (v) => {

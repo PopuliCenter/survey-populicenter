@@ -10,6 +10,7 @@ import { useToast } from '../components/Toast';
 import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
 import { downloadCsv, downloadXlsx, parseSpreadsheet } from '../utils/spreadsheet';
+import ExportQuestionnaireModal from '../components/ExportQuestionnaireModal';
 
 // ─── Tipe / skala survei ────────────────────────────────────────────────────────
 const SURVEY_TYPES = [
@@ -640,6 +641,7 @@ function Surveys() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [exportTarget, setExportTarget] = useState(null);
 
   // Destructive-action confirmation targets (shared ConfirmDialog)
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -752,21 +754,9 @@ function Surveys() {
     }
   }
 
-  // ── Export questionnaire handler ────────────────────────────────────────────
-  async function handleExportQuestionnaire(survey) {
-    try {
-      const res = await api.get(`/surveys/${survey.id}/questions/export`);
-      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `kuesioner-${survey.title.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-      toast.success(`Kuesioner "${survey.title}" berhasil diexport.`);
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Gagal export kuesioner.');
-    }
+  // ── Export questionnaire — buka pemilih format (JSON/CSV/Excel) ─────────────
+  function handleExportQuestionnaire(survey) {
+    setExportTarget(survey);
   }
 
   // ── Format date ─────────────────────────────────────────────────────────────
@@ -1289,6 +1279,13 @@ function Surveys() {
             toast.success(msg || 'Kuesioner berhasil diimport.');
             fetchSurveys();
           }}
+        />
+      )}
+
+      {exportTarget && (
+        <ExportQuestionnaireModal
+          survey={exportTarget}
+          onClose={() => setExportTarget(null)}
         />
       )}
     </Layout>
