@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Layout from '../components/Layout';
 import IconButton from '../components/IconButton';
 import PasswordInput from '../components/PasswordInput';
+import BulkActionBar from '../components/BulkActionBar';
+import ConfirmDialog from '../components/ConfirmDialog';
 import api from '../services/api';
 
 // ─── Tab Configuration ────────────────────────────────────────────────────────
@@ -389,6 +391,19 @@ function UserManagement() {
   // Inline delete confirmation state: stores the user id being confirmed for deletion
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
+  // ── Seleksi massal (bulk actions) ───────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkConfirm, setBulkConfirm] = useState(null); // { type: 'deactivate'|'delete', ids: string[] }
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
   // ── Fetch users for active tab ──────────────────────────────────────────────
   const fetchUsers = useCallback(async () => {
     if (!activeTab) return;
@@ -459,6 +474,34 @@ function UserManagement() {
     }
   }
 
+  // ── Aksi massal (loop endpoint per-item; ringkasan via banner) ──────────────
+  async function runBulk(ids, fn, verb) {
+    setBulkBusy(true);
+    setActionError(null);
+    const results = await Promise.allSettled(ids.map(fn));
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const fail = results.length - ok;
+    if (ok) setSuccessMsg(`${ok} akun ${verb}.`);
+    if (fail) setActionError(`${fail} akun gagal diproses.`);
+    setBulkBusy(false);
+    setBulkConfirm(null);
+    clearSelection();
+    fetchUsers();
+  }
+  const bulkDeactivate = (ids) => runBulk(ids, (id) => api.patch(`${activeTab.endpoint}/${id}/deactivate`), 'dinonaktifkan');
+  const bulkDelete = (ids) => runBulk(ids, (id) => api.delete(`${activeTab.endpoint}/${id}`), 'dihapus');
+
+  // Seleksi hanya untuk akun selain diri sendiri.
+  const selectableIds = users
+    .filter((u) => String(u.id) !== String(currentUser.id))
+    .map((u) => u.id);
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
+  const someSelected = selectableIds.some((id) => selectedIds.has(id)) && !allSelected;
+  const toggleSelectAll = () => {
+    if (allSelected) clearSelection();
+    else setSelectedIds(new Set(selectableIds));
+  };
+
   // ── Format date ─────────────────────────────────────────────────────────────
   function formatDate(dateStr) {
     if (!dateStr) return '—';
@@ -478,6 +521,7 @@ function UserManagement() {
     setConfirmDeleteId(null);
     setModalMode(null);
     setEditTarget(null);
+    setSelectedIds(new Set());
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -576,10 +620,41 @@ function UserManagement() {
               Belum ada data {activeTab?.label.toLowerCase()}.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div>
+              <BulkActionBar count={selectedIds.size} onClear={clearSelection} busy={bulkBusy}>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => setBulkConfirm({ type: 'deactivate', ids: [...selectedIds] })}
+                  className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                >
+                  Nonaktifkan
+                </button>
+                {currentUser.role === 'admin' && (
+                  <button
+                    type="button"
+                    disabled={bulkBusy}
+                    onClick={() => setBulkConfirm({ type: 'delete', ids: [...selectedIds] })}
+                    className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-300"
+                  >
+                    Hapus
+                  </button>
+                )}
+              </BulkActionBar>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
+                    <th className="px-5 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                        onChange={toggleSelectAll}
+                        aria-label="Pilih semua akun"
+                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-400"
+                      />
+                    </th>
                     <th className="px-5 py-3 font-medium text-gray-500">Nama</th>
                     <th className="px-5 py-3 font-medium text-gray-500">Email</th>
                     <th className="px-5 py-3 font-medium text-gray-500">Status</th>
@@ -599,8 +674,21 @@ function UserManagement() {
                     return (
                       <tr
                         key={user.id}
-                        className="hover:bg-gray-50 transition-colors"
+                        className={`transition-colors ${selectedIds.has(user.id) ? 'bg-primary-50/60' : 'hover:bg-gray-50'}`}
                       >
+                        {/* Pilih (kecuali akun sendiri) */}
+                        <td className="px-5 py-3">
+                          {!isSelf && (
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(user.id)}
+                              onChange={() => toggleSelect(user.id)}
+                              aria-label={`Pilih ${user.name}`}
+                              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-400"
+                            />
+                          )}
+                        </td>
+
                         {/* Name */}
                         <td className="px-5 py-3 font-medium text-gray-800">
                           {user.name}
@@ -716,6 +804,7 @@ function UserManagement() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
@@ -748,6 +837,32 @@ function UserManagement() {
           }}
         />
       )}
+
+      {/* Konfirmasi aksi massal */}
+      <ConfirmDialog
+        open={!!bulkConfirm}
+        title={
+          bulkConfirm?.type === 'delete'
+            ? `Hapus ${bulkConfirm.ids.length} akun terpilih?`
+            : `Nonaktifkan ${bulkConfirm?.ids.length || ''} akun terpilih?`
+        }
+        description={
+          bulkConfirm?.type === 'delete'
+            ? `${bulkConfirm.ids.length} akun akan dihapus permanen beserta data terkaitnya. Tindakan ini tidak dapat dibatalkan.`
+            : `${bulkConfirm?.ids.length || 0} akun akan dinonaktifkan dan tidak dapat login hingga diaktifkan kembali.`
+        }
+        confirmLabel={bulkConfirm?.type === 'delete' ? 'Ya, Hapus' : 'Nonaktifkan'}
+        cancelLabel="Batal"
+        tone="danger"
+        loading={bulkBusy}
+        onConfirm={() => {
+          if (!bulkConfirm) return;
+          const { type, ids } = bulkConfirm;
+          if (type === 'delete') bulkDelete(ids);
+          else bulkDeactivate(ids);
+        }}
+        onCancel={() => setBulkConfirm(null)}
+      />
     </Layout>
   );
 }
