@@ -33,6 +33,7 @@
     "@capacitor/status-bar": "^8.0.2",
     "@sentry/react": "^8.40.0",
     "axios": "^1.8.4",
+    "exceljs": "^4.4.0",
     "idb": "8.0.0",
     "leaflet": "1.9.4",
     "react": "18.3.1",

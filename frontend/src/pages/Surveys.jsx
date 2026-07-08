@@ -9,6 +9,7 @@ import IconButton from '../components/IconButton';
 import { useToast } from '../components/Toast';
 import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
+import { downloadCsv, downloadXlsx, parseSpreadsheet } from '../utils/spreadsheet';
 
 // ─── Tipe / skala survei ────────────────────────────────────────────────────────
 const SURVEY_TYPES = [
@@ -422,6 +423,66 @@ function EditSurveyModal({ survey, onClose, onSaved }) {
   );
 }
 
+// ─── Import kuesioner: pemetaan spreadsheet → pertanyaan ─────────────────────
+const QUESTION_TYPE_CODES = [
+  'single_choice', 'multiple_choice', 'short_text', 'long_text', 'numeric_scale',
+  'date', 'photo', 'rating_scale', 'phone_number', 'unique_id', 'time', 'matrix', 'indonesia_region',
+];
+// Alias ramah (Indonesia) → kode tipe.
+const QUESTION_TYPE_ALIASES = {
+  'pilihan tunggal': 'single_choice', pilihan_tunggal: 'single_choice',
+  'pilihan ganda': 'multiple_choice', pilihan_ganda: 'multiple_choice',
+  'teks pendek': 'short_text', teks_pendek: 'short_text',
+  'teks panjang': 'long_text', teks_panjang: 'long_text',
+  'skala numerik': 'numeric_scale', skala_numerik: 'numeric_scale',
+  tanggal: 'date', foto: 'photo', 'upload foto': 'photo',
+  rating: 'rating_scale', 'rating scale': 'rating_scale',
+  'nomor telepon': 'phone_number', nomor_telepon: 'phone_number',
+  'nomor unik': 'unique_id', 'nomor kuesioner unik': 'unique_id',
+  waktu: 'time', matriks: 'matrix',
+  wilayah: 'indonesia_region', 'wilayah indonesia': 'indonesia_region',
+};
+
+// Header template kuesioner. Kolom "opsi" dipisah tanda | untuk tipe pilihan.
+const QUESTION_TPL_HEADERS = ['teks', 'tipe', 'wajib', 'opsi'];
+const QUESTION_TPL_EXAMPLE = [
+  ['Apa jenis kelamin Anda?', 'single_choice', 'ya', 'Laki-laki|Perempuan'],
+  ['Sumber informasi yang biasa dipakai?', 'multiple_choice', 'tidak', 'TV|Media Sosial|Koran|Radio'],
+  ['Nama lengkap responden', 'short_text', 'ya', ''],
+  ['Saran untuk pemerintah', 'long_text', 'tidak', ''],
+];
+
+/** Konversi baris spreadsheet → array pertanyaan siap-import (+ daftar error). */
+function rowsToQuestions(rows) {
+  const errors = [];
+  const questions = [];
+  rows.forEach((r, i) => {
+    const text = String(r.teks || r.text || '').trim();
+    const rawType = String(r.tipe || r.type || '').trim().toLowerCase();
+    const type = QUESTION_TYPE_CODES.includes(rawType)
+      ? rawType
+      : (QUESTION_TYPE_ALIASES[rawType] || '');
+    const wajib = String(r.wajib || r.required || '').trim().toLowerCase();
+    const isRequired = ['ya', 'yes', 'true', '1', 'wajib'].includes(wajib);
+    const opsiRaw = String(r.opsi || r.options || '').trim();
+
+    if (!text) { errors.push(`Baris ${i + 1}: kolom "teks" kosong`); return; }
+    if (!type) { errors.push(`Baris ${i + 1}: tipe "${rawType || '(kosong)'}" tidak dikenal`); return; }
+
+    let options = null;
+    if (type === 'single_choice' || type === 'multiple_choice') {
+      const opts = opsiRaw.split('|').map((s) => s.trim()).filter(Boolean);
+      if (opts.length < 2) {
+        errors.push(`Baris ${i + 1}: tipe pilihan butuh minimal 2 opsi (pisahkan dengan |)`);
+        return;
+      }
+      options = opts.map((v) => ({ value: v, label: v }));
+    }
+    questions.push({ text, type, is_required: isRequired, options });
+  });
+  return { questions, errors };
+}
+
 // ─── Import Questionnaire Modal ───────────────────────────────────────────────
 function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
   const [targetSurveyId, setTargetSurveyId] = useState('');
@@ -440,20 +501,42 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
     setError(null);
     if (!f) return;
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        if (!data.questions || !Array.isArray(data.questions)) {
-          setError('Format file tidak valid. Pastikan file berisi field "questions".');
-          return;
+    const name = (f.name || '').toLowerCase();
+
+    if (name.endsWith('.json')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (!data.questions || !Array.isArray(data.questions)) {
+            setError('Format file tidak valid. Pastikan file berisi field "questions".');
+            return;
+          }
+          setPreview(data);
+        } catch {
+          setError('File bukan JSON yang valid.');
         }
-        setPreview(data);
-      } catch {
-        setError('File bukan JSON yang valid.');
-      }
-    };
-    reader.readAsText(f);
+      };
+      reader.readAsText(f);
+      return;
+    }
+
+    if (name.endsWith('.csv') || name.endsWith('.xlsx')) {
+      parseSpreadsheet(f)
+        .then((rows) => {
+          if (!rows.length) { setError('File tidak berisi baris data.'); return; }
+          const { questions, errors } = rowsToQuestions(rows);
+          if (errors.length > 0) {
+            setError(`${errors.length} baris bermasalah — ${errors.slice(0, 6).join('; ')}${errors.length > 6 ? '…' : ''}`);
+            return;
+          }
+          setPreview({ questions, survey_title: 'Dari spreadsheet' });
+        })
+        .catch((err) => setError(err.message || 'Gagal membaca file.'));
+      return;
+    }
+
+    setError('Format tidak didukung. Gunakan file .json, .csv, atau .xlsx.');
   }
 
   async function handleImport() {
@@ -490,10 +573,19 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">File JSON Kuesioner</label>
-            <input ref={fileRef} type="file" accept=".json" onChange={handleFileChange}
+            <label className="block text-sm font-medium text-gray-700 mb-1">File Kuesioner (JSON / CSV / Excel)</label>
+            <input ref={fileRef} type="file" accept=".json,.csv,.xlsx" onChange={handleFileChange}
               className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
-            <p className="mt-1 text-xs text-gray-400">Upload file .json hasil export kuesioner</p>
+            <p className="mt-1 text-xs text-gray-400">
+              JSON hasil export, atau spreadsheet dengan kolom: teks, tipe, wajib, opsi (opsi dipisah <b>|</b> untuk tipe pilihan).
+            </p>
+            <div className="mt-1.5 flex items-center gap-3 text-xs">
+              <span className="text-gray-500">Template:</span>
+              <button type="button" onClick={() => downloadCsv('template_kuesioner.csv', QUESTION_TPL_HEADERS, QUESTION_TPL_EXAMPLE)}
+                className="text-primary-600 hover:text-primary-800 underline">CSV</button>
+              <button type="button" onClick={() => downloadXlsx('template_kuesioner.xlsx', 'Kuesioner', QUESTION_TPL_HEADERS, QUESTION_TPL_EXAMPLE)}
+                className="text-primary-600 hover:text-primary-800 underline">Excel (.xlsx)</button>
+            </div>
           </div>
 
           {preview && (

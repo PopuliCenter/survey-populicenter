@@ -1,22 +1,16 @@
 import React, { useState, useRef, useCallback } from 'react';
 import api from '../services/api';
 import useModalA11y from '../hooks/useModalA11y';
+import { downloadCsv, downloadXlsx } from '../utils/spreadsheet';
 
-/**
- * Generate and download a CSV template for bulk TPD upload.
- * Columns: nama, email, password
- */
-function downloadTemplate() {
-  const header = 'nama,email,password';
-  const example = 'John Doe,john@example.com,Password123';
-  const content = `${header}\n${example}`;
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'template_upload_tpd.csv';
-  link.click();
-  URL.revokeObjectURL(url);
+// Template upload TPD — kolom: nama, email, password
+const TPL_HEADERS = ['nama', 'email', 'password'];
+const TPL_EXAMPLE = [['John Doe', 'john@example.com', 'Password123']];
+function downloadTemplateCsv() {
+  downloadCsv('template_upload_tpd.csv', TPL_HEADERS, TPL_EXAMPLE);
+}
+function downloadTemplateXlsx() {
+  downloadXlsx('template_upload_tpd.xlsx', 'TPD', TPL_HEADERS, TPL_EXAMPLE);
 }
 
 /**
@@ -153,14 +147,18 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
               Maksimal 500 baris per file.
             </p>
 
-            {/* Download template */}
-            <button
-              type="button"
-              onClick={downloadTemplate}
-              className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-800 underline focus:outline-none focus:ring-2 focus:ring-primary-300 rounded"
-            >
-              Download template CSV
-            </button>
+            {/* Download template (CSV atau Excel) */}
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-gray-500">Template:</span>
+              <button type="button" onClick={downloadTemplateCsv}
+                className="text-primary-600 hover:text-primary-800 underline focus:outline-none focus:ring-2 focus:ring-primary-300 rounded">
+                CSV
+              </button>
+              <button type="button" onClick={downloadTemplateXlsx}
+                className="text-primary-600 hover:text-primary-800 underline focus:outline-none focus:ring-2 focus:ring-primary-300 rounded">
+                Excel (.xlsx)
+              </button>
+            </div>
 
             {/* File input */}
             <div>
