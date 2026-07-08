@@ -619,6 +619,31 @@ router.post('/:id/quota', async (req, res, next) => {
       }
     }
 
+    // Cegah bentrok: nomor kuesioner tak boleh dipakai TPD LAIN di survei sama.
+    if (Array.isArray(assigned_numbers) && assigned_numbers.length > 0) {
+      const others = await SurveyorQuota.findAll({
+        where: { survey_id, surveyor_id: { [Op.ne]: id } },
+        attributes: ['assigned_numbers'],
+        raw: true,
+      });
+      const used = new Set();
+      for (const o of others) {
+        if (Array.isArray(o.assigned_numbers)) {
+          for (const n of o.assigned_numbers) used.add(String(n).trim());
+        }
+      }
+      const conflicts = [...new Set(
+        assigned_numbers.map((n) => String(n).trim()).filter((n) => used.has(n))
+      )];
+      if (conflicts.length > 0) {
+        const shown = conflicts.slice(0, 20).join(', ');
+        return res.status(409).json({
+          error: `Nomor kuesioner sudah dipakai TPD lain di survei ini: ${shown}${conflicts.length > 20 ? ` (+${conflicts.length - 20} lagi)` : ''}`,
+          conflicts,
+        });
+      }
+    }
+
     // Upsert: create or update quota record
     const [quotaRecord, created] = await SurveyorQuota.findOrCreate({
       where: { survey_id, surveyor_id: id },
@@ -686,6 +711,38 @@ router.delete('/:id/quota/:surveyId', requireRole(['admin', 'supervisor']), asyn
     });
 
     res.json({ message: `TPD ${surveyor.name} dilepas dari survei ini` });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /surveyors/assigned-numbers/:surveyId
+ * Semua nomor kuesioner yang SUDAH ditugaskan pada survei ini, dikelompokkan
+ * per TPD. Dipakai UI untuk: lanjut dari nomor terakhir + deteksi bentrok.
+ */
+router.get('/assigned-numbers/:surveyId', async (req, res, next) => {
+  try {
+    const { surveyId } = req.params;
+    const rows = await SurveyorQuota.findAll({
+      where: { survey_id: surveyId },
+      attributes: ['surveyor_id', 'assigned_numbers'],
+      raw: true,
+    });
+    const withNums = rows.filter(
+      (r) => Array.isArray(r.assigned_numbers) && r.assigned_numbers.length > 0
+    );
+    const ids = [...new Set(withNums.map((r) => r.surveyor_id))];
+    const users = ids.length
+      ? await User.findAll({ where: { id: ids }, attributes: ['id', 'name'], raw: true })
+      : [];
+    const nameById = Object.fromEntries(users.map((u) => [u.id, u.name]));
+    const assignments = withNums.map((r) => ({
+      surveyor_id: r.surveyor_id,
+      name: nameById[r.surveyor_id] || null,
+      assigned_numbers: r.assigned_numbers,
+    }));
+    res.json({ survey_id: surveyId, assignments });
   } catch (error) {
     next(error);
   }

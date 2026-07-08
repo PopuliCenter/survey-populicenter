@@ -74,6 +74,8 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
   const [rangePrefix, setRangePrefix] = useState('');
   const [rangePad, setRangePad] = useState('3');
   const [rangeError, setRangeError] = useState('');
+  // Nomor yang sudah ditugaskan di survei terpilih (lanjut-terakhir & deteksi bentrok)
+  const [surveyAssignments, setSurveyAssignments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -82,6 +84,57 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
 
   const dialogRef = useRef(null);
   useModalA11y(true, onClose, dialogRef);
+
+  // Muat nomor yang sudah ditugaskan di survei ini saat survei dipilih.
+  useEffect(() => {
+    if (!surveyId) { setSurveyAssignments([]); return undefined; }
+    let cancelled = false;
+    api.get(`/surveyors/assigned-numbers/${surveyId}`)
+      .then((res) => { if (!cancelled) setSurveyAssignments(res.data?.assignments || []); })
+      .catch(() => { if (!cancelled) setSurveyAssignments([]); });
+    return () => { cancelled = true; };
+  }, [surveyId]);
+
+  // Himpunan nomor yang dipakai TPD LAIN (kecuali TPD yang sedang diedit).
+  function otherAssignedSet() {
+    const others = new Set();
+    for (const a of surveyAssignments) {
+      if (String(a.surveyor_id) === String(initial?.id)) continue;
+      for (const n of (a.assigned_numbers || [])) others.add(String(n).trim());
+    }
+    return others;
+  }
+  // Nomor pada daftar saat ini yang bentrok dengan TPD lain.
+  function conflictNumbers() {
+    const mine = parseAssignedNumbers(assignedNumbersText) || [];
+    const others = otherAssignedSet();
+    return [...new Set(mine.filter((n) => others.has(n)))];
+  }
+  // Angka tertinggi (suffix digit) di seluruh penugasan survei ini.
+  function maxAssignedNumeric() {
+    let mx = 0;
+    for (const a of surveyAssignments) {
+      for (const n of (a.assigned_numbers || [])) {
+        const m = String(n).match(/(\d+)$/);
+        if (m) mx = Math.max(mx, parseInt(m[1], 10));
+      }
+    }
+    return mx;
+  }
+  // Isi rentang mulai dari nomor terakhir + 1 (hindari bentrok antar-TPD).
+  function handleContinueFromLast() {
+    const mx = maxAssignedNumeric();
+    const q = parseInt(quota, 10);
+    setRangeFrom(String(mx + 1));
+    if (Number.isInteger(q) && q > 0) setRangeTo(String(mx + q));
+    setRangeError('');
+  }
+  // Buang nomor yang bentrok dari daftar.
+  function handleRemoveConflicts() {
+    const conf = new Set(conflictNumbers());
+    const kept = (parseAssignedNumbers(assignedNumbersText) || []).filter((n) => !conf.has(n));
+    setAssignedNumbersText(kept.join('\n'));
+  }
 
   // Parse assigned numbers dari textarea (satu per baris atau koma-separated)
   function parseAssignedNumbers(text) {
@@ -160,6 +213,12 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
           const unique = new Set(nums);
           if (unique.size !== nums.length) {
             errors.assignedNumbers = 'Nomor kuesioner tidak boleh duplikat';
+          }
+        }
+        if (!errors.assignedNumbers) {
+          const conf = conflictNumbers();
+          if (conf.length > 0) {
+            errors.assignedNumbers = `Ada ${conf.length} nomor bentrok dengan TPD lain: ${conf.slice(0, 10).join(', ')}${conf.length > 10 ? '…' : ''}`;
           }
         }
       }
@@ -393,6 +452,13 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                       className="px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300">
                       Tambahkan
                     </button>
+                    {maxAssignedNumeric() > 0 && (
+                      <button type="button" onClick={handleContinueFromLast}
+                        title="Isi rentang mulai dari nomor tertinggi + 1 agar tak bentrok dengan TPD lain"
+                        className="px-2.5 py-1.5 text-xs font-medium text-primary-700 bg-primary-100 hover:bg-primary-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300">
+                        Lanjut dari terakhir ({maxAssignedNumeric() + 1})
+                      </button>
+                    )}
                     {assignedNumbersText.trim() && (
                       <button type="button" onClick={() => setAssignedNumbersText('')}
                         className="px-2 py-1.5 text-xs text-gray-500 hover:text-gray-700 focus:outline-none focus:underline">
@@ -401,6 +467,11 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                     )}
                   </div>
                   {rangeError && <p className="mt-1.5 text-xs text-red-600">{rangeError}</p>}
+                  {surveyId && surveyAssignments.length > 0 && (
+                    <p className="mt-1.5 text-[11px] text-gray-500">
+                      Sudah dipakai {surveyAssignments.reduce((s, a) => s + (a.assigned_numbers?.length || 0), 0)} nomor di survei ini · tertinggi <b>{maxAssignedNumeric()}</b>.
+                    </p>
+                  )}
                   <p className="mt-1.5 text-[11px] text-gray-400">Contoh: Dari <b>1</b>, Sampai <b>50</b>, Digit <b>3</b> → 001…050. Awalan opsional (mis. "SBY-001"). Hasil bisa diedit manual di bawah.</p>
                 </div>
 
@@ -421,6 +492,17 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                   <p className="mt-1 text-xs text-primary-600">
                     {parseAssignedNumbers(assignedNumbersText)?.length || 0} nomor kuesioner akan ditugaskan
                   </p>
+                )}
+                {conflictNumbers().length > 0 && (
+                  <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-2">
+                    <p className="text-xs text-red-700">
+                      ⚠ {conflictNumbers().length} nomor bentrok dengan TPD lain: {conflictNumbers().slice(0, 15).join(', ')}{conflictNumbers().length > 15 ? '…' : ''}
+                    </p>
+                    <button type="button" onClick={handleRemoveConflicts}
+                      className="mt-1 text-xs font-medium text-red-700 underline hover:text-red-800 focus:outline-none">
+                      Buang yang bentrok
+                    </button>
+                  </div>
                 )}
                 {fieldErrors.assignedNumbers && <p className="mt-1 text-xs text-red-600">{fieldErrors.assignedNumbers}</p>}
               </div>
