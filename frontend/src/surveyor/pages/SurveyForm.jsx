@@ -17,6 +17,7 @@ import api from '../../services/api';
 import useSkipLogic from '../hooks/useSkipLogic';
 import useGeolocation from '../hooks/useGeolocation';
 import useSyncManager from '../hooks/useSyncManager';
+import { saveDraft, loadDraft, clearDraft, answersHaveContent } from '../utils/surveyDraft';
 import useAudioRecorder from '../hooks/useAudioRecorder';
 import usePhotoCapture from '../hooks/usePhotoCapture';
 import useSignaturePad from '../hooks/useSignaturePad';
@@ -48,47 +49,6 @@ const DEFAULT_FIELD_TOOLS = {
   gps_mode: 'required',
   audio_indicator: 'shown',
 };
-
-// ─── Draft autosave ───────────────────────────────────────────────────────────
-// Simpan jawaban yang sedang diisi ke localStorage agar tidak hilang bila app
-// ditutup Android / crash / ter-navigasi tak sengaja. Media (audio/foto/ttd)
-// tidak ikut di-draft (tersimpan terpisah saat submit). Draft dihapus setelah
-// submit berhasil atau saat pengguna menekan "Mulai Baru".
-const DRAFT_PREFIX = 'survey_draft_';
-
-function draftKey(surveyId) {
-  return `${DRAFT_PREFIX}${surveyId}`;
-}
-
-/** Apakah map jawaban berisi konten bermakna (bukan sekadar field kosong). */
-function answersHaveContent(answers) {
-  return Object.values(answers || {}).some((v) => {
-    if (v == null) return false;
-    if (typeof v === 'string') return v.trim() !== '';
-    if (Array.isArray(v)) return v.length > 0;
-    if (typeof v === 'object') return Object.keys(v).length > 0;
-    return true;
-  });
-}
-
-function saveDraft(surveyId, answers) {
-  try {
-    localStorage.setItem(draftKey(surveyId), JSON.stringify({ answers, savedAt: Date.now() }));
-  } catch { /* storage penuh / tidak tersedia — abaikan */ }
-}
-
-function loadDraft(surveyId) {
-  try {
-    const raw = localStorage.getItem(draftKey(surveyId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed && parsed.answers ? parsed : null;
-  } catch { return null; }
-}
-
-function clearDraft(surveyId) {
-  try { localStorage.removeItem(draftKey(surveyId)); } catch { /* abaikan */ }
-}
 
 // ─── Wilayah Indonesia ────────────────────────────────────────────────────────
 
@@ -2090,19 +2050,27 @@ function SurveyForm() {
     const draft = loadDraft(id);
     if (draft && answersHaveContent(draft.answers)) {
       setAnswers((prev) => ({ ...prev, ...draft.answers }));
+      // Pulihkan posisi pertanyaan terakhir (fitur "Lanjut" dari daftar).
+      if (Number.isInteger(draft.currentStep) && draft.currentStep > 0) {
+        preselectJumpedRef.current = true; // jangan ditimpa lompatan preselect
+        setCurrentStep(Math.min(draft.currentStep, Math.max(visibleQuestions.length - 1, 0)));
+      }
       setDraftRestored(true);
     }
-  }, [loading, questions.length, id]);
+  }, [loading, questions.length, id, visibleQuestions.length]);
 
-  // Simpan draft (debounced) saat jawaban berubah; hapus bila kosong.
+  // Simpan draft (debounced) saat jawaban / posisi berubah; hapus bila kosong.
   useEffect(() => {
     if (loading || questions.length === 0 || !draftRestoredRef.current) return;
     const t = setTimeout(() => {
-      if (answersHaveContent(answers)) saveDraft(id, answers);
-      else clearDraft(id);
+      if (answersHaveContent(answers)) {
+        saveDraft(id, { answers, currentStep, totalSteps: visibleQuestions.length });
+      } else {
+        clearDraft(id);
+      }
     }, 600);
     return () => clearTimeout(t);
-  }, [answers, loading, questions.length, id]);
+  }, [answers, currentStep, visibleQuestions.length, loading, questions.length, id]);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
