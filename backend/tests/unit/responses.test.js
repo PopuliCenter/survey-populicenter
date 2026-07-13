@@ -299,6 +299,48 @@ describe('Response Module - POST /responses/submit', () => {
     expect(res.body.duration_seconds).toBeGreaterThanOrEqual(0);
   });
 
+  test('audio_paths (banyak segmen) tersimpan; audio_path = segmen pertama', async () => {
+    const token = createSurveyorToken();
+    const { sessionToken, pendingResponse } = setupSuccessfulSubmit();
+
+    const res = await request(app)
+      .post('/responses/submit')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        session_token: sessionToken,
+        answers: [{ question_id: 'q-uuid-001', answer_value: 'Ya' }],
+        geo: { status: 'available', lat: -6.2, lng: 106.8 },
+        ...defaultFieldToolsData,
+        audio_path: undefined,
+        audio_paths: ['/uploads/audio/seg0.webm', '/uploads/audio/seg1.webm'],
+      });
+
+    expect(res.status).toBe(201);
+    const updateArg = pendingResponse.update.mock.calls[0][0];
+    expect(updateArg.audio_paths).toEqual(['/uploads/audio/seg0.webm', '/uploads/audio/seg1.webm']);
+    expect(updateArg.audio_path).toBe('/uploads/audio/seg0.webm'); // kompat: segmen pertama
+  });
+
+  test('audio_path tunggal (lama) tetap didukung → audio_paths berisi satu', async () => {
+    const token = createSurveyorToken();
+    const { sessionToken, pendingResponse } = setupSuccessfulSubmit();
+
+    const res = await request(app)
+      .post('/responses/submit')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        session_token: sessionToken,
+        answers: [{ question_id: 'q-uuid-001', answer_value: 'Ya' }],
+        geo: { status: 'available', lat: -6.2, lng: 106.8 },
+        ...defaultFieldToolsData, // audio_path: '/uploads/audio/rec.mp3'
+      });
+
+    expect(res.status).toBe(201);
+    const updateArg = pendingResponse.update.mock.calls[0][0];
+    expect(updateArg.audio_path).toBe('/uploads/audio/rec.mp3');
+    expect(updateArg.audio_paths).toEqual(['/uploads/audio/rec.mp3']);
+  });
+
   test('format nomor kuesioner: {PREFIX}-{YYYYMMDD}-{SEQ:04d}', async () => {
     const token = createSurveyorToken();
     const startTime = new Date(Date.now() - 60000).toISOString();

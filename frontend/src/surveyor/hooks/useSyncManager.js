@@ -63,8 +63,8 @@ function useSyncManager() {
         try {
           // Step 1: upload media files first (audio, photos, signature)
           const mediaFiles = await getMediaFilesByLocalId(entry.localId);
-          let audio_path = null;
           let signature_path = null;
+          const audio_paths = []; // bisa >1 segmen (wawancara di-pending lalu dilanjutkan)
           const photo_paths = [];
 
           for (const media of mediaFiles) {
@@ -81,7 +81,7 @@ function useSyncManager() {
               timeout: 120000, // unggah media: beri waktu lebih untuk koneksi lambat
             });
 
-            if (media.type === 'audio') audio_path = uploadRes.data.path;
+            if (media.type === 'audio') audio_paths.push(uploadRes.data.path);
             else if (media.type === 'signature') signature_path = uploadRes.data.path;
             else photo_paths.push(uploadRes.data.path);
           }
@@ -100,7 +100,7 @@ function useSyncManager() {
             geo: entry.geo,
           };
 
-          if (audio_path) submitPayload.audio_path = audio_path;
+          if (audio_paths.length > 0) submitPayload.audio_paths = audio_paths;
           if (signature_path) submitPayload.signature_path = signature_path;
           if (photo_paths.length > 0) submitPayload.photo_paths = photo_paths;
           if (entry.start_geo) {

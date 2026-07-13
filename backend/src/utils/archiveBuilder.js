@@ -31,7 +31,7 @@ async function buildSurveyArchive(surveyId, outPath) {
 
   const [respRows] = await sequelize.query(
     `SELECT id, questionnaire_number, surveyor_id, created_at, latitude, longitude,
-            review_status, audio_path, signature_path, photo_paths
+            review_status, audio_path, audio_paths, signature_path, photo_paths
      FROM responses
      WHERE survey_id = :sid AND questionnaire_number NOT LIKE 'PENDING-%'
      ORDER BY created_at ASC`,
@@ -61,6 +61,7 @@ async function buildSurveyArchive(surveyId, outPath) {
   }
   for (const r of respRows) {
     if (r.audio_path) mediaSet.add(r.audio_path);
+    if (Array.isArray(r.audio_paths)) for (const p of r.audio_paths) if (p) mediaSet.add(p);
     if (r.signature_path) mediaSet.add(r.signature_path);
     if (Array.isArray(r.photo_paths)) for (const p of r.photo_paths) if (p) mediaSet.add(p);
   }

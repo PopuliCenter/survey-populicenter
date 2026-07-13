@@ -23,7 +23,7 @@ import usePhotoCapture from '../hooks/usePhotoCapture';
 import useSignaturePad from '../hooks/useSignaturePad';
 import { getDisplayOptions } from '../../utils/randomizeOptions';
 import { validateAnswer } from '../../utils/answerValidation';
-import { cacheSurvey, getCachedSurvey, enqueueResponse, saveMediaFile } from '../../utils/storage';
+import { cacheSurvey, getCachedSurvey, enqueueResponse, saveMediaFile, saveDraftMedia, getDraftMedia, deleteDraftMedia } from '../../utils/storage';
 import { compressIfNeeded } from '../../utils/imageCompressor';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import ConfirmSheet from '../../components/ConfirmSheet';
@@ -1779,6 +1779,20 @@ function SurveyForm() {
       recordedAudioBlob = await audioRecorder.stopAndGetBlob();
     }
 
+    // Kumpulkan SEMUA segmen audio: segmen dari pending sebelumnya (tersimpan di
+    // draft_media) + segmen sesi ini. Agar wawancara yang sempat di-pending lalu
+    // dilanjutkan tetap terekam utuh (beberapa bagian).
+    async function collectAudioSegments() {
+      const segments = [];
+      if (fieldToolsSettings.audio_mode === 'disabled') return segments;
+      try {
+        const dm = await getDraftMedia(id, draftNumberRef.current);
+        for (const m of dm) if (m.type === 'audio' && m.blob) segments.push(m.blob);
+      } catch { /* draft media tak tersedia — abaikan */ }
+      if (recordedAudioBlob) segments.push(recordedAudioBlob);
+      return segments;
+    }
+
     const hasMediaUpload =
       (fieldToolsSettings.audio_mode !== 'disabled' && recordedAudioBlob) ||
       (fieldToolsSettings.photo_mode !== 'disabled' && photoCapture.photos.length > 0) ||
@@ -1795,6 +1809,8 @@ function SurveyForm() {
     // karena jaringan / sesi kedaluwarsa — supaya data tidak pernah hilang.
     const enqueueOffline = async () => {
       setMediaUploadMessage('Menyimpan data ke perangkat...');
+
+      const audioSegments = await collectAudioSegments();
 
       // Build answers payload — only include visible questions, skip photo questions
       const visibleQs = questions.filter((q) => visibleIds.has(q.id));
@@ -1822,23 +1838,25 @@ function SurveyForm() {
           lat: startGeo.lat,
           lng: startGeo.lng,
         } : null,
-        has_audio: fieldToolsSettings.audio_mode !== 'disabled' && !!recordedAudioBlob,
+        has_audio: fieldToolsSettings.audio_mode !== 'disabled' && audioSegments.length > 0,
         has_signature: fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty,
         photo_count: fieldToolsSettings.photo_mode !== 'disabled' ? photoCapture.photos.length : 0,
       });
 
       // Save media files to offline storage in parallel (with compression)
       const offlineMediaSaves = [];
-      if (fieldToolsSettings.audio_mode !== 'disabled' && recordedAudioBlob) {
+      if (fieldToolsSettings.audio_mode !== 'disabled' && audioSegments.length > 0) {
         setMediaUploadMessage('Menyimpan rekaman audio...');
-        offlineMediaSaves.push(
-          saveMediaFile({
-            localId,
-            type: 'audio',
-            blob: recordedAudioBlob,
-            filename: 'recording.webm',
-          })
-        );
+        audioSegments.forEach((seg, i) => {
+          offlineMediaSaves.push(
+            saveMediaFile({
+              localId,
+              type: 'audio',
+              blob: seg,
+              filename: `recording-${i}.webm`,
+            })
+          );
+        });
       }
       if (fieldToolsSettings.photo_mode !== 'disabled') {
         for (const photo of photoCapture.photos) {
@@ -1874,8 +1892,9 @@ function SurveyForm() {
       }
       await Promise.all(offlineMediaSaves);
 
-      // Sukses tersimpan ke antrian — hapus draft & buka halaman sukses.
+      // Sukses tersimpan ke antrian — hapus draft (jawaban + media pending) & buka sukses.
       clearDraft(id, draftNumberRef.current);
+      try { await deleteDraftMedia(id, draftNumberRef.current); } catch { /* non-kritis */ }
       navigate(`/surveyor/survey/${id}/success`, {
         state: { offline: true, survey_id: id },
       });
@@ -1912,24 +1931,27 @@ function SurveyForm() {
       const geo = await getLocation();
 
       // 4. Upload media files
-      let audio_path = null;
       let signature_path = null;
       const media_photo_paths = [];
+      const media_audio_paths = [];
 
-      const uploadPromises = [];
-      if (fieldToolsSettings.audio_mode !== 'disabled' && recordedAudioBlob) {
-        const audioFormData = new FormData();
-        audioFormData.append('audio', recordedAudioBlob, 'recording.webm');
-        uploadPromises.push(
-          api.post('/upload/audio', audioFormData, {
+      // Audio: bisa beberapa segmen (wawancara di-pending lalu dilanjutkan).
+      // Diunggah BERURUTAN agar audio_paths tetap urut.
+      if (fieldToolsSettings.audio_mode !== 'disabled') {
+        const audioSegments = await collectAudioSegments();
+        for (let i = 0; i < audioSegments.length; i++) {
+          setMediaUploadMessage('Mengunggah rekaman audio...');
+          const audioFormData = new FormData();
+          audioFormData.append('audio', audioSegments[i], `recording-${i}.webm`);
+          const uploadRes = await api.post('/upload/audio', audioFormData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: 120000,
-          }).then((uploadRes) => {
-            audio_path = uploadRes.data.path;
-          })
-        );
+          });
+          media_audio_paths.push(uploadRes.data.path);
+        }
       }
 
+      const uploadPromises = [];
       if (fieldToolsSettings.photo_mode !== 'disabled') {
         for (const photo of photoCapture.photos) {
           const compressed = await compressIfNeeded(photo.blob);
@@ -1980,7 +2002,7 @@ function SurveyForm() {
         },
       };
 
-      if (audio_path) submitPayload.audio_path = audio_path;
+      if (media_audio_paths.length > 0) submitPayload.audio_paths = media_audio_paths;
       if (signature_path) submitPayload.signature_path = signature_path;
       if (media_photo_paths.length > 0) submitPayload.photo_paths = media_photo_paths;
       if (fieldToolsSettings.gps_mode !== 'disabled' && startGeo) {
@@ -1993,8 +2015,9 @@ function SurveyForm() {
 
       const { questionnaire_number } = res.data;
 
-      // Sukses terkirim — hapus draft.
+      // Sukses terkirim — hapus draft (jawaban + media pending).
       clearDraft(id, draftNumberRef.current);
+      try { await deleteDraftMedia(id, draftNumberRef.current); } catch { /* non-kritis */ }
 
       // 6. Navigate to success page (Requirement 13.3)
       navigate(`/surveyor/survey/${id}/success`, {
@@ -2064,6 +2087,48 @@ function SurveyForm() {
     fieldToolsSettings,
   ]);
 
+  // ─── Pending (tunda) media: audio segmen sebelumnya + status simpan ─────────
+  const [priorAudioCount, setPriorAudioCount] = useState(0);
+  const [savingPend, setSavingPend] = useState(false);
+
+  // Simpan media sesi ini ke draft_media agar TIDAK hilang saat nomor kuesioner
+  // di-pending (audio dihentikan & disimpan sebagai segmen; foto & tanda tangan
+  // ikut). Dipanggil sebelum keluar form (pending).
+  const persistPendMedia = useCallback(async () => {
+    const num = draftNumberRef.current;
+    // Audio: hentikan rekaman sesi ini & simpan sebagai segmen berikutnya.
+    if (fieldToolsSettings.audio_mode !== 'disabled') {
+      let sessionBlob = null;
+      if (audioRecorder.status === 'recording' || audioRecorder.status === 'paused') {
+        sessionBlob = await audioRecorder.stopAndGetBlob();
+      } else if (audioRecorder.status === 'stopped') {
+        sessionBlob = audioRecorder.audioBlob;
+      }
+      if (sessionBlob && sessionBlob.size > 0) {
+        try {
+          const existing = await getDraftMedia(id, num);
+          const audioCount = existing.filter((m) => m.type === 'audio').length;
+          await saveDraftMedia({ surveyId: id, number: num, type: 'audio', blob: sessionBlob, filename: `recording-${audioCount}.webm`, seq: audioCount });
+        } catch { /* non-kritis */ }
+      }
+    }
+    // Foto: ganti set foto draft dengan yang ada di layar (restored + baru).
+    if (fieldToolsSettings.photo_mode !== 'disabled') {
+      try {
+        await deleteDraftMedia(id, num, 'photo');
+        let i = 0;
+        for (const photo of photoCapture.photos) {
+          const compressed = await compressIfNeeded(photo.blob);
+          await saveDraftMedia({ surveyId: id, number: num, type: 'photo', blob: compressed, filename: photo.blob.name || `photo-${i}.jpg`, seq: i });
+          i += 1;
+        }
+      } catch { /* non-kritis */ }
+    }
+    // Tanda tangan: strokes → localStorage draft.
+    const strokes = fieldToolsSettings.signature_mode !== 'disabled' ? signaturePad.getStrokes() : [];
+    saveDraft(id, num, { answers, currentStep, totalSteps: visibleQuestions.length, signatureStrokes: strokes });
+  }, [id, fieldToolsSettings, audioRecorder, photoCapture, signaturePad, answers, currentStep, visibleQuestions.length]);
+
   // ─── Exit guard: cegah kehilangan data saat keluar form ─────────────────────
   const hasUnsavedContent = useCallback(() => {
     const anyMedia =
@@ -2085,18 +2150,31 @@ function SurveyForm() {
     }
   }, [hasUnsavedContent, id, navigate]);
 
-  const handleConfirmExit = useCallback(() => {
-    // Draft sengaja TIDAK dihapus agar bisa dilanjutkan nanti.
+  const pendingExitRef = useRef(false);
+  const handleConfirmExit = useCallback(async () => {
+    if (pendingExitRef.current) return; // cegah dobel-tap → segmen audio ganda
+    pendingExitRef.current = true;
+    // Pending: simpan data + media (rekaman/foto/ttd) dulu agar bisa dilanjutkan
+    // nanti tanpa kehilangan apa pun. Draft sengaja TIDAK dihapus.
+    setSavingPend(true);
+    try {
+      await persistPendMedia();
+    } catch { /* tetap keluar; jawaban sudah tersimpan via autosave */ }
+    setSavingPend(false);
     setShowExitConfirm(false);
     navigate('/surveyor');
-  }, [navigate]);
+  }, [navigate, persistPendMedia]);
 
   // Hapus draft & mulai dari awal (dipicu dari banner "Draft dipulihkan").
   const handleDiscardDraft = useCallback(() => {
     clearDraft(id, draftNumberRef.current);
+    deleteDraftMedia(id, draftNumberRef.current).catch(() => {});
+    setPriorAudioCount(0);
+    photoCapture.clearPhotos();
+    signaturePad.clear();
     setAnswers(applyPreselectedNumber(questions, buildEmptyAnswers(questions)));
     setDraftRestored(false);
-  }, [id, questions]);
+  }, [id, questions, photoCapture, signaturePad]);
 
   // Tombol back Android — daftarkan listener sekali, baca logic terkini via ref.
   const exitGuardRef = useRef(() => {});
@@ -2140,8 +2218,27 @@ function SurveyForm() {
         preselectJumpedRef.current = true; // jangan ditimpa lompatan preselect
         setCurrentStep(Math.min(draft.currentStep, Math.max(visibleQuestions.length - 1, 0)));
       }
+      // Pulihkan tanda tangan (strokes) bila ada.
+      if (Array.isArray(draft.signatureStrokes) && draft.signatureStrokes.length > 0) {
+        signaturePad.loadStrokes(draft.signatureStrokes);
+      }
       setDraftRestored(true);
     }
+    // Pulihkan media pending (segmen audio + foto) dari draft_media agar tidak
+    // hilang. Foto dimuat kembali ke panel; jumlah segmen audio ditampilkan.
+    (async () => {
+      try {
+        const media = await getDraftMedia(id, entryNumber);
+        const audioSegs = media.filter((m) => m.type === 'audio');
+        if (audioSegs.length > 0) setPriorAudioCount(audioSegs.length);
+        for (const m of media) {
+          if (m.type === 'photo' && m.blob) {
+            const file = m.blob instanceof File ? m.blob : new File([m.blob], m.filename || 'photo.jpg', { type: m.blob.type || 'image/jpeg' });
+            photoCapture.addPhoto(file);
+          }
+        }
+      } catch { /* non-kritis */ }
+    })();
   // Pemulihan sekali-jalan (dijaga draftRestoredRef); deps dikurasi manual.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, questions.length, id, visibleQuestions.length]);
@@ -2270,6 +2367,11 @@ function SurveyForm() {
                 hideControlsDefault={isNativePlatform()}
                 hideIndicator={fieldToolsSettings.audio_indicator === 'hidden'}
               />
+              {fieldToolsSettings.audio_indicator !== 'hidden' && priorAudioCount > 0 && (
+                <p className="mt-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+                  {priorAudioCount} bagian rekaman sebelumnya tersimpan &amp; akan ikut terkirim. Rekaman baru menjadi bagian lanjutan.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -2279,7 +2381,7 @@ function SurveyForm() {
         {/* Banner draft dipulihkan */}
         {draftRestored && (
           <div className="bg-accent-50 border border-accent-200 rounded-lg px-3 py-2.5 flex items-center justify-between gap-3">
-            <span className="text-sm text-accent-800">Draft jawaban sebelumnya dipulihkan.</span>
+            <span className="text-sm text-accent-800">Draft dipulihkan — jawaban, rekaman, foto &amp; tanda tangan sebelumnya ikut.</span>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 type="button"
@@ -2717,16 +2819,16 @@ function SurveyForm() {
         )}
       </main>
 
-      {/* Konfirmasi keluar saat ada data belum dikirim */}
+      {/* Konfirmasi pending (tunda) saat ada data belum dikirim */}
       <ConfirmSheet
         open={showExitConfirm}
         iconType="warning"
-        title="Keluar dari pengisian?"
-        description="Jawaban yang sudah diisi tetap tersimpan sebagai draft di perangkat ini dan bisa dilanjutkan nanti. Rekaman audio, foto, dan tanda tangan tidak ikut tersimpan."
-        confirmLabel="Keluar"
+        title="Tunda nomor kuesioner ini?"
+        description="Semua yang sudah diisi — jawaban, rekaman audio, foto, dan tanda tangan — disimpan di perangkat ini dan bisa DILANJUTKAN nanti dari Daftar Survei. Tidak ada yang hilang."
+        confirmLabel={savingPend ? 'Menyimpan…' : 'Tunda & Simpan'}
         cancelLabel="Lanjut Mengisi"
         onConfirm={handleConfirmExit}
-        onCancel={() => setShowExitConfirm(false)}
+        onCancel={() => { if (!savingPend) setShowExitConfirm(false); }}
       />
     </div>
   );

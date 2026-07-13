@@ -151,6 +151,7 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
       answers = [],
       geo = {},
       audio_path,
+      audio_paths,
       signature_path,
       photo_paths,
       start_latitude,
@@ -161,6 +162,13 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     if (!session_token) {
       return res.status(422).json({ error: 'session_token wajib diisi' });
     }
+
+    // Normalisasi audio: dukung banyak segmen (audio_paths) + kompat audio_path.
+    let audioPathsArr = Array.isArray(audio_paths) ? audio_paths.filter(Boolean) : [];
+    if (audio_path && !audioPathsArr.includes(audio_path)) {
+      audioPathsArr = [audio_path, ...audioPathsArr];
+    }
+    const firstAudioPath = audioPathsArr[0] || null;
 
     // Validate session token
     let sessionPayload;
@@ -198,7 +206,7 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     const fieldToolsResult = validateFieldToolsSubmission(
       {
         signature_path: signature_path || null,
-        audio_path: audio_path || null,
+        audio_path: firstAudioPath,
         photo_paths: Array.isArray(photo_paths) ? photo_paths : [],
         latitude: start_latitude != null ? start_latitude : null,
         longitude: start_longitude != null ? start_longitude : null,
@@ -480,7 +488,8 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
           latitude,
           longitude,
           geo_status,
-          audio_path: audio_path || null,
+          audio_path: firstAudioPath,
+          audio_paths: audioPathsArr,
           signature_path: signature_path || null,
           photo_paths: Array.isArray(photo_paths) ? photo_paths : [],
           start_latitude: start_latitude != null ? start_latitude : null,
@@ -859,6 +868,7 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
       'longitude',
       'geo_status',
       'audio_path',
+      'audio_paths',
       'signature_path',
       'photo_paths',
       'start_latitude',
@@ -930,6 +940,9 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
       longitude: response.longitude,
       geo_status: response.geo_status,
       audio_path: response.audio_path,
+      audio_paths: Array.isArray(response.audio_paths) && response.audio_paths.length > 0
+        ? response.audio_paths
+        : (response.audio_path ? [response.audio_path] : []),
       signature_path: response.signature_path,
       photo_paths: response.photo_paths,
       start_latitude: response.start_latitude,

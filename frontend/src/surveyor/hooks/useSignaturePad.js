@@ -179,6 +179,17 @@ function useSignaturePad() {
     redraw();
   }, [syncState, redraw]);
 
+  // Ambil salinan strokes (untuk disimpan ke draft saat nomor kuesioner di-pending).
+  const getStrokes = useCallback(() => strokesRef.current.map((s) => s.slice()), []);
+
+  // Muat kembali strokes tersimpan (saat draft dilanjutkan) & gambar ulang.
+  const loadStrokes = useCallback((strokes) => {
+    if (!Array.isArray(strokes) || strokes.length === 0) return;
+    strokesRef.current = strokes.map((s) => s.slice());
+    syncState();
+    redraw();
+  }, [syncState, redraw]);
+
   const toBlob = useCallback(() => {
     return new Promise((resolve) => {
       const canvas = canvasNodeRef.current;
@@ -193,7 +204,7 @@ function useSignaturePad() {
     return canvas.toDataURL('image/png');
   }, []);
 
-  return { canvasRef, isEmpty, strokeCount, clear, undo, toBlob, toPngDataUrl };
+  return { canvasRef, isEmpty, strokeCount, clear, undo, toBlob, toPngDataUrl, getStrokes, loadStrokes };
 }
 
 export default useSignaturePad;

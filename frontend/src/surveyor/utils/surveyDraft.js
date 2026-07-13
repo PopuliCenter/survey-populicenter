@@ -6,10 +6,12 @@
  * sehingga BANYAK nomor bisa ditunda paralel — TPD bisa menunda No. 1 dan
  * lanjut mengerjakan No. 2, lalu meneruskan No. 1 kapan saja.
  *
- * Isi tiap draft: { answers, currentStep, totalSteps, savedAt }.
+ * Isi tiap draft: { answers, currentStep, totalSteps, signatureStrokes, savedAt }.
  * `num` adalah nomor kuesioner (string). Slot tanpa nomor memakai '' (draft
- * "scratch" saat nomor belum diisi). Media (audio/foto/ttd) TIDAK ikut. Draft
- * dihapus setelah submit berhasil atau "Mulai Baru".
+ * "scratch" saat nomor belum diisi). Tanda tangan disimpan sebagai strokes di
+ * sini; segmen AUDIO & FOTO disimpan terpisah di IndexedDB/SQLite (draft_media,
+ * lihat storage.js) agar tidak hilang saat di-pending. Draft dihapus setelah
+ * submit berhasil atau "Mulai Baru".
  */
 
 const DRAFT_PREFIX = 'survey_draft_';
@@ -49,6 +51,8 @@ export function saveDraft(surveyId, number, data) {
       answers: data.answers || {},
       currentStep: Number.isInteger(data.currentStep) ? data.currentStep : 0,
       totalSteps: Number.isInteger(data.totalSteps) ? data.totalSteps : 0,
+      // Tanda tangan (strokes) ikut agar tidak hilang saat di-pending.
+      signatureStrokes: Array.isArray(data.signatureStrokes) ? data.signatureStrokes : undefined,
       savedAt: Date.now(),
     };
     localStorage.setItem(draftKey(surveyId, number), JSON.stringify(payload));

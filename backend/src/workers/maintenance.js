@@ -94,13 +94,14 @@ async function reconcileStats() {
 // ─── M4: reaper media yatim ────────────────────────────────────────────────────
 async function getReferencedMediaPaths() {
   const referenced = new Set();
-  // responses.audio_path / signature_path
+  // responses.audio_path / audio_paths / signature_path / photo_paths
   const [rows] = await sequelize.query(
-    `SELECT audio_path, signature_path, photo_paths FROM responses
-     WHERE audio_path IS NOT NULL OR signature_path IS NOT NULL OR photo_paths IS NOT NULL`
+    `SELECT audio_path, audio_paths, signature_path, photo_paths FROM responses
+     WHERE audio_path IS NOT NULL OR audio_paths IS NOT NULL OR signature_path IS NOT NULL OR photo_paths IS NOT NULL`
   );
   for (const r of rows) {
     if (r.audio_path) referenced.add(r.audio_path);
+    if (Array.isArray(r.audio_paths)) for (const p of r.audio_paths) if (p) referenced.add(p);
     if (r.signature_path) referenced.add(r.signature_path);
     if (Array.isArray(r.photo_paths)) for (const p of r.photo_paths) if (p) referenced.add(p);
   }

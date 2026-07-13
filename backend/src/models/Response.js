@@ -95,6 +95,13 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(500),
       allowNull: true,
     },
+    // Beberapa segmen audio (mis. wawancara yang di-pending lalu dilanjutkan).
+    // audio_path di atas = segmen pertama (kompatibilitas mundur).
+    audio_paths: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: [],
+    },
     signature_path: {
       type: DataTypes.STRING(500),
       allowNull: true,

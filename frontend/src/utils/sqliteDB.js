@@ -94,7 +94,29 @@ export async function initSQLiteDB() {
     CREATE INDEX IF NOT EXISTS idx_media_local_id ON media_files(local_id);
   `);
 
+  // draft_media: media (segmen audio, foto) untuk nomor kuesioner yang
+  // DI-PENDING agar tidak hilang saat ditunda/dilanjutkan. draft_key = surveyId__number.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS draft_media (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      draft_key TEXT NOT NULL,
+      type TEXT NOT NULL,
+      blob_base64 TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      mime_type TEXT,
+      seq INTEGER DEFAULT 0,
+      saved_at INTEGER NOT NULL
+    );
+  `);
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_draft_media_key ON draft_media(draft_key);
+  `);
+
   return db;
+}
+
+function draftKeyOf(surveyId, number) {
+  return `${surveyId}__${number ?? ''}`;
 }
 
 // ─── Survey Cache ─────────────────────────────────────────────────────────────
@@ -256,6 +278,49 @@ export async function getMediaFilesByLocalIdSQLite(localId) {
 export async function deleteMediaFilesByLocalIdSQLite(localId) {
   const conn = await initSQLiteDB();
   await conn.run(`DELETE FROM media_files WHERE local_id = ?`, [localId]);
+}
+
+// ─── Draft Media (media nomor kuesioner yang di-pending) ──────────────────────
+
+export async function saveDraftMediaSQLite({ surveyId, number, type, blob, filename, seq = 0 }) {
+  const conn = await initSQLiteDB();
+  const base64 = await blobToBase64(blob);
+  const mimeType = (blob && blob.type) || deriveMimeType(type, filename);
+  const res = await conn.run(
+    `INSERT INTO draft_media (draft_key, type, blob_base64, filename, mime_type, seq, saved_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [draftKeyOf(surveyId, number), type, base64, filename, mimeType, seq, Date.now()]
+  );
+  return res.changes?.lastId || 0;
+}
+
+export async function getDraftMediaSQLite(surveyId, number) {
+  const conn = await initSQLiteDB();
+  const res = await conn.query(
+    `SELECT * FROM draft_media WHERE draft_key = ? ORDER BY type ASC, seq ASC, id ASC`,
+    [draftKeyOf(surveyId, number)]
+  );
+  const files = [];
+  for (const row of res.values || []) {
+    const mimeType = row.mime_type || deriveMimeType(row.type, row.filename);
+    files.push({
+      id: row.id,
+      type: row.type,
+      blob: base64ToBlob(row.blob_base64, mimeType),
+      filename: row.filename,
+      seq: row.seq,
+    });
+  }
+  return files;
+}
+
+export async function deleteDraftMediaSQLite(surveyId, number, type = null) {
+  const conn = await initSQLiteDB();
+  if (type) {
+    await conn.run(`DELETE FROM draft_media WHERE draft_key = ? AND type = ?`, [draftKeyOf(surveyId, number), type]);
+  } else {
+    await conn.run(`DELETE FROM draft_media WHERE draft_key = ?`, [draftKeyOf(surveyId, number)]);
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

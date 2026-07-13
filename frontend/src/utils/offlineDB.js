@@ -1,7 +1,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'survey-offline-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export async function getDB() {
   return openDB(DB_NAME, DB_VERSION, {
@@ -26,8 +26,23 @@ export async function getDB() {
         mediaStore.createIndex('localId', 'localId');
         mediaStore.createIndex('type', 'type');
       }
+      if (oldVersion < 3) {
+        // draft_media store: media (segmen audio, foto) untuk nomor kuesioner
+        // yang DI-PENDING agar tidak hilang saat ditunda/dilanjutkan.
+        // Kunci per nomor: draftKey = `${surveyId}__${number}`.
+        const draftMedia = db.createObjectStore('draft_media', {
+          keyPath: 'id',
+          autoIncrement: true,
+        });
+        draftMedia.createIndex('draftKey', 'draftKey');
+      }
     },
   });
+}
+
+/** Kunci draft media per nomor kuesioner. */
+function draftMediaKey(surveyId, number) {
+  return `${surveyId}__${number ?? ''}`;
 }
 
 // ─── Survey Cache ─────────────────────────────────────────────────────────────
@@ -134,6 +149,41 @@ export async function deleteMediaFilesByLocalId(localId) {
   const tx = db.transaction('media_files', 'readwrite');
   await Promise.all([
     ...files.map((f) => tx.store.delete(f.fileId)),
+    tx.done,
+  ]);
+}
+
+// ─── Draft Media (media nomor kuesioner yang di-pending) ──────────────────────
+
+export async function saveDraftMedia({ surveyId, number, type, blob, filename, seq = 0 }) {
+  const db = await getDB();
+  const id = await db.add('draft_media', {
+    draftKey: draftMediaKey(surveyId, number),
+    type,
+    blob,
+    filename,
+    seq,
+    savedAt: Date.now(),
+  });
+  return id;
+}
+
+export async function getDraftMedia(surveyId, number) {
+  const db = await getDB();
+  const items = await db.getAllFromIndex('draft_media', 'draftKey', draftMediaKey(surveyId, number));
+  // Urutkan per tipe lalu seq lalu id agar segmen audio berurutan.
+  return items.sort((a, b) =>
+    (a.type < b.type ? -1 : a.type > b.type ? 1 : 0) || (a.seq - b.seq) || (a.id - b.id)
+  );
+}
+
+/** Hapus draft media; bila `type` diberikan, hanya tipe itu. */
+export async function deleteDraftMedia(surveyId, number, type = null) {
+  const db = await getDB();
+  const items = await db.getAllFromIndex('draft_media', 'draftKey', draftMediaKey(surveyId, number));
+  const tx = db.transaction('draft_media', 'readwrite');
+  await Promise.all([
+    ...items.filter((it) => !type || it.type === type).map((it) => tx.store.delete(it.id)),
     tx.done,
   ]);
 }

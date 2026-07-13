@@ -66,6 +66,9 @@ vi.mock('../../../utils/storage', () => ({
   getCachedSurvey: vi.fn().mockResolvedValue(null),
   enqueueResponse: vi.fn().mockResolvedValue(1),
   saveMediaFile: vi.fn().mockResolvedValue(1),
+  saveDraftMedia: vi.fn().mockResolvedValue(1),
+  getDraftMedia: vi.fn().mockResolvedValue([]),
+  deleteDraftMedia: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock useAudioRecorder

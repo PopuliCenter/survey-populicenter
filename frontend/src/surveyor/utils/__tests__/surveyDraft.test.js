@@ -22,6 +22,19 @@ describe('surveyDraft (per-nomor)', () => {
     expect(d.totalSteps).toBe(10);
   });
 
+  it('menyimpan & memulihkan tanda tangan (signatureStrokes)', () => {
+    const strokes = [[{ x: 1, y: 2 }, { x: 3, y: 4 }], [{ x: 5, y: 6 }, { x: 7, y: 8 }]];
+    saveDraft('s1', '1', { answers: { q1: 'A' }, signatureStrokes: strokes });
+    const d = loadDraft('s1', '1');
+    expect(d.signatureStrokes).toEqual(strokes);
+  });
+
+  it('tanpa signatureStrokes → field tidak ada (tidak error)', () => {
+    saveDraft('s1', '1', { answers: { q1: 'A' } });
+    const d = loadDraft('s1', '1');
+    expect(d.signatureStrokes).toBeUndefined();
+  });
+
   it('nomor berbeda = draft berbeda (paralel, tak saling menimpa)', () => {
     saveDraft('s1', '1', { answers: { q1: 'A' }, currentStep: 2 });
     saveDraft('s1', '2', { answers: { q1: 'B' }, currentStep: 5 });

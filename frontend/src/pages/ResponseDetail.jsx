@@ -547,7 +547,11 @@ function ResponseDetail() {
             </div>
 
             {/* ── Media Attachments (Audio, Signature, Photos) ── */}
-            {(response.audio_path || response.signature_path || (response.photo_paths && response.photo_paths.length > 0)) && (() => {
+            {((response.audio_paths && response.audio_paths.length > 0) || response.audio_path || response.signature_path || (response.photo_paths && response.photo_paths.length > 0)) && (() => {
+              // Daftar segmen audio (banyak segmen bila nomor kuesioner sempat di-pending).
+              const audioList = (Array.isArray(response.audio_paths) && response.audio_paths.length > 0)
+                ? response.audio_paths
+                : (response.audio_path ? [response.audio_path] : []);
               // Helper untuk resolve URL media
               function mediaUrl(path) {
                 if (!path) return null;
@@ -563,14 +567,29 @@ function ResponseDetail() {
                 <div className="bg-white rounded-xl shadow p-6 space-y-5">
                   <h2 className="text-base font-semibold text-gray-700">Lampiran Media</h2>
 
-                  {/* Audio Recording */}
-                  {response.audio_path && (
+                  {/* Audio Recording — bisa lebih dari satu segmen (wawancara di-pending lalu dilanjutkan) */}
+                  {audioList.length > 0 && (
                     <div>
-                      <p className="text-sm font-medium text-gray-600 mb-2">🎙️ Rekaman Audio</p>
-                      <audio controls preload="metadata" className="w-full max-w-md" src={mediaUrl(response.audio_path)}>
-                        Browser Anda tidak mendukung pemutar audio.
-                      </audio>
-                      <p className="text-xs text-gray-400 mt-1">Klik play untuk mendengarkan rekaman wawancara</p>
+                      <p className="text-sm font-medium text-gray-600 mb-2">
+                        🎙️ Rekaman Audio{audioList.length > 1 ? ` (${audioList.length} bagian)` : ''}
+                      </p>
+                      <div className="space-y-2">
+                        {audioList.map((p, i) => (
+                          <div key={i}>
+                            {audioList.length > 1 && (
+                              <p className="text-xs text-gray-500 mb-0.5">Bagian {i + 1}</p>
+                            )}
+                            <audio controls preload="metadata" className="w-full max-w-md" src={mediaUrl(p)}>
+                              Browser Anda tidak mendukung pemutar audio.
+                            </audio>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {audioList.length > 1
+                          ? 'Rekaman terekam dalam beberapa bagian (diputar berurutan).'
+                          : 'Klik play untuk mendengarkan rekaman wawancara'}
+                      </p>
                     </div>
                   )}
 

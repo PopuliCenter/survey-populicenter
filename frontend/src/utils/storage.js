@@ -46,6 +46,9 @@ async function getStorage() {
       saveMediaFile: sqlite.saveMediaFileSQLite,
       getMediaFilesByLocalId: sqlite.getMediaFilesByLocalIdSQLite,
       deleteMediaFilesByLocalId: sqlite.deleteMediaFilesByLocalIdSQLite,
+      saveDraftMedia: sqlite.saveDraftMediaSQLite,
+      getDraftMedia: sqlite.getDraftMediaSQLite,
+      deleteDraftMedia: sqlite.deleteDraftMediaSQLite,
     };
   } else {
     // Web → IndexedDB (existing implementation)
@@ -64,6 +67,9 @@ async function getStorage() {
       saveMediaFile: idb.saveMediaFile,
       getMediaFilesByLocalId: idb.getMediaFilesByLocalId,
       deleteMediaFilesByLocalId: idb.deleteMediaFilesByLocalId,
+      saveDraftMedia: idb.saveDraftMedia,
+      getDraftMedia: idb.getDraftMedia,
+      deleteDraftMedia: idb.deleteDraftMedia,
     };
   }
 
@@ -135,4 +141,21 @@ export async function getMediaFilesByLocalId(localId) {
 export async function deleteMediaFilesByLocalId(localId) {
   const s = await getStorage();
   return s.deleteMediaFilesByLocalId(localId);
+}
+
+// ─── Draft Media (nomor kuesioner yang di-pending) ────────────────────────────
+
+export async function saveDraftMedia(params) {
+  const s = await getStorage();
+  return s.saveDraftMedia(params);
+}
+
+export async function getDraftMedia(surveyId, number) {
+  const s = await getStorage();
+  return s.getDraftMedia(surveyId, number);
+}
+
+export async function deleteDraftMedia(surveyId, number, type = null) {
+  const s = await getStorage();
+  return s.deleteDraftMedia(surveyId, number, type);
 }

@@ -30,11 +30,14 @@ async function collectMediaPaths(sequelize, responseIds) {
   // Postgres (65535) pada purge/cleanup survei besar.
   for (const ids of chunk(responseIds)) {
     const [resRows] = await sequelize.query(
-      `SELECT audio_path, signature_path, photo_paths FROM responses WHERE id IN (:ids)`,
+      `SELECT audio_path, audio_paths, signature_path, photo_paths FROM responses WHERE id IN (:ids)`,
       { replacements: { ids } }
     );
     for (const r of resRows) {
       if (r.audio_path) paths.add(r.audio_path);
+      if (Array.isArray(r.audio_paths)) {
+        for (const p of r.audio_paths) if (p) paths.add(p);
+      }
       if (r.signature_path) paths.add(r.signature_path);
       if (Array.isArray(r.photo_paths)) {
         for (const p of r.photo_paths) if (p) paths.add(p);
