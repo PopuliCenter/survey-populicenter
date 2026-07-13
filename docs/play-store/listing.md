@@ -43,11 +43,11 @@ PRIVASI & KEAMANAN
 • Seluruh pengiriman data menggunakan koneksi terenkripsi (HTTPS).
 • Akses dibatasi berdasarkan peran dengan autentikasi.
 • Izin lokasi hanya digunakan saat aplikasi aktif (tidak melacak di latar belakang).
-Baca Kebijakan Privasi: https://risetcenter.com/kebijakan-privasi.html
-Syarat & Ketentuan: https://risetcenter.com/syarat-ketentuan.html
+Baca Kebijakan Privasi: https://populicenter.com/kebijakan-privasi.html
+Syarat & Ketentuan: https://populicenter.com/syarat-ketentuan.html
 
 BANTUAN
-Pertanyaan Umum: https://risetcenter.com/pertanyaan-umum.html
+Pertanyaan Umum: https://populicenter.com/pertanyaan-umum.html
 Dukungan: info@populicenter.org · WhatsApp +62 812-9206-8362
 
 Populi Center — populicenter.org
@@ -62,7 +62,7 @@ Populi Center — populicenter.org
 | Email kontak | `info@populicenter.org` |
 | Telepon (opsional) | +62 812-9206-8362 |
 | Website | `https://populicenter.org` |
-| Privacy Policy URL | `https://risetcenter.com/kebijakan-privasi.html` |
+| Privacy Policy URL | `https://populicenter.com/kebijakan-privasi.html` |
 
 ## Aset grafis (siapkan file)
 | Aset | Spesifikasi | Catatan |

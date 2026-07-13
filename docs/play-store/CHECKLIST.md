@@ -10,8 +10,8 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 | Application ID | `com.populicenter.survey` |
 | Nama app | Populi Survey |
 | Versi AAB pertama | versionName **1.0.0** / versionCode **1** |
-| Privacy Policy | `https://risetcenter.com/kebijakan-privasi.html` |
-| Syarat & Ketentuan | `https://risetcenter.com/syarat-ketentuan.html` |
+| Privacy Policy | `https://populicenter.com/kebijakan-privasi.html` |
+| Syarat & Ketentuan | `https://populicenter.com/syarat-ketentuan.html` |
 | Dukungan | `info@populicenter.org` · WA +62 812-9206-8362 |
 | Kategori | Bisnis |
 
@@ -21,7 +21,7 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 - [ ] **Akun Google Play Developer** aktif (biaya $25 sekali). ➜ Daftar sebagai
       **Organisasi/Perusahaan** bila bisa → **lolos** syarat closed testing wajib
       (12 penguji × 14 hari) yang dikenakan ke akun pribadi baru.
-- [ ] **Web produksi live & stabil** (`risetcenter.com`) — reviewer benar-benar
+- [ ] **Web produksi live & stabil** (`populicenter.com`) — reviewer benar-benar
       menjalankan app terhadap server ini.
 - [ ] **Halaman legal live**: privasi, S&K, FAQ (sudah tayang + logo).
 - [ ] **AAB signed siap** — `app-release.aab` (v1.0.0 / code 1). ✔ selesai
@@ -46,7 +46,7 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 - [ ] **Kategori aplikasi**: Bisnis · Email kontak: `info@populicenter.org` · Website: `populicenter.org`.
 
 ## 3 · App content (kebijakan — paling sering bikin ditolak)
-- [ ] **Privacy policy** → `https://risetcenter.com/kebijakan-privasi.html`.
+- [ ] **Privacy policy** → `https://populicenter.com/kebijakan-privasi.html`.
 - [ ] **App access** → "All or some functionality is restricted" → tambah akun demo
       reviewer + instruksi login. ➜ [reviewer-access.md](reviewer-access.md) §2.
 - [ ] **Ads**: pilih **Tidak ada iklan** (app ini tak beriklan).

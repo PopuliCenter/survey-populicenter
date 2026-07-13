@@ -3,4 +3,4 @@
  * via nginx). Satu sumber kebenaran agar tidak drift antar-klien api.
  * Override saat build via env VITE_API_URL bila perlu.
  */
-export const PRODUCTION_SERVER = 'https://risetcenter.com';
+export const PRODUCTION_SERVER = 'https://populicenter.com';

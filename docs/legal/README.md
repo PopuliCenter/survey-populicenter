@@ -1,7 +1,7 @@
 # Halaman Legal — Populi Survey
 
 Konten **Kebijakan Privasi** & **Syarat & Ketentuan** siap-tempel untuk dipasang
-di website (populicenter.org / risetcenter.com) dan dirujuk oleh aplikasi Android
+di website (populicenter.org / populicenter.com) dan dirujuk oleh aplikasi Android
 saat rilis ke Play Store.
 
 | File | Halaman |

@@ -5,7 +5,7 @@ Karena itu, reviewer Google **tidak bisa masuk sendiri** → Anda WAJIB memberi
 **akun demo** di Play Console, atau app **ditolak**.
 
 ## 1. Buat akun TPD demo (di sistem Anda)
-Lewat dashboard admin (risetcenter.com), buat satu akun surveyor khusus review:
+Lewat dashboard admin (populicenter.com), buat satu akun surveyor khusus review:
 
 | Field | Contoh |
 |-------|--------|
@@ -42,11 +42,11 @@ nyatakan metode penghapusan data:
 ```
 Permintaan penghapusan akun/data diajukan melalui dukungan:
 Email info@populicenter.org atau WhatsApp +62 812-9206-8362.
-Lihat Kebijakan Privasi: https://risetcenter.com/kebijakan-privasi.html
+Lihat Kebijakan Privasi: https://populicenter.com/kebijakan-privasi.html
 ```
 
 ## 4. Tips lolos review
-- Pastikan server (risetcenter.com) **online & stabil** selama review — reviewer
+- Pastikan server (populicenter.com) **online & stabil** selama review — reviewer
   benar-benar menjalankan app.
 - Jangan kunci akun demo dengan OTP/perangkat-terikat.
 - Bila ada rate-limit login, pastikan tidak memblok percobaan wajar reviewer.

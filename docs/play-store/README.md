@@ -21,7 +21,7 @@ Checklist & berkas pendukung untuk menerbitkan aplikasi ke Google Play (publik).
 - Signing config (template `keystore.properties` + gitignore)
 - Hardening: `allowBackup=false`, rilis nol-cleartext, R8 keep-rules, izin foreground
 - Tampilan versi (layar Login)
-- Kebijakan Privasi, S&K, FAQ, kontak dukungan (tayang di risetcenter.com)
+- Kebijakan Privasi, S&K, FAQ, kontak dukungan (tayang di populicenter.com)
 
 ### ⬜ Play Console / operasional
 **Wajib (paling sering bikin ditolak):**
@@ -30,7 +30,7 @@ Checklist & berkas pendukung untuk menerbitkan aplikasi ke Google Play (publik).
       12 penguji × 14 hari sebelum production. **Akun organisasi/perusahaan tidak
       kena syarat ini** → disarankan daftar sebagai organisasi.
 - [ ] **Data Safety** → lihat `data-safety.md`
-- [ ] **Privacy Policy URL**: `https://risetcenter.com/kebijakan-privasi.html`
+- [ ] **Privacy Policy URL**: `https://populicenter.com/kebijakan-privasi.html`
 - [ ] **Content rating** (kuesioner) + **Target audience** = dewasa
 
 **Store listing:**

@@ -11,17 +11,17 @@
  * dukungan/admin di bawah ini.
  */
 
-// Halaman Kebijakan Privasi — dilayani langsung oleh risetcenter.com
+// Halaman Kebijakan Privasi — dilayani langsung oleh populicenter.com
 // (file statis: frontend/public/kebijakan-privasi.html).
-export const PRIVACY_POLICY_URL = 'https://risetcenter.com/kebijakan-privasi.html';
+export const PRIVACY_POLICY_URL = 'https://populicenter.com/kebijakan-privasi.html';
 
-// Halaman Syarat & Ketentuan — dilayani langsung oleh risetcenter.com
+// Halaman Syarat & Ketentuan — dilayani langsung oleh populicenter.com
 // (file statis: frontend/public/syarat-ketentuan.html).
-export const TERMS_URL = 'https://risetcenter.com/syarat-ketentuan.html';
+export const TERMS_URL = 'https://populicenter.com/syarat-ketentuan.html';
 
-// Halaman Pertanyaan Umum / FAQ — dilayani langsung oleh risetcenter.com
+// Halaman Pertanyaan Umum / FAQ — dilayani langsung oleh populicenter.com
 // (file statis: frontend/public/pertanyaan-umum.html).
-export const FAQ_URL = 'https://risetcenter.com/pertanyaan-umum.html';
+export const FAQ_URL = 'https://populicenter.com/pertanyaan-umum.html';
 
 // Email dukungan.
 export const SUPPORT_EMAIL = 'info@populicenter.org';

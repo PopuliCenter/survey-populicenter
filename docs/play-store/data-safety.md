@@ -9,7 +9,7 @@ responden, plus data akun petugas.
 - **Apakah semua data dienkripsi saat transit?** → **Ya** (HTTPS/TLS)
 - **Apakah pengguna bisa minta data dihapus?** → **Ya**, via kontak dukungan
   (`info@populicenter.org` / WhatsApp +62 812-9206-8362). URL kebijakan:
-  `https://risetcenter.com/kebijakan-privasi.html`
+  `https://populicenter.com/kebijakan-privasi.html`
 
 ## Jenis data yang dikumpulkan
 Untuk tiap data: **Dikumpulkan = Ya**, **Dibagikan = Tidak** (kecuali disebut),
