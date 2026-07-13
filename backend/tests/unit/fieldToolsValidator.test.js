@@ -15,6 +15,7 @@ describe('fieldToolsValidator', () => {
         audio_mode: 'required',
         photo_mode: 'required',
         gps_mode: 'required',
+        audio_indicator: 'shown',
       });
     });
 
@@ -93,6 +94,28 @@ describe('fieldToolsValidator', () => {
       });
       expect(result.valid).toBe(false);
       expect(result.error).toContain('Nilai field tool mode tidak valid');
+    });
+
+    const baseModes = {
+      signature_mode: 'required',
+      audio_mode: 'required',
+      photo_mode: 'required',
+      gps_mode: 'required',
+    };
+
+    it('menerima audio_indicator "shown" / "hidden"', () => {
+      expect(validateFieldToolsSettings({ ...baseModes, audio_indicator: 'shown' })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({ ...baseModes, audio_indicator: 'hidden' })).toEqual({ valid: true });
+    });
+
+    it('kompatibel mundur: valid tanpa audio_indicator', () => {
+      expect(validateFieldToolsSettings({ ...baseModes })).toEqual({ valid: true });
+    });
+
+    it('menolak nilai audio_indicator tak dikenal', () => {
+      const result = validateFieldToolsSettings({ ...baseModes, audio_indicator: 'maybe' });
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('audio_indicator');
     });
   });
 

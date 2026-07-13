@@ -3,6 +3,13 @@
 const VALID_MODES = ['required', 'optional', 'disabled'];
 const REQUIRED_PROPERTIES = ['signature_mode', 'audio_mode', 'photo_mode', 'gps_mode'];
 
+// Properti OPSIONAL (kompatibel mundur — survei lama tanpa properti ini valid).
+// audio_indicator: apakah indikator rekaman ditampilkan di perangkat TPD.
+const OPTIONAL_ENUMS = {
+  audio_indicator: ['shown', 'hidden'],
+};
+const ALLOWED_PROPERTIES = [...REQUIRED_PROPERTIES, ...Object.keys(OPTIONAL_ENUMS)];
+
 /**
  * Mengembalikan default field_tools_settings.
  * @returns {object}
@@ -13,6 +20,7 @@ function getDefaultFieldToolsSettings() {
     audio_mode: 'required',
     photo_mode: 'required',
     gps_mode: 'required',
+    audio_indicator: 'shown',
   };
 }
 
@@ -31,7 +39,7 @@ function validateFieldToolsSettings(settings) {
 
   const keys = Object.keys(settings);
   const hasAllRequired = REQUIRED_PROPERTIES.every((prop) => keys.includes(prop));
-  const hasExtraProps = keys.some((key) => !REQUIRED_PROPERTIES.includes(key));
+  const hasExtraProps = keys.some((key) => !ALLOWED_PROPERTIES.includes(key));
 
   if (!hasAllRequired || hasExtraProps) {
     return {
@@ -45,6 +53,16 @@ function validateFieldToolsSettings(settings) {
       return {
         valid: false,
         error: 'Nilai field tool mode tidak valid. Gunakan: required, optional, atau disabled',
+      };
+    }
+  }
+
+  // Validasi properti opsional bila ada.
+  for (const [prop, allowed] of Object.entries(OPTIONAL_ENUMS)) {
+    if (settings[prop] !== undefined && !allowed.includes(settings[prop])) {
+      return {
+        valid: false,
+        error: `Nilai ${prop} tidak valid. Gunakan: ${allowed.join(', ')}`,
       };
     }
   }

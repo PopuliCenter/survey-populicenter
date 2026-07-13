@@ -57,6 +57,9 @@ module.exports = (sequelize) => {
         isValidFieldToolsSettings(value) {
           const requiredProperties = ['signature_mode', 'audio_mode', 'photo_mode', 'gps_mode'];
           const validModes = ['required', 'optional', 'disabled'];
+          // Properti opsional (kompatibel mundur).
+          const optionalEnums = { audio_indicator: ['shown', 'hidden'] };
+          const allowedProperties = [...requiredProperties, ...Object.keys(optionalEnums)];
 
           if (!value || typeof value !== 'object') {
             throw new Error('Field tools settings harus memiliki properti: signature_mode, audio_mode, photo_mode, gps_mode');
@@ -64,7 +67,7 @@ module.exports = (sequelize) => {
 
           const keys = Object.keys(value);
           const hasAllRequired = requiredProperties.every((prop) => keys.includes(prop));
-          const hasExtraProps = keys.some((key) => !requiredProperties.includes(key));
+          const hasExtraProps = keys.some((key) => !allowedProperties.includes(key));
 
           if (!hasAllRequired || hasExtraProps) {
             throw new Error('Field tools settings harus memiliki properti: signature_mode, audio_mode, photo_mode, gps_mode');
@@ -73,6 +76,12 @@ module.exports = (sequelize) => {
           for (const prop of requiredProperties) {
             if (!validModes.includes(value[prop])) {
               throw new Error('Nilai field tool mode tidak valid. Gunakan: required, optional, atau disabled');
+            }
+          }
+
+          for (const [prop, allowed] of Object.entries(optionalEnums)) {
+            if (value[prop] !== undefined && !allowed.includes(value[prop])) {
+              throw new Error(`Nilai ${prop} tidak valid. Gunakan: ${allowed.join(', ')}`);
             }
           }
         },

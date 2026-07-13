@@ -36,6 +36,7 @@ const DEFAULT_FIELD_TOOLS_SETTINGS = {
   audio_mode: 'required',
   photo_mode: 'required',
   gps_mode: 'required',
+  audio_indicator: 'shown', // 'shown' | 'hidden' — tampilkan indikator rekaman di perangkat TPD
 };
 
 const FIELD_TOOLS = [
@@ -702,6 +703,36 @@ function FieldToolsSettingsSection({ settings, onChange }) {
             </div>
           </div>
         ))}
+
+        {/* Indikator rekaman audio — opsi tampil/sembunyi (bukan mode wajib) */}
+        {settings.audio_mode !== 'disabled' && (
+          <div className="flex items-center gap-6 flex-wrap pt-3 border-t border-gray-100">
+            <span className="text-sm text-gray-700 w-36 shrink-0">Indikator Rekaman</span>
+            <div className="flex items-center gap-4 flex-wrap">
+              {[{ value: 'shown', label: 'Tampil' }, { value: 'hidden', label: 'Sembunyi' }].map(({ value, label: optLabel }) => (
+                <label
+                  key={value}
+                  htmlFor={`audio_indicator_${value}`}
+                  className="inline-flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    id={`audio_indicator_${value}`}
+                    name="audio_indicator"
+                    value={value}
+                    checked={(settings.audio_indicator || 'shown') === value}
+                    onChange={() => onChange('audio_indicator', value)}
+                    className="accent-primary-600 focus:ring-2 focus:ring-primary-400"
+                  />
+                  {optLabel}
+                </label>
+              ))}
+            </div>
+            <span className="text-xs text-gray-400 basis-full">
+              Tampilkan saat uji coba; sembunyikan saat survei berlangsung (berlaku di web &amp; Android). Rekaman tetap berjalan.
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

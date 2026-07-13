@@ -46,6 +46,7 @@ const DEFAULT_FIELD_TOOLS = {
   audio_mode: 'required',
   photo_mode: 'required',
   gps_mode: 'required',
+  audio_indicator: 'shown',
 };
 
 // ─── Draft autosave ───────────────────────────────────────────────────────────
@@ -2194,9 +2195,10 @@ function SurveyForm() {
         <div className="max-w-2xl mx-auto px-screen pb-2">
           {fieldToolsSettings.audio_mode !== 'disabled' && (
             <div>
-              {/* Di perangkat TPD (native) indikator rekaman disembunyikan —
-                  rekaman tetap berjalan otomatis. Di web (uji/admin) tetap tampil. */}
-              {!isNativePlatform() && (
+              {/* Indikator rekaman diatur admin per survei (audio_indicator).
+                  'hidden' → tak tampil sama sekali di web & Android; rekaman
+                  tetap berjalan otomatis. 'shown' → tampil (mis. saat uji). */}
+              {fieldToolsSettings.audio_indicator !== 'hidden' && (
                 <div className="flex items-center gap-1 mb-1">
                   <span className="text-xs font-medium text-gray-600">Rekaman Audio</span>
                   <FieldToolModeLabel mode={fieldToolsSettings.audio_mode} />
@@ -2205,7 +2207,7 @@ function SurveyForm() {
               <AudioRecorderPanel
                 audioRecorder={audioRecorder}
                 hideControlsDefault={isNativePlatform()}
-                hideIndicator={isNativePlatform()}
+                hideIndicator={fieldToolsSettings.audio_indicator === 'hidden'}
               />
             </div>
           )}
