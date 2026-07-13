@@ -206,6 +206,10 @@ function Responses() {
     return arr;
   })();
 
+  // QC: jumlah baris pada halaman ini yang jenis kelaminnya tak sesuai paritas
+  // nomor kuesioner (dihitung server-side sebagai gender_parity_mismatch).
+  const parityFlaggedCount = sortedResponses.filter((r) => r.gender_parity_mismatch === true).length;
+
   // Inline SVG sort indicator (ascending/descending chevron).
   function SortIcon({ active, dir }) {
     if (!active) {
@@ -469,6 +473,23 @@ function Responses() {
           </form>
         </div>
 
+        {/* QC banner: ketidaksesuaian jenis kelamin vs paritas nomor kuesioner */}
+        {!loading && !fetchError && parityFlaggedCount > 0 && (
+          <div
+            className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            role="alert"
+          >
+            <svg className="w-5 h-5 shrink-0 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" />
+            </svg>
+            <span>
+              <strong>{parityFlaggedCount}</strong> baris pada halaman ini ditandai:
+              jenis kelamin <strong>tidak sesuai</strong> paritas nomor kuesioner
+              (ganjil = Laki-laki, genap = Perempuan). Periksa &amp; verifikasi lewat "Lihat Detail".
+            </span>
+          </div>
+        )}
+
         {/* Table card */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
           {appliedFilters === null ? (
@@ -543,11 +564,26 @@ function Responses() {
                   {sortedResponses.map((response) => (
                     <tr
                       key={response.id}
-                      className="hover:bg-gray-50 transition-colors"
+                      className={`transition-colors ${
+                        response.gender_parity_mismatch === true ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'
+                      }`}
                     >
                       {/* Questionnaire Number */}
                       <td className="px-5 py-3 font-mono text-xs text-gray-700 whitespace-nowrap">
-                        {response.questionnaire_number || '—'}
+                        <span className="inline-flex items-center gap-1.5">
+                          {response.questionnaire_number || '—'}
+                          {response.gender_parity_mismatch === true && (
+                            <span
+                              title="Jenis kelamin tidak sesuai paritas nomor kuesioner (ganjil = Laki-laki, genap = Perempuan)"
+                              className="inline-flex items-center gap-0.5 rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-semibold"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" />
+                              </svg>
+                              JK
+                            </span>
+                          )}
+                        </span>
                       </td>
 
                       {/* TPD Name */}

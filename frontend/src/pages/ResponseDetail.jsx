@@ -283,6 +283,36 @@ function AnswerCard({ answer, index, mediaToken }) {
  *
  * Requirements: 11.1, 11.7, 13.5, 15.5, 15.7, 16.6
  */
+/**
+ * QC: periksa apakah jawaban jenis kelamin sesuai paritas nomor kuesioner.
+ * @param {Array} answers - daftar jawaban dari detail responden
+ * @returns {{ mismatch: boolean, expectedLabel: string, actualLabel: string } | null}
+ *   null bila tak dapat dinilai (tak ada pertanyaan paritas / nomor bukan angka /
+ *   jenis kelamin belum dijawab).
+ */
+function genderParityCheck(answers) {
+  if (!Array.isArray(answers)) return null;
+  const uniq = answers.find((a) => a.question_type === 'unique_id');
+  const gender = answers.find(
+    (a) => a.question_type === 'single_choice' &&
+      a.question_auto_fill && a.question_auto_fill.source === 'questionnaire_number_parity'
+  );
+  if (!uniq || !gender) return null;
+  const s = String(uniq.answer_value == null ? '' : uniq.answer_value).trim();
+  if (!/^\d+$/.test(s)) return null;
+  const g = gender.answer_value == null ? '' : String(gender.answer_value);
+  if (g === '') return null;
+  const expected = parseInt(s, 10) % 2 === 0
+    ? gender.question_auto_fill.even_value
+    : gender.question_auto_fill.odd_value;
+  const opts = Array.isArray(gender.question_options) ? gender.question_options : [];
+  const labelFor = (v) => {
+    const o = opts.find((x) => x.value === v);
+    return o ? (o.label || o.value) : v;
+  };
+  return { mismatch: g !== expected, expectedLabel: labelFor(expected), actualLabel: labelFor(g) };
+}
+
 function ResponseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -415,6 +445,28 @@ function ResponseDetail() {
                 </p>
               )}
             </div>
+
+            {/* QC: jenis kelamin tak sesuai paritas nomor kuesioner */}
+            {(() => {
+              const parity = genderParityCheck(response.answers);
+              if (!parity || !parity.mismatch) return null;
+              return (
+                <div
+                  className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                  role="alert"
+                >
+                  <svg className="w-5 h-5 shrink-0 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" />
+                  </svg>
+                  <span>
+                    <strong>Perlu verifikasi:</strong> jenis kelamin terisi{' '}
+                    <strong>{parity.actualLabel}</strong>, padahal paritas nomor kuesioner
+                    mengharapkan <strong>{parity.expectedLabel}</strong> (ganjil = Laki-laki,
+                    genap = Perempuan).
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Metadata card */}
             <div className="bg-white rounded-xl shadow p-6">

@@ -5,6 +5,7 @@ const { Response, Answer, Question, Survey, User, SurveyorQuota, Sequelize, sequ
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { createAuditLog } = require('../middleware/auditLog');
 const { validateAllAnswers } = require('../utils/answerValidator');
+const { isGenderParityMismatch } = require('../utils/genderParity');
 const { validateDateFormat, validateTimeFormat, validateDateAnswer, validateMatrixAnswer } = require('../utils/validators');
 const { validateFieldToolsSubmission } = require('../utils/fieldToolsValidator');
 const { incrementResponseStats, markStatsDirty } = require('../utils/statisticsUpdater');
@@ -740,6 +741,50 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
     res.set('X-Page', String(page));
     res.set('X-Page-Size', String(pageSize));
 
+    // ── QC: tandai jenis kelamin yang tak sesuai paritas nomor kuesioner ──────
+    // Dihitung per halaman (maks pageSize baris) dan hanya untuk survei yang
+    // memiliki pertanyaan unique_id + single_choice ber-auto_fill paritas.
+    const parityBySurvey = {}; // survey_id -> { uniqueQId, genderQId, autoFill }
+    const answersByResponse = {}; // response_id -> { [question_id]: answer_value }
+    const pageSurveyIds = [...new Set(responses.map((r) => r.survey_id))];
+    if (pageSurveyIds.length > 0) {
+      const parityQuestions = (await Question.findAll({
+        where: { survey_id: { [Op.in]: pageSurveyIds }, type: { [Op.in]: ['unique_id', 'single_choice'] } },
+        attributes: ['id', 'survey_id', 'type', 'auto_fill'],
+        raw: true,
+      })) || [];
+      const bySurvey = {};
+      for (const q of parityQuestions) {
+        const e = bySurvey[q.survey_id] || (bySurvey[q.survey_id] = { uniqueQId: null, genderQId: null, autoFill: null });
+        if (q.type === 'unique_id' && !e.uniqueQId) e.uniqueQId = q.id;
+        if (q.type === 'single_choice' && q.auto_fill &&
+            q.auto_fill.source === 'questionnaire_number_parity' && !e.genderQId) {
+          e.genderQId = q.id;
+          e.autoFill = q.auto_fill;
+        }
+      }
+      for (const [sid, e] of Object.entries(bySurvey)) {
+        if (e.uniqueQId && e.genderQId) parityBySurvey[sid] = e;
+      }
+
+      const relevantResponseIds = responses
+        .filter((r) => parityBySurvey[r.survey_id])
+        .map((r) => r.id);
+      if (relevantResponseIds.length > 0) {
+        const qIds = [];
+        for (const e of Object.values(parityBySurvey)) qIds.push(e.uniqueQId, e.genderQId);
+        const parityAnswers = (await Answer.findAll({
+          where: { response_id: { [Op.in]: relevantResponseIds }, question_id: { [Op.in]: qIds } },
+          attributes: ['response_id', 'question_id', 'answer_value'],
+          raw: true,
+        })) || [];
+        for (const a of parityAnswers) {
+          const rec = answersByResponse[a.response_id] || (answersByResponse[a.response_id] = {});
+          rec[a.question_id] = a.answer_value;
+        }
+      }
+    }
+
     const result = responses.map((r) => {
       const item = {
         id: r.id,
@@ -754,6 +799,16 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
         geo_status: r.geo_status,
         created_at: r.created_at,
       };
+
+      // QC: null = tak dapat dinilai; true = tak sesuai paritas; false = sesuai.
+      const parity = parityBySurvey[r.survey_id];
+      item.gender_parity_mismatch = parity
+        ? isGenderParityMismatch(
+            (answersByResponse[r.id] || {})[parity.uniqueQId],
+            (answersByResponse[r.id] || {})[parity.genderQId],
+            parity.autoFill
+          )
+        : null;
 
       if (!isSurveyor) {
         item.review_status = r.review_status;
@@ -836,7 +891,7 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
           {
             model: Question,
             as: 'question',
-            attributes: ['id', 'text', 'type', 'order_index', 'options'],
+            attributes: ['id', 'text', 'type', 'order_index', 'options', 'auto_fill'],
           },
         ],
       },
@@ -892,6 +947,7 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
         question_type: a.question ? a.question.type : null,
         question_order: a.question ? a.question.order_index : null,
         question_options: a.question ? a.question.options : null,
+        question_auto_fill: a.question ? a.question.auto_fill : null,
       })),
     };
 
