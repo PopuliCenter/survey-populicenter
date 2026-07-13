@@ -1124,6 +1124,10 @@ function SurveyForm() {
   const preselectedNumberRef = useRef(location.state?.preselectedNumber ?? null);
   // Penanda agar lompatan langkah hanya dilakukan sekali.
   const preselectJumpedRef = useRef(false);
+  // Nomor kuesioner untuk identitas draft (per-nomor). draftNumberRef dipakai
+  // saat clear (submit/discard); prevDraftNumberRef untuk re-key bila berubah.
+  const draftNumberRef = useRef('');
+  const prevDraftNumberRef = useRef('');
 
   /**
    * Terapkan nomor kuesioner terpilih ke jawaban pertanyaan unique_id (jika ada).
@@ -1225,6 +1229,10 @@ function SurveyForm() {
     [questions]
   );
   const currentQuestionnaireNumber = uniqueIdQuestion ? (answers[uniqueIdQuestion.id] || '') : '';
+  // Jaga ref tetap terkini untuk clearDraft di handler (submit/discard).
+  useEffect(() => {
+    draftNumberRef.current = String(currentQuestionnaireNumber || '');
+  }, [currentQuestionnaireNumber]);
 
   // Jika TPD memilih nomor dari Daftar Survei, lompat ke pertanyaan SETELAH
   // pertanyaan nomor kuesioner (sekali saja, setelah daftar pertanyaan siap).
@@ -1828,7 +1836,7 @@ function SurveyForm() {
         await Promise.all(offlineMediaSaves);
 
         // Sukses tersimpan ke antrian — hapus draft.
-        clearDraft(id);
+        clearDraft(id, draftNumberRef.current);
 
         // Navigate to success page with offline flag
         navigate(`/surveyor/survey/${id}/success`, {
@@ -1931,7 +1939,7 @@ function SurveyForm() {
       const { questionnaire_number } = res.data;
 
       // Sukses terkirim — hapus draft.
-      clearDraft(id);
+      clearDraft(id, draftNumberRef.current);
 
       // 6. Navigate to success page (Requirement 13.3)
       navigate(`/surveyor/survey/${id}/success`, {
@@ -2004,7 +2012,7 @@ function SurveyForm() {
     if (hasUnsavedContent()) {
       setShowExitConfirm(true);
     } else {
-      clearDraft(id);
+      clearDraft(id, draftNumberRef.current);
       navigate('/surveyor');
     }
   }, [hasUnsavedContent, id, navigate]);
@@ -2017,7 +2025,7 @@ function SurveyForm() {
 
   // Hapus draft & mulai dari awal (dipicu dari banner "Draft dipulihkan").
   const handleDiscardDraft = useCallback(() => {
-    clearDraft(id);
+    clearDraft(id, draftNumberRef.current);
     setAnswers(applyPreselectedNumber(questions, buildEmptyAnswers(questions)));
     setDraftRestored(false);
   }, [id, questions]);
@@ -2047,7 +2055,10 @@ function SurveyForm() {
     if (draftRestoredRef.current) return;
     if (loading || questions.length === 0) return;
     draftRestoredRef.current = true;
-    const draft = loadDraft(id);
+    // Nomor saat form dibuka (dari Daftar Survei) menentukan draft mana dipulihkan.
+    const entryNumber = preselectedNumberRef.current != null ? String(preselectedNumberRef.current) : '';
+    prevDraftNumberRef.current = entryNumber;
+    const draft = loadDraft(id, entryNumber);
     if (draft && answersHaveContent(draft.answers)) {
       setAnswers((prev) => ({ ...prev, ...draft.answers }));
       // Pulihkan posisi pertanyaan terakhir (fitur "Lanjut" dari daftar).
@@ -2059,18 +2070,24 @@ function SurveyForm() {
     }
   }, [loading, questions.length, id, visibleQuestions.length]);
 
-  // Simpan draft (debounced) saat jawaban / posisi berubah; hapus bila kosong.
+  // Simpan draft (debounced) per NOMOR saat jawaban / posisi berubah.
   useEffect(() => {
     if (loading || questions.length === 0 || !draftRestoredRef.current) return;
+    const num = String(currentQuestionnaireNumber || '');
     const t = setTimeout(() => {
+      // Nomor berubah (mis. baru diisi) → pindah slot, bersihkan slot lama.
+      if (prevDraftNumberRef.current !== num) {
+        clearDraft(id, prevDraftNumberRef.current);
+        prevDraftNumberRef.current = num;
+      }
       if (answersHaveContent(answers)) {
-        saveDraft(id, { answers, currentStep, totalSteps: visibleQuestions.length });
+        saveDraft(id, num, { answers, currentStep, totalSteps: visibleQuestions.length });
       } else {
-        clearDraft(id);
+        clearDraft(id, num);
       }
     }, 600);
     return () => clearTimeout(t);
-  }, [answers, currentStep, visibleQuestions.length, loading, questions.length, id]);
+  }, [answers, currentStep, visibleQuestions.length, currentQuestionnaireNumber, loading, questions.length, id]);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 

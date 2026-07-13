@@ -1,20 +1,24 @@
 /**
- * surveyDraft.js — draft jawaban survei (localStorage).
+ * surveyDraft.js — draft jawaban survei (localStorage), PER NOMOR KUESIONER.
  *
- * Dipakai bersama oleh SurveyForm (tulis & pulihkan) dan SurveyList (tampilkan
- * progres "sedang dikerjakan" + tombol Lanjut). Satu draft per survei:
- *   { answers, currentStep, totalSteps, savedAt }
- * Media (audio/foto/tanda tangan) TIDAK ikut. Draft dihapus setelah submit
- * berhasil atau saat pengguna menekan "Mulai Baru".
+ * Dipakai bersama SurveyForm (tulis & pulihkan) dan SurveyList (tampilkan
+ * progres "sedang dikerjakan" + Lanjut). Kunci: `survey_draft_<surveyId>__<num>`
+ * sehingga BANYAK nomor bisa ditunda paralel — TPD bisa menunda No. 1 dan
+ * lanjut mengerjakan No. 2, lalu meneruskan No. 1 kapan saja.
+ *
+ * Isi tiap draft: { answers, currentStep, totalSteps, savedAt }.
+ * `num` adalah nomor kuesioner (string). Slot tanpa nomor memakai '' (draft
+ * "scratch" saat nomor belum diisi). Media (audio/foto/ttd) TIDAK ikut. Draft
+ * dihapus setelah submit berhasil atau "Mulai Baru".
  */
 
 const DRAFT_PREFIX = 'survey_draft_';
+const SEP = '__';
 
-export function draftKey(surveyId) {
-  return `${DRAFT_PREFIX}${surveyId}`;
+export function draftKey(surveyId, number) {
+  return `${DRAFT_PREFIX}${surveyId}${SEP}${number ?? ''}`;
 }
 
-/** Apakah sebuah nilai jawaban berisi konten bermakna. */
 function valueHasContent(v) {
   if (v == null) return false;
   if (typeof v === 'string') return v.trim() !== '';
@@ -34,11 +38,12 @@ export function countAnswered(answers) {
 }
 
 /**
- * Simpan draft.
+ * Simpan draft untuk satu nomor kuesioner.
  * @param {string} surveyId
+ * @param {string|number} number - nomor kuesioner ('' bila belum ada)
  * @param {{ answers: object, currentStep?: number, totalSteps?: number }} data
  */
-export function saveDraft(surveyId, data) {
+export function saveDraft(surveyId, number, data) {
   try {
     const payload = {
       answers: data.answers || {},
@@ -46,29 +51,54 @@ export function saveDraft(surveyId, data) {
       totalSteps: Number.isInteger(data.totalSteps) ? data.totalSteps : 0,
       savedAt: Date.now(),
     };
-    localStorage.setItem(draftKey(surveyId), JSON.stringify(payload));
+    localStorage.setItem(draftKey(surveyId, number), JSON.stringify(payload));
   } catch { /* storage penuh / tidak tersedia — abaikan */ }
 }
 
-export function loadDraft(surveyId) {
+export function loadDraft(surveyId, number) {
   try {
-    const raw = localStorage.getItem(draftKey(surveyId));
+    const raw = localStorage.getItem(draftKey(surveyId, number));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return parsed && parsed.answers ? parsed : null;
   } catch { return null; }
 }
 
-export function clearDraft(surveyId) {
-  try { localStorage.removeItem(draftKey(surveyId)); } catch { /* abaikan */ }
+export function clearDraft(surveyId, number) {
+  try { localStorage.removeItem(draftKey(surveyId, number)); } catch { /* abaikan */ }
 }
 
-/** Baca draft (yang berisi konten) untuk banyak survei → { [surveyId]: draft }. */
-export function loadAllDrafts(surveyIds) {
+/**
+ * Semua draft (berisi konten) untuk satu survei.
+ * @returns {Array<{ number: string, answers, currentStep, totalSteps, savedAt }>}
+ */
+export function loadDraftsForSurvey(surveyId) {
+  const out = [];
+  const prefix = `${DRAFT_PREFIX}${surveyId}${SEP}`;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      const number = key.slice(prefix.length);
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        const d = JSON.parse(raw);
+        if (d && answersHaveContent(d.answers)) {
+          out.push({ number, answers: d.answers, currentStep: d.currentStep || 0, totalSteps: d.totalSteps || 0, savedAt: d.savedAt || 0 });
+        }
+      } catch { /* entri rusak — lewati */ }
+    }
+  } catch { /* localStorage tak tersedia */ }
+  return out;
+}
+
+/** Draft untuk banyak survei → { [surveyId]: Array<draft> } (hanya yang ada). */
+export function loadAllDraftsBySurvey(surveyIds) {
   const map = {};
   for (const id of surveyIds || []) {
-    const d = loadDraft(id);
-    if (d && answersHaveContent(d.answers)) map[id] = d;
+    const arr = loadDraftsForSurvey(id);
+    if (arr.length) map[id] = arr;
   }
   return map;
 }

@@ -10,7 +10,7 @@ import { addBackButtonListener, addResumeListener } from '../../utils/capacitorB
 import { diffSurveyAvailability, toSurveyStubs } from '../../utils/surveyNotify';
 import { toastInfo, toastWarning } from '../../utils/toastBus';
 import { clearSentryUser } from '../../config/sentry';
-import { loadAllDrafts, countAnswered } from '../utils/surveyDraft';
+import { loadAllDraftsBySurvey } from '../utils/surveyDraft';
 
 const LAST_SEEN_SURVEYS_KEY = 'tpd:lastSeenSurveys';
 
@@ -121,10 +121,10 @@ function SurveyList() {
   // ─── Map surveyId → id pertanyaan unique_id (untuk membaca nomor dari antrian) ─
   const [uniqueQidMap, setUniqueQidMap] = useState({});
 
-  // Draft "sedang dikerjakan" per survei (dibaca dari localStorage).
+  // Draft "sedang dikerjakan" per survei — { surveyId: [ {number, currentStep, ...} ] }.
   const [drafts, setDrafts] = useState({});
   const refreshDrafts = useCallback(() => {
-    setDrafts(loadAllDrafts(surveys.map((s) => s.id)));
+    setDrafts(loadAllDraftsBySurvey(surveys.map((s) => s.id)));
   }, [surveys]);
   useEffect(() => { refreshDrafts(); }, [refreshDrafts]);
 
@@ -578,19 +578,19 @@ function SurveyList() {
               const failedSet = offlineInfo.failed;
 
               // Draft "sedang dikerjakan" (belum dikirim/antre) untuk survei ini.
-              const draft = drafts[survey.id] || null;
-              const uniqueQid = uniqueQidMap[survey.id];
-              const draftAnsMap = draft?.answers || null;
-              let draftNumber = null;
-              if (draftAnsMap && uniqueQid && draftAnsMap[uniqueQid] != null && String(draftAnsMap[uniqueQid]).trim() !== '') {
-                const dn = String(draftAnsMap[uniqueQid]).trim();
-                // Hanya tandai draft bila nomornya belum terkirim/antre/gagal.
-                if (!submittedSet.has(dn) && !pendingSet.has(dn) && !failedSet.has(dn)) draftNumber = dn;
+              // Bisa BANYAK — tiap nomor kuesioner punya draft sendiri.
+              const surveyDraftList = (drafts[survey.id] || []).filter((d) => {
+                const n = String(d.number || '');
+                if (n === '') return true; // draft tanpa nomor → tampil di banner
+                return !submittedSet.has(n) && !pendingSet.has(n) && !failedSet.has(n);
+              });
+              const draftByNumber = {};
+              for (const d of surveyDraftList) {
+                if (d.number) draftByNumber[String(d.number)] = d;
               }
-              const draftAnsweredCount = draft ? countAnswered(draftAnsMap) : 0;
-              const draftStep = Number.isInteger(draft?.currentStep) ? draft.currentStep : 0;
-              const draftTotal = Number.isInteger(draft?.totalSteps) ? draft.totalSteps : 0;
-              const hasDraft = !!draft && draftAnsweredCount > 0;
+              const parkedDrafts = surveyDraftList.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+              const latestDraft = parkedDrafts[0] || null;
+              const hasDraft = parkedDrafts.length > 0;
 
               // Tentukan status sebuah nomor kuesioner
               const numStatus = (num) => {
@@ -598,7 +598,7 @@ function SurveyList() {
                 if (submittedSet.has(n)) return 'synced';
                 if (failedSet.has(n)) return 'failed';
                 if (pendingSet.has(n)) return isSyncing ? 'uploading' : 'pending';
-                if (draftNumber && n === draftNumber) return 'draft';
+                if (draftByNumber[n]) return 'draft';
                 if (isOfflineReady) return 'ready';
                 return 'not_downloaded';
               };
@@ -732,6 +732,7 @@ function SurveyList() {
                           <ul className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
                             {numbersToShow.map((num) => {
                               const status = numStatus(num);
+                              const rowDraft = draftByNumber[String(num)] || null;
                               const iconSvg = {
                                 synced: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
                                 uploading: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7 7 7M12 4v16" /></svg>,
@@ -748,7 +749,7 @@ function SurveyList() {
                                 failed: { row: 'bg-red-50', badge: 'bg-red-100 text-red-800', iconCls: 'text-red-600', label: 'Gagal upload — perlu ditinjau' },
                                 ready: { row: 'bg-white hover:bg-accent-50', badge: 'bg-accent-100 text-accent-700', iconCls: 'text-accent-500', label: 'Belum diisi — ketuk untuk mengisi' },
                                 not_downloaded: { row: 'bg-white', badge: 'bg-gray-100 text-gray-500', iconCls: 'text-gray-400', label: 'Belum diisi' },
-                                draft: { row: 'bg-amber-50 hover:bg-amber-100', badge: 'bg-amber-100 text-amber-800', iconCls: 'text-amber-600', label: draftTotal > 0 ? `Sedang dikerjakan · Pertanyaan ${Math.min(draftStep + 1, draftTotal)}/${draftTotal}` : 'Sedang dikerjakan — ketuk untuk lanjut' },
+                                draft: { row: 'bg-amber-50 hover:bg-amber-100', badge: 'bg-amber-100 text-amber-800', iconCls: 'text-amber-600', label: (rowDraft && rowDraft.totalSteps > 0) ? `Sedang dikerjakan · Pertanyaan ${Math.min((rowDraft.currentStep || 0) + 1, rowDraft.totalSteps)}/${rowDraft.totalSteps}` : 'Sedang dikerjakan — ketuk untuk lanjut' },
                               }[status];
                               const clickable = (status === 'ready' || status === 'not_downloaded' || status === 'draft') && temporal.canStart && !targetMet;
                               const RowTag = clickable ? 'button' : 'div';
@@ -789,11 +790,13 @@ function SurveyList() {
                       </details>
                     )}
 
-                    {/* Banner "sedang dikerjakan" — resume draft yang belum dikirim */}
+                    {/* Banner "sedang dikerjakan" — bisa banyak nomor tertunda.
+                        Ketuk = lanjutkan yang TERAKHIR dikerjakan; nomor lain
+                        bisa dipilih dari daftar nomor (badge "Lanjut"). */}
                     {hasDraft && !targetMet && temporal.canStart && (
                       <button
                         type="button"
-                        onClick={() => handleStartSurvey(survey.id, draftNumber)}
+                        onClick={() => handleStartSurvey(survey.id, latestDraft?.number || null)}
                         className="mt-4 w-full flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 px-4 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300"
                         aria-label={`Lanjutkan kuesioner yang sedang dikerjakan pada survei ${survey.title}`}
                       >
@@ -802,12 +805,15 @@ function SurveyList() {
                         </span>
                         <span className="flex-1 min-w-0">
                           <span className="block text-sm font-semibold text-amber-900">
-                            Sedang dikerjakan{draftNumber ? ` · Kuesioner No. ${draftNumber}` : ''}
+                            {parkedDrafts.length > 1
+                              ? `${parkedDrafts.length} kuesioner sedang dikerjakan`
+                              : `Sedang dikerjakan${latestDraft?.number ? ` · Kuesioner No. ${latestDraft.number}` : ''}`}
                           </span>
                           <span className="block text-xs text-amber-700">
-                            {draftTotal > 0
-                              ? `Pertanyaan ${Math.min(draftStep + 1, draftTotal)} dari ${draftTotal} · ketuk untuk lanjut`
-                              : `${draftAnsweredCount} jawaban tersimpan · ketuk untuk lanjut`}
+                            {latestDraft?.totalSteps > 0
+                              ? `${parkedDrafts.length > 1 ? `Terakhir: No. ${latestDraft.number} · ` : ''}Pertanyaan ${Math.min((latestDraft.currentStep || 0) + 1, latestDraft.totalSteps)} dari ${latestDraft.totalSteps} · ketuk untuk lanjut`
+                              : 'ketuk untuk lanjut'}
+                            {parkedDrafts.length > 1 ? ' · nomor lain di daftar' : ''}
                           </span>
                         </span>
                         <span className="shrink-0 text-xs font-bold text-amber-800 bg-amber-100 rounded-full px-3 py-1">Lanjut</span>
