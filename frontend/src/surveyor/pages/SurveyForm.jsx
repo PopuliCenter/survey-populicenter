@@ -30,7 +30,7 @@ import ConfirmSheet from '../../components/ConfirmSheet';
 import AudioRecorderPanel from '../components/AudioRecorderPanel';
 import PhotoCapturePanel from '../components/PhotoCapturePanel';
 import SignaturePadCanvas from '../components/SignaturePadCanvas';
-import { addBackButtonListener, isNativePlatform } from '../../utils/capacitorBridge';
+import { addBackButtonListener, isNativePlatform, getNetworkStatus } from '../../utils/capacitorBridge';
 
 // ─── Rekaman audio: batas & strategi "awal + akhir" ─────────────────────────────
 const AUDIO_TOTAL_MAX_SEC = 180;      // maksimal 3 menit total (terekam)
@@ -1518,8 +1518,9 @@ function SurveyForm() {
     for (const q of visibleQuestions) {
       if (!q.is_required) continue;
 
-      // Skip photo validation when offline (photos are optional offline)
-      if (q.type === 'photo' && !navigator.onLine) continue;
+      // Skip photo validation when offline (photos are optional offline).
+      // Pakai isOnline (@capacitor/network) — navigator.onLine tak akurat di WebView.
+      if (q.type === 'photo' && !isOnline) continue;
 
       if (q.type === 'photo') {
         if (!photoPaths[q.id]) missing.add(q.id);
@@ -1557,7 +1558,7 @@ function SurveyForm() {
       }
     }
     return missing;
-  }, [visibleQuestions, answers, photoPaths]);
+  }, [visibleQuestions, answers, photoPaths, isOnline]);
 
   // ─── Wizard helpers ──────────────────────────────────────────────────────────
 
@@ -1593,8 +1594,8 @@ function SurveyForm() {
 
     // Check required-field validation
     if (question.is_required) {
-      // Skip photo validation when offline
-      if (question.type === 'photo' && !navigator.onLine) {
+      // Skip photo validation when offline (isOnline = @capacitor/network)
+      if (question.type === 'photo' && !isOnline) {
         // allow advancing
       } else if (question.type === 'photo') {
         if (!photoPaths[question.id]) {
@@ -1647,7 +1648,7 @@ function SurveyForm() {
     }
 
     return true;
-  }, [visibleQuestions, currentStep, answers, photoPaths, validationErrors]);
+  }, [visibleQuestions, currentStep, answers, photoPaths, validationErrors, isOnline]);
 
   /**
    * Navigate to the next question. Validates current question first.
@@ -1752,96 +1753,113 @@ function SurveyForm() {
 
     setSubmitting(true);
 
-    if (!navigator.onLine) {
-      // ─── Offline submit: enqueue to IndexedDB ───────────────────────
+    // Simpan jawaban + media ke antrean offline (IndexedDB). Dipakai saat
+    // offline terdeteksi DAN sebagai jaring pengaman bila kirim online gagal
+    // karena jaringan / sesi kedaluwarsa — supaya data tidak pernah hilang.
+    const enqueueOffline = async () => {
+      setMediaUploadMessage('Menyimpan data ke perangkat...');
+
+      // Build answers payload — only include visible questions, skip photo questions
+      const visibleQs = questions.filter((q) => visibleIds.has(q.id));
+      const answersPayload = buildAnswersPayload(visibleQs, answers, {});
+
+      // Get geolocation with fallback
+      let geo;
       try {
-        setMediaUploadMessage('Menyimpan data ke perangkat...');
+        geo = await getLocation();
+      } catch {
+        geo = { status: 'unavailable', lat: null, lng: null };
+      }
 
-        // Build answers payload — only include visible questions, skip photo questions
-        const visibleQs = questions.filter((q) => visibleIds.has(q.id));
-        const answersPayload = buildAnswersPayload(visibleQs, answers, {});
+      // Enqueue response to offline queue
+      const localId = await enqueueResponse({
+        survey_id: id,
+        answers: answersPayload,
+        geo: {
+          status: geo.status,
+          lat: geo.lat,
+          lng: geo.lng,
+        },
+        start_geo: fieldToolsSettings.gps_mode !== 'disabled' && startGeo ? {
+          status: startGeo.status,
+          lat: startGeo.lat,
+          lng: startGeo.lng,
+        } : null,
+        has_audio: fieldToolsSettings.audio_mode !== 'disabled' && !!recordedAudioBlob,
+        has_signature: fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty,
+        photo_count: fieldToolsSettings.photo_mode !== 'disabled' ? photoCapture.photos.length : 0,
+      });
 
-        // Get geolocation with fallback
-        let geo;
-        try {
-          geo = await getLocation();
-        } catch {
-          geo = { status: 'unavailable', lat: null, lng: null };
-        }
-
-        // Enqueue response to offline queue
-        const localId = await enqueueResponse({
-          survey_id: id,
-          answers: answersPayload,
-          geo: {
-            status: geo.status,
-            lat: geo.lat,
-            lng: geo.lng,
-          },
-          start_geo: fieldToolsSettings.gps_mode !== 'disabled' && startGeo ? {
-            status: startGeo.status,
-            lat: startGeo.lat,
-            lng: startGeo.lng,
-          } : null,
-          has_audio: fieldToolsSettings.audio_mode !== 'disabled' && !!recordedAudioBlob,
-          has_signature: fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty,
-          photo_count: fieldToolsSettings.photo_mode !== 'disabled' ? photoCapture.photos.length : 0,
-        });
-
-        // Save media files to offline storage in parallel (with compression)
-        const offlineMediaSaves = [];
-        if (fieldToolsSettings.audio_mode !== 'disabled' && recordedAudioBlob) {
-          setMediaUploadMessage('Menyimpan rekaman audio...');
+      // Save media files to offline storage in parallel (with compression)
+      const offlineMediaSaves = [];
+      if (fieldToolsSettings.audio_mode !== 'disabled' && recordedAudioBlob) {
+        setMediaUploadMessage('Menyimpan rekaman audio...');
+        offlineMediaSaves.push(
+          saveMediaFile({
+            localId,
+            type: 'audio',
+            blob: recordedAudioBlob,
+            filename: 'recording.webm',
+          })
+        );
+      }
+      if (fieldToolsSettings.photo_mode !== 'disabled') {
+        for (const photo of photoCapture.photos) {
+          setMediaUploadMessage('Mengompresi dan menyimpan foto...');
+          // Kompresi foto sebelum simpan offline (hemat storage + lebih cepat)
+          const compressed = await compressIfNeeded(photo.blob);
           offlineMediaSaves.push(
             saveMediaFile({
               localId,
-              type: 'audio',
-              blob: recordedAudioBlob,
-              filename: 'recording.webm',
+              type: 'photo',
+              blob: compressed,
+              filename: photo.blob.name || 'photo.jpg',
             })
           );
         }
-        if (fieldToolsSettings.photo_mode !== 'disabled') {
-          for (const photo of photoCapture.photos) {
-            setMediaUploadMessage('Mengompresi dan menyimpan foto...');
-            // Kompresi foto sebelum simpan offline (hemat storage + lebih cepat)
-            const compressed = await compressIfNeeded(photo.blob);
-            offlineMediaSaves.push(
-              saveMediaFile({
-                localId,
-                type: 'photo',
-                blob: compressed,
-                filename: photo.blob.name || 'photo.jpg',
-              })
-            );
-          }
+      }
+      if (fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty) {
+        setMediaUploadMessage('Menyimpan tanda tangan...');
+        const sigBlob = await signaturePad.toBlob();
+        if (sigBlob) {
+          offlineMediaSaves.push(
+            saveMediaFile({
+              localId,
+              type: 'signature',
+              blob: sigBlob,
+              filename: 'signature.png',
+            })
+          );
         }
-        if (fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty) {
-          setMediaUploadMessage('Menyimpan tanda tangan...');
-          const sigBlob = await signaturePad.toBlob();
-          if (sigBlob) {
-            offlineMediaSaves.push(
-              saveMediaFile({
-                localId,
-                type: 'signature',
-                blob: sigBlob,
-                filename: 'signature.png',
-              })
-            );
-          }
-        }
-        if (offlineMediaSaves.length > 0) {
-          setMediaUploadMessage('Menyimpan file media ke perangkat...');
-        }
-        await Promise.all(offlineMediaSaves);
+      }
+      if (offlineMediaSaves.length > 0) {
+        setMediaUploadMessage('Menyimpan file media ke perangkat...');
+      }
+      await Promise.all(offlineMediaSaves);
 
-        // Sukses tersimpan ke antrian — hapus draft.
-        clearDraft(id, draftNumberRef.current);
+      // Sukses tersimpan ke antrian — hapus draft & buka halaman sukses.
+      clearDraft(id, draftNumberRef.current);
+      navigate(`/surveyor/survey/${id}/success`, {
+        state: { offline: true, survey_id: id },
+      });
+    };
 
-        // Navigate to success page with offline flag
-        navigate(`/surveyor/survey/${id}/success`, {
-          state: { offline: true, survey_id: id },
-        });
+    // Deteksi jaringan yang ANDAL. navigator.onLine TIDAK akurat di WebView
+    // Android (mis. Realme Narzo 50 / IQOO Z10R bisa tetap melaporkan "online"
+    // padahal tak ada internet) — akibatnya data salah jalur ke pengiriman
+    // online lalu hilang saat sesi ditolak. @capacitor/network membaca status
+    // OS, jadi jadikan sumber kebenaran; fallback ke navigator.onLine hanya
+    // bila plugin gagal.
+    let networkConnected = navigator.onLine;
+    try {
+      const netStatus = await getNetworkStatus();
+      networkConnected = netStatus.connected;
+    } catch { /* pakai navigator.onLine */ }
+
+    if (!networkConnected) {
+      // ─── Offline submit: enqueue to IndexedDB ───────────────────────
+      try {
+        await enqueueOffline();
       } catch {
         setSubmitError('Gagal menyimpan data secara lokal. Silakan coba kembali.');
       } finally {
@@ -1947,7 +1965,20 @@ function SurveyForm() {
       });
     } catch (err) {
       const errData = err.response?.data;
-      if (errData?.validation_errors) {
+      // Jaring pengaman: gagal karena JARINGAN (tak ada respons server) atau
+      // sesi kedaluwarsa (401) → simpan ke antrean offline agar data TIDAK
+      // hilang. Deteksi online di atas bisa keliru, atau koneksi putus/lemah
+      // di tengah pengiriman. Data tersinkron otomatis setelah online / login
+      // ulang. (Pada 401 interceptor tetap mengalihkan ke login, tapi data
+      // sudah aman tersimpan lebih dulu.)
+      if (!err.response || err.response.status === 401) {
+        try {
+          await enqueueOffline();
+          return;
+        } catch {
+          setSubmitError('Koneksi bermasalah dan gagal menyimpan ke perangkat. Data masih tampil di layar — coba lagi.');
+        }
+      } else if (errData?.validation_errors) {
         // Backend validation errors: populate validationErrors and scroll to first
         const backendErrors = {};
         for (const ve of errData.validation_errors) {

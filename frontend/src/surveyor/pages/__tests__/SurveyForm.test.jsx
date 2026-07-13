@@ -122,6 +122,7 @@ vi.mock('../../../surveyor/components/SignaturePadCanvas', () => ({
 }));
 
 import api from '../../../services/api';
+import { enqueueResponse } from '../../../utils/storage';
 import SurveyForm from '../SurveyForm.jsx';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -554,6 +555,113 @@ describe('UniqueIdField', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Nomor sudah digunakan')).toBeInTheDocument();
+    });
+  });
+});
+
+// ─── Penyimpanan offline / jaring pengaman jaringan ───────────────────────────
+// Regresi untuk bug: saat offline, data tidak tersimpan & tersapu ke halaman
+// login (Realme Narzo 50 / IQOO Z10R). Penyebab: submit memakai navigator.onLine
+// (tidak akurat di WebView) alih-alih status @capacitor/network. Perbaikan:
+// deteksi jaringan andal + jaring pengaman enqueue offline saat kirim gagal.
+
+// Survei tanpa field tools (GPS/tanda tangan/audio/foto) agar submit langsung
+// sampai ke cabang jaringan tanpa terhalang validasi alat lapangan.
+function buildSubmittableSurvey() {
+  return {
+    id: 'survey-001',
+    title: 'Test Survey',
+    description: null,
+    field_tools_settings: {
+      signature_mode: 'disabled',
+      audio_mode: 'disabled',
+      photo_mode: 'disabled',
+      gps_mode: 'disabled',
+    },
+    questions: [
+      {
+        id: 'q-txt-001',
+        text: 'Catatan tambahan',
+        type: 'short_text',
+        order_index: 1,
+        is_required: false,
+        randomize_options: false,
+        options: {},
+        skip_logic: null,
+      },
+    ],
+  };
+}
+
+describe('Offline submit & jaring pengaman jaringan', () => {
+  const originalOnLine = Object.getOwnPropertyDescriptor(window.navigator, 'onLine');
+
+  afterEach(() => {
+    if (originalOnLine) Object.defineProperty(window.navigator, 'onLine', originalOnLine);
+  });
+
+  test('offline terdeteksi → data disimpan ke antrean, TIDAK dikirim online', async () => {
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
+    api.get.mockResolvedValue({ data: buildSubmittableSurvey() });
+    api.post.mockResolvedValue({ data: { session_token: 'test-token' } });
+
+    renderSurveyForm();
+    await waitFor(() => {
+      expect(screen.getByText('Catatan tambahan')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /simpan data responden/i }));
+
+    await waitFor(() => {
+      expect(enqueueResponse).toHaveBeenCalledTimes(1);
+    });
+    // Tidak boleh mencoba mengirim response ke server saat offline.
+    expect(api.post).not.toHaveBeenCalledWith('/responses/submit', expect.anything());
+  });
+
+  test('kirim online gagal (network error) → jatuh ke antrean offline, data tak hilang', async () => {
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
+    api.get.mockResolvedValue({ data: buildSubmittableSurvey() });
+    // /responses/start sukses; /responses/submit gagal tanpa .response (network error).
+    api.post.mockImplementation((url) => {
+      if (url === '/responses/submit') {
+        return Promise.reject({ message: 'Network Error' }); // tidak ada .response
+      }
+      return Promise.resolve({ data: { session_token: 'test-token' } });
+    });
+
+    renderSurveyForm();
+    await waitFor(() => {
+      expect(screen.getByText('Catatan tambahan')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /simpan data responden/i }));
+
+    // Meskipun jalur online dicoba lalu gagal, data harus tetap masuk antrean.
+    await waitFor(() => {
+      expect(enqueueResponse).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  test('sesi kedaluwarsa (401) → data diselamatkan ke antrean offline lebih dulu', async () => {
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
+    api.get.mockResolvedValue({ data: buildSubmittableSurvey() });
+    api.post.mockImplementation((url) => {
+      if (url === '/responses/submit') {
+        return Promise.reject({ response: { status: 401, data: {} } });
+      }
+      return Promise.resolve({ data: { session_token: 'test-token' } });
+    });
+
+    renderSurveyForm();
+    await waitFor(() => {
+      expect(screen.getByText('Catatan tambahan')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /simpan data responden/i }));
+
+    await waitFor(() => {
+      expect(enqueueResponse).toHaveBeenCalledTimes(1);
     });
   });
 });
