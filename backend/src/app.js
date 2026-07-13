@@ -74,9 +74,15 @@ app.use(helmet());
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow: configured frontend URL, Capacitor native (null origin), localhost dev
+    // Allow: configured frontend URL(s), Capacitor native (null origin), localhost dev.
+    // FRONTEND_URL boleh berisi BANYAK origin dipisah koma (mis. saat migrasi
+    // domain: "https://risetcenter.com,https://populicenter.com").
+    const configuredOrigins = (process.env.FRONTEND_URL || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const allowed = [
-      process.env.FRONTEND_URL,
+      ...configuredOrigins,
       'capacitor://localhost',
       'ionic://localhost',
       'http://localhost',
