@@ -36,8 +36,9 @@ export const SUPPORT_WHATSAPP = '6281292068362';
  */
 // URL dashboard proyek Sentry (org/proyek Anda). Kosong = kartu Sentry di
 // halaman Status Sistem tampil sebagai "belum dikonfigurasi".
-// Contoh: 'https://sentry.io/organizations/populi/projects/populi-survey/'
-export const SENTRY_DASHBOARD_URL = '';
+// Org: populi-center. Menampilkan SEMUA proyek (frontend SURVEY-FRONTEND &
+// backend SURVEY-BACKEND) agar error web maupun server terlihat sekaligus.
+export const SENTRY_DASHBOARD_URL = 'https://populi-center.sentry.io/issues/?project=-1&statsPeriod=14d';
 
 export function supportLink() {
   if (SUPPORT_WHATSAPP) return `https://wa.me/${SUPPORT_WHATSAPP}`;
