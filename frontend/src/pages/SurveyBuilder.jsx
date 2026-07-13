@@ -828,6 +828,12 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
   const [skipLogic, setSkipLogic] = useState(
     initial?.skip_logic ? [...initial.skip_logic] : []
   );
+  // Isi otomatis jenis kelamin dari paritas Nomor Kuesioner (khusus single_choice).
+  const [genderAutoFill, setGenderAutoFill] = useState(() =>
+    initial?.auto_fill && initial.auto_fill.source === 'questionnaire_number_parity'
+      ? { enabled: true, odd_value: initial.auto_fill.odd_value || '', even_value: initial.auto_fill.even_value || '' }
+      : { enabled: false, odd_value: '', even_value: '' }
+  );
   const [ratingConfig, setRatingConfig] = useState(
     initial?.type === 'rating_scale' && initial?.options && !Array.isArray(initial.options)
       ? initial.options
@@ -887,7 +893,27 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
     if (newType !== 'date') setDateConfig({ min_date: '', max_date: '' });
     if (newType !== 'matrix') setMatrixConfig({ rows: [], columns: [] });
     if (newType !== 'indonesia_region') setRegionConfig({ depth: 'village' });
+    // Isi-otomatis jenis kelamin hanya untuk Pilihan Tunggal.
+    if (newType !== 'single_choice') setGenderAutoFill((p) => ({ ...p, enabled: false }));
     setValidationConfig(null);
+  }
+
+  // Opsi jawaban yang valid (untuk dropdown pemetaan ganjil/genap).
+  const validChoiceOptions = options.filter((o) => (o.value || '').trim() || (o.label || '').trim());
+
+  // Aktifkan/nonaktifkan isi-otomatis. Saat mengaktifkan, tebak default dari
+  // label opsi: nomor ganjil → Laki-laki/Pria, genap → Perempuan/Wanita.
+  function toggleGenderAutoFill() {
+    setGenderAutoFill((prev) => {
+      if (prev.enabled) return { ...prev, enabled: false };
+      const male = validChoiceOptions.find((o) => /laki|pria/i.test(o.label || o.value || ''));
+      const female = validChoiceOptions.find((o) => /perempuan|wanita/i.test(o.label || o.value || ''));
+      return {
+        enabled: true,
+        odd_value: prev.odd_value || (male ? male.value : (validChoiceOptions[0]?.value || '')),
+        even_value: prev.even_value || (female ? female.value : (validChoiceOptions[1]?.value || '')),
+      };
+    });
   }
 
   async function handleSubmit(e) {
@@ -897,6 +923,13 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
 
     if (!text.trim()) {
       setTextError('Teks pertanyaan wajib diisi');
+      return;
+    }
+
+    // Isi-otomatis jenis kelamin: jika diaktifkan, pemetaan ganjil & genap wajib.
+    if (type === 'single_choice' && genderAutoFill.enabled &&
+        (!genderAutoFill.odd_value || !genderAutoFill.even_value)) {
+      setFormError('Tentukan opsi untuk nomor ganjil dan genap pada isi-otomatis jenis kelamin.');
       return;
     }
 
@@ -923,6 +956,14 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
         ? { options: validationPayload }
         : {}),
       skip_logic: skipLogic,
+      auto_fill:
+        type === 'single_choice' && genderAutoFill.enabled && genderAutoFill.odd_value && genderAutoFill.even_value
+          ? {
+              source: 'questionnaire_number_parity',
+              odd_value: genderAutoFill.odd_value,
+              even_value: genderAutoFill.even_value,
+            }
+          : null,
     };
 
     setSubmitting(true);
@@ -1134,6 +1175,80 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
                   Tambah opsi "Lainnya" (input teks dari surveyor)
                 </span>
               </div>
+
+              {/* Isi otomatis jenis kelamin dari paritas Nomor Kuesioner */}
+              {type === 'single_choice' && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={genderAutoFill.enabled}
+                      onClick={toggleGenderAutoFill}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 ${
+                        genderAutoFill.enabled ? 'bg-primary-600' : 'bg-gray-300'
+                      }`}
+                      aria-label="Isi otomatis dari Nomor Kuesioner"
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                          genderAutoFill.enabled ? 'translate-x-4' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className="text-sm text-gray-700">
+                      Isi otomatis dari Nomor Kuesioner (mis. jenis kelamin)
+                    </span>
+                  </div>
+
+                  {genderAutoFill.enabled && (
+                    <div className="space-y-2 pl-1">
+                      <p className="text-xs text-gray-500">
+                        Jawaban terisi otomatis dari nomor kuesioner terpilih (nomor ganjil vs genap),
+                        dan tetap bisa diubah surveyor bila perlu.
+                      </p>
+                      {validChoiceOptions.length < 2 ? (
+                        <p className="text-xs text-amber-600">
+                          Tambahkan minimal 2 opsi jawaban terlebih dahulu untuk mengatur pemetaan.
+                        </p>
+                      ) : (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <label className="block">
+                            <span className="block text-xs font-medium text-gray-600 mb-1">
+                              Nomor ganjil (1, 3, 5…) →
+                            </span>
+                            <select
+                              value={genderAutoFill.odd_value}
+                              onChange={(e) => setGenderAutoFill((p) => ({ ...p, odd_value: e.target.value }))}
+                              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
+                            >
+                              <option value="">— Pilih opsi —</option>
+                              {validChoiceOptions.map((o, i) => (
+                                <option key={`${o.value}-${i}`} value={o.value}>{o.label || o.value}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block">
+                            <span className="block text-xs font-medium text-gray-600 mb-1">
+                              Nomor genap (2, 4, 6…) →
+                            </span>
+                            <select
+                              value={genderAutoFill.even_value}
+                              onChange={(e) => setGenderAutoFill((p) => ({ ...p, even_value: e.target.value }))}
+                              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
+                            >
+                              <option value="">— Pilih opsi —</option>
+                              {validChoiceOptions.map((o, i) => (
+                                <option key={`${o.value}-${i}`} value={o.value}>{o.label || o.value}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

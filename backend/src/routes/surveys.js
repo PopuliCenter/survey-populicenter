@@ -285,7 +285,7 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
       where: { survey_id: id },
       attributes: [
         'id', 'text', 'type', 'order_index', 'is_required',
-        'randomize_options', 'allow_other', 'options', 'skip_logic', 'created_at',
+        'randomize_options', 'allow_other', 'options', 'skip_logic', 'auto_fill', 'created_at',
       ],
       order: [['order_index', 'ASC']],
     });
@@ -593,6 +593,7 @@ router.post('/:id/clone', authMiddleware, requireRole(['admin', 'supervisor'], {
         allow_other: q.allow_other, // H4: jangan hilangkan opsi "Lainnya" saat clone
         options: q.options,
         skip_logic: remapSkipLogic(q.skip_logic, idMap),
+        auto_fill: q.auto_fill, // pertahankan isi-otomatis jenis kelamin saat clone
       }));
 
       if (clonedQuestions.length > 0) {

@@ -74,6 +74,13 @@ module.exports = (sequelize) => {
       allowNull: true,
       // Format: [{condition: {question_id, operator, value}, action: 'jump_to', target_question_id}, ...]
     },
+    auto_fill: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      // Isi otomatis jawaban dari sumber lain. Saat ini: jenis kelamin dari
+      // paritas Nomor Kuesioner.
+      // Format: { source: 'questionnaire_number_parity', odd_value: string, even_value: string }
+    },
   }, {
     tableName: 'questions',
     underscored: true,

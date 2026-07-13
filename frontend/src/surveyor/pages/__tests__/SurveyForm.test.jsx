@@ -593,6 +593,81 @@ function buildSubmittableSurvey() {
   };
 }
 
+// ─── Auto-isi jenis kelamin dari paritas Nomor Kuesioner ──────────────────────
+function buildSurveyGenderAutoFill() {
+  return {
+    id: 'survey-001',
+    title: 'Test Survey',
+    description: null,
+    form_mode: 'scroll', // tampilkan semua pertanyaan sekaligus
+    field_tools_settings: {
+      signature_mode: 'disabled',
+      audio_mode: 'disabled',
+      photo_mode: 'disabled',
+      gps_mode: 'disabled',
+    },
+    questions: [
+      {
+        id: 'q-uid',
+        text: 'Nomor kuesioner',
+        type: 'unique_id',
+        order_index: 1,
+        is_required: false,
+        randomize_options: false,
+        options: { min_length: 1, max_length: 20 },
+        skip_logic: null,
+      },
+      {
+        id: 'q-gender',
+        text: 'Jenis kelamin',
+        type: 'single_choice',
+        order_index: 2,
+        is_required: false,
+        randomize_options: false,
+        options: [
+          { value: 'L', label: 'Laki-laki' },
+          { value: 'P', label: 'Perempuan' },
+        ],
+        skip_logic: null,
+        auto_fill: { source: 'questionnaire_number_parity', odd_value: 'L', even_value: 'P' },
+      },
+    ],
+  };
+}
+
+describe('Auto-isi jenis kelamin dari Nomor Kuesioner', () => {
+  test('ganjil → Laki-laki, genap → Perempuan, & tetap bisa diubah', async () => {
+    api.get.mockResolvedValue({ data: buildSurveyGenderAutoFill() });
+    api.post.mockResolvedValue({ data: { session_token: 'test-token' } });
+
+    renderSurveyForm();
+    await waitFor(() => {
+      expect(screen.getByText('Jenis kelamin')).toBeInTheDocument();
+    });
+
+    const numInput = screen.getByPlaceholderText('Masukkan nomor kuesioner');
+
+    // Nomor ganjil → Laki-laki terpilih otomatis
+    fireEvent.change(numInput, { target: { value: '3' } });
+    await waitFor(() => {
+      expect(screen.getByRole('radio', { name: /laki-laki/i })).toHaveAttribute('aria-checked', 'true');
+    });
+
+    // Nomor genap → Perempuan terpilih otomatis
+    fireEvent.change(numInput, { target: { value: '4' } });
+    await waitFor(() => {
+      expect(screen.getByRole('radio', { name: /perempuan/i })).toHaveAttribute('aria-checked', 'true');
+    });
+
+    // Koreksi manual dipertahankan selama nomor tidak berubah (editable)
+    fireEvent.click(screen.getByRole('radio', { name: /laki-laki/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('radio', { name: /laki-laki/i })).toHaveAttribute('aria-checked', 'true');
+    });
+    expect(screen.getByRole('radio', { name: /perempuan/i })).toHaveAttribute('aria-checked', 'false');
+  });
+});
+
 describe('Offline submit & jaring pengaman jaringan', () => {
   const originalOnLine = Object.getOwnPropertyDescriptor(window.navigator, 'onLine');
 

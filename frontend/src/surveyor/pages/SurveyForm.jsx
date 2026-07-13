@@ -884,6 +884,11 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
               )}
             </div>
           )}
+          {question.auto_fill?.source === 'questionnaire_number_parity' && (
+            <p className="text-xs text-accent-700 bg-accent-50 border border-accent-200 rounded-lg px-3 py-2 mt-1">
+              Terisi otomatis dari Nomor Kuesioner (ganjil vs genap). Bisa diubah bila perlu.
+            </p>
+          )}
         </div>
       );
     }
@@ -1128,6 +1133,9 @@ function SurveyForm() {
   // saat clear (submit/discard); prevDraftNumberRef untuk re-key bila berubah.
   const draftNumberRef = useRef('');
   const prevDraftNumberRef = useRef('');
+  // Nomor kuesioner terakhir yang sudah dipakai mengisi-otomatis jenis kelamin.
+  // Mencegah menimpa koreksi manual TPD selama nomornya tidak berubah.
+  const genderAppliedNumberRef = useRef(null);
 
   /**
    * Terapkan nomor kuesioner terpilih ke jawaban pertanyaan unique_id (jika ada).
@@ -1233,6 +1241,31 @@ function SurveyForm() {
   useEffect(() => {
     draftNumberRef.current = String(currentQuestionnaireNumber || '');
   }, [currentQuestionnaireNumber]);
+
+  // ─── Isi otomatis jenis kelamin dari paritas Nomor Kuesioner ────────────────
+  // Pertanyaan single_choice yang ditandai admin (auto_fill) akan terisi otomatis
+  // dari nomor kuesioner: ganjil → odd_value, genap → even_value. Tetap bisa
+  // diubah TPD (auto-fill hanya diterapkan ulang saat nomor berubah).
+  const genderAutoFillQuestion = useMemo(
+    () => questions.find(
+      (q) => q.type === 'single_choice' && q.auto_fill && q.auto_fill.source === 'questionnaire_number_parity'
+    ) || null,
+    [questions]
+  );
+  useEffect(() => {
+    if (!genderAutoFillQuestion) return;
+    const numStr = String(currentQuestionnaireNumber || '').trim();
+    // Butuh bilangan bulat untuk menentukan paritas ganjil/genap.
+    if (!/^\d+$/.test(numStr)) return;
+    if (genderAppliedNumberRef.current === numStr) return; // sudah diterapkan untuk nomor ini
+    const isEven = parseInt(numStr, 10) % 2 === 0;
+    const value = isEven ? genderAutoFillQuestion.auto_fill.even_value : genderAutoFillQuestion.auto_fill.odd_value;
+    genderAppliedNumberRef.current = numStr;
+    setAnswers((prev) => {
+      if (prev[genderAutoFillQuestion.id] === value) return prev;
+      return { ...prev, [genderAutoFillQuestion.id]: value };
+    });
+  }, [currentQuestionnaireNumber, genderAutoFillQuestion]);
 
   // Jika TPD memilih nomor dari Daftar Survei, lompat ke pertanyaan SETELAH
   // pertanyaan nomor kuesioner (sekali saja, setelah daftar pertanyaan siap).
@@ -2092,6 +2125,12 @@ function SurveyForm() {
     const draft = loadDraft(id, entryNumber);
     if (draft && answersHaveContent(draft.answers)) {
       setAnswers((prev) => ({ ...prev, ...draft.answers }));
+      // Jangan timpa jenis kelamin yang mungkin sudah dikoreksi manual di draft:
+      // tandai nomor ini sudah "diterapkan" agar efek isi-otomatis tidak menimpanya.
+      const restoredNum = String(
+        (uniqueIdQuestion && draft.answers[uniqueIdQuestion.id]) || entryNumber || ''
+      ).trim();
+      if (/^\d+$/.test(restoredNum)) genderAppliedNumberRef.current = restoredNum;
       // Pulihkan posisi pertanyaan terakhir (fitur "Lanjut" dari daftar).
       if (Number.isInteger(draft.currentStep) && draft.currentStep > 0) {
         preselectJumpedRef.current = true; // jangan ditimpa lompatan preselect
@@ -2099,6 +2138,8 @@ function SurveyForm() {
       }
       setDraftRestored(true);
     }
+  // Pemulihan sekali-jalan (dijaga draftRestoredRef); deps dikurasi manual.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, questions.length, id, visibleQuestions.length]);
 
   // Simpan draft (debounced) per NOMOR saat jawaban / posisi berubah.

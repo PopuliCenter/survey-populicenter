@@ -179,6 +179,45 @@ function validateMatrixConfig(options) {
 }
 
 /**
+ * Validasi konfigurasi auto_fill (isi otomatis jawaban).
+ * Saat ini hanya mendukung jenis kelamin dari paritas Nomor Kuesioner.
+ * - null/undefined → valid (nonaktif).
+ * - Hanya berlaku untuk tipe single_choice.
+ * - odd_value & even_value wajib string non-kosong dan (bila options berupa
+ *   array pilihan) harus salah satu value pilihan yang ada.
+ * @param {object|null} autoFill
+ * @param {string} type
+ * @param {Array|object|null} options
+ * @returns {{ valid: boolean, error?: string }}
+ */
+function validateAutoFill(autoFill, type, options) {
+  if (autoFill === undefined || autoFill === null) {
+    return { valid: true };
+  }
+  if (typeof autoFill !== 'object' || Array.isArray(autoFill)) {
+    return { valid: false, error: 'Konfigurasi isi-otomatis tidak valid' };
+  }
+  if (autoFill.source !== 'questionnaire_number_parity') {
+    return { valid: false, error: 'Sumber isi-otomatis tidak dikenal' };
+  }
+  if (type !== 'single_choice') {
+    return { valid: false, error: 'Isi-otomatis jenis kelamin hanya untuk pertanyaan Pilihan Tunggal' };
+  }
+  const { odd_value, even_value } = autoFill;
+  if (typeof odd_value !== 'string' || odd_value.trim() === '' ||
+      typeof even_value !== 'string' || even_value.trim() === '') {
+    return { valid: false, error: 'Pemetaan nomor ganjil & genap wajib diisi' };
+  }
+  if (Array.isArray(options)) {
+    const values = options.map((o) => o && o.value);
+    if (!values.includes(odd_value) || !values.includes(even_value)) {
+      return { valid: false, error: 'Pemetaan ganjil/genap harus merujuk opsi jawaban yang ada' };
+    }
+  }
+  return { valid: true };
+}
+
+/**
  * GET /surveys/:surveyId/questions
  * List all questions for a survey, ordered by order_index
  * Admin, supervisor, viewer, and surveyor can access
@@ -196,7 +235,7 @@ router.get('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin',
       where: { survey_id: surveyId },
       attributes: [
         'id', 'survey_id', 'text', 'type', 'order_index', 'is_required',
-        'randomize_options', 'allow_other', 'options', 'skip_logic', 'created_at',
+        'randomize_options', 'allow_other', 'options', 'skip_logic', 'auto_fill', 'created_at',
       ],
       order: [['order_index', 'ASC']],
     });
@@ -215,7 +254,7 @@ router.get('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin',
 router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { surveyId } = req.params;
-    const { text, type, is_required, randomize_options, allow_other, options, skip_logic } = req.body;
+    const { text, type, is_required, randomize_options, allow_other, options, skip_logic, auto_fill } = req.body;
     let { order_index } = req.body;
 
     const survey = await Survey.findOne({ where: { id: surveyId } });
@@ -284,6 +323,12 @@ router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin'
       }
     }
 
+    // Validate auto_fill (isi otomatis jenis kelamin dari paritas nomor kuesioner)
+    const autoFillValidation = validateAutoFill(auto_fill, type, options);
+    if (!autoFillValidation.valid) {
+      return res.status(422).json({ error: autoFillValidation.error });
+    }
+
     // Validate skip logic for cycles if provided
     if (skip_logic && Array.isArray(skip_logic) && skip_logic.length > 0) {
       // Get all existing questions for this survey plus the new one (with a temp id)
@@ -316,6 +361,7 @@ router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin'
       allow_other: allow_other !== undefined ? allow_other : false,
       options: options || null,
       skip_logic: skip_logic || null,
+      auto_fill: auto_fill || null,
     });
 
     res.status(201).json({
@@ -329,6 +375,7 @@ router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin'
       allow_other: question.allow_other,
       options: question.options,
       skip_logic: question.skip_logic,
+      auto_fill: question.auto_fill,
       created_at: question.created_at,
     });
   } catch (error) {
@@ -344,7 +391,7 @@ router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin'
 router.put('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { surveyId, qid } = req.params;
-    const { text, type, order_index, is_required, randomize_options, allow_other, options, skip_logic } = req.body;
+    const { text, type, order_index, is_required, randomize_options, allow_other, options, skip_logic, auto_fill } = req.body;
 
     const survey = await Survey.findOne({ where: { id: surveyId } });
     if (!survey) {
@@ -420,6 +467,14 @@ router.put('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['ad
       }
     }
 
+    // Validate auto_fill jika disertakan (pakai tipe & options efektif)
+    if (auto_fill !== undefined) {
+      const autoFillValidation = validateAutoFill(auto_fill, effectiveType, effectiveOptions);
+      if (!autoFillValidation.valid) {
+        return res.status(422).json({ error: autoFillValidation.error });
+      }
+    }
+
     // Validate skip logic for cycles if provided
     if (skip_logic !== undefined && Array.isArray(skip_logic) && skip_logic.length > 0) {
       // Get all questions for this survey
@@ -449,6 +504,7 @@ router.put('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['ad
     if (allow_other !== undefined) question.allow_other = allow_other;
     if (options !== undefined) question.options = options;
     if (skip_logic !== undefined) question.skip_logic = skip_logic;
+    if (auto_fill !== undefined) question.auto_fill = auto_fill;
 
     await question.save();
 
@@ -463,6 +519,7 @@ router.put('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['ad
       allow_other: question.allow_other,
       options: question.options,
       skip_logic: question.skip_logic,
+      auto_fill: question.auto_fill,
       created_at: question.created_at,
     });
   } catch (error) {
@@ -570,7 +627,7 @@ router.patch('/surveys/:surveyId/questions/reorder', authMiddleware, requireRole
       where: { survey_id: surveyId },
       attributes: [
         'id', 'survey_id', 'text', 'type', 'order_index', 'is_required',
-        'randomize_options', 'allow_other', 'options', 'skip_logic', 'created_at',
+        'randomize_options', 'allow_other', 'options', 'skip_logic', 'auto_fill', 'created_at',
       ],
       order: [['order_index', 'ASC']],
     });
@@ -597,7 +654,7 @@ router.get('/surveys/:surveyId/questions/export', authMiddleware, requireRole(['
 
     const questions = await Question.findAll({
       where: { survey_id: surveyId },
-      attributes: ['text', 'type', 'order_index', 'is_required', 'randomize_options', 'allow_other', 'options', 'skip_logic'],
+      attributes: ['text', 'type', 'order_index', 'is_required', 'randomize_options', 'allow_other', 'options', 'skip_logic', 'auto_fill'],
       order: [['order_index', 'ASC']],
       raw: true,
     });
@@ -614,6 +671,7 @@ router.get('/surveys/:surveyId/questions/export', authMiddleware, requireRole(['
         randomize_options: q.randomize_options,
         allow_other: q.allow_other,
         options: q.options,
+        auto_fill: q.auto_fill, // portabel: merujuk value opsi, bukan ID
         // Skip logic tidak di-export karena referensi ID akan berbeda di survei baru
       })),
     };
@@ -679,6 +737,7 @@ router.post('/surveys/:surveyId/questions/import', authMiddleware, requireRole([
           allow_other: q.allow_other ?? false,
           options: q.options || null,
           skip_logic: null, // Skip logic tidak di-import
+          auto_fill: q.auto_fill || null,
         }, { transaction: t });
         created.push(question.id);
       }
@@ -697,5 +756,6 @@ module.exports = router;
 module.exports.validateRatingConfig = validateRatingConfig;
 module.exports.validatePhoneConfig = validatePhoneConfig;
 module.exports.validateUniqueIdConfig = validateUniqueIdConfig;
+module.exports.validateAutoFill = validateAutoFill;
 module.exports.validateDateConfig = validateDateConfig;
 module.exports.validateMatrixConfig = validateMatrixConfig;
