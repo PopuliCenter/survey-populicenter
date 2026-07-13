@@ -1,6 +1,21 @@
 const ExcelJS = require('exceljs');
 
 /**
+ * Ambil teks sel Excel dengan andal. `cell.text` menangani rich text,
+ * hyperlink (mis. email yang di-autolink Excel), hasil formula, angka, dan
+ * tanggal — menghindari "[object Object]" dari String(cell.value).
+ * @param {object} cell
+ * @returns {string}
+ */
+function cellToString(cell) {
+  if (!cell) return '';
+  const t = cell.text;
+  if (t !== undefined && t !== null && t !== '') return String(t).trim();
+  const v = cell.value;
+  return v !== undefined && v !== null ? String(v).trim() : '';
+}
+
+/**
  * Parse file CSV atau Excel dan kembalikan array of objects.
  *
  * Routing UTAMA berdasarkan EKSTENSI nama file (andal), karena mimetype dari
@@ -98,9 +113,8 @@ async function parseExcel(buffer, expectedColumns) {
 
   const headerRow = worksheet.getRow(1);
   const headers = [];
-  headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-    const value = cell.value != null ? String(cell.value).trim().toLowerCase() : '';
-    headers.push(value);
+  headerRow.eachCell({ includeEmpty: true }, (cell) => {
+    headers.push(cellToString(cell).toLowerCase());
   });
 
   // Filter out trailing empty headers
@@ -125,8 +139,7 @@ async function parseExcel(buffer, expectedColumns) {
     let hasValue = false;
 
     for (let j = 1; j <= expectedColumns.length; j++) {
-      const cell = row.getCell(j);
-      const value = cell.value != null ? String(cell.value).trim() : '';
+      const value = cellToString(row.getCell(j));
       values.push(value);
       if (value) hasValue = true;
     }

@@ -66,6 +66,16 @@ export async function parseSpreadsheet(file) {
   throw new Error('Format tidak didukung. Gunakan file .csv atau .xlsx.');
 }
 
+// Ambil teks sel dengan andal: cell.text menangani rich text, hyperlink (mis.
+// email yang di-autolink Excel), hasil formula, angka — hindari "[object Object]".
+function cellText(cell) {
+  if (!cell) return '';
+  const t = cell.text;
+  if (t !== undefined && t !== null && t !== '') return String(t).trim();
+  const v = cell.value;
+  return v !== undefined && v !== null ? String(v).trim() : '';
+}
+
 async function parseXlsx(file) {
   const ExcelJS = await getExcelJS();
   const wb = new ExcelJS.Workbook();
@@ -74,7 +84,7 @@ async function parseXlsx(file) {
   if (!ws || ws.rowCount === 0) return [];
   const headers = [];
   ws.getRow(1).eachCell({ includeEmpty: true }, (cell) => {
-    headers.push(cell.value != null ? String(cell.value).trim().toLowerCase() : '');
+    headers.push(cellText(cell).toLowerCase());
   });
   const rows = [];
   for (let i = 2; i <= ws.rowCount; i++) {
@@ -83,8 +93,7 @@ async function parseXlsx(file) {
     let has = false;
     headers.forEach((h, j) => {
       if (!h) return;
-      const v = row.getCell(j + 1).value;
-      const s = v == null ? '' : String(v).trim();
+      const s = cellText(row.getCell(j + 1));
       obj[h] = s;
       if (s) has = true;
     });
