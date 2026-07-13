@@ -89,7 +89,15 @@ export function loadDraftsForSurvey(surveyId) {
       try {
         const d = JSON.parse(raw);
         if (d && answersHaveContent(d.answers)) {
-          out.push({ number, answers: d.answers, currentStep: d.currentStep || 0, totalSteps: d.totalSteps || 0, savedAt: d.savedAt || 0 });
+          out.push({
+            number,
+            answers: d.answers,
+            currentStep: d.currentStep || 0,
+            totalSteps: d.totalSteps || 0,
+            savedAt: d.savedAt || 0,
+            // Ada tanda tangan tersimpan? (untuk ikon kecil di Daftar Survei)
+            hasSignature: Array.isArray(d.signatureStrokes) && d.signatureStrokes.length > 0,
+          });
         }
       } catch { /* entri rusak — lewati */ }
     }

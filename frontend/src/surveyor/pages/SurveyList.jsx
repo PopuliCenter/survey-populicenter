@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import QuotaProgress from '../../components/QuotaProgress';
 import useSyncManager from '../hooks/useSyncManager';
-import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey } from '../../utils/storage';
+import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey, getDraftMedia } from '../../utils/storage';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import ConfirmSheet from '../../components/ConfirmSheet';
 import { addBackButtonListener, addResumeListener } from '../../utils/capacitorBridge';
@@ -127,6 +127,39 @@ function SurveyList() {
     setDrafts(loadAllDraftsBySurvey(surveys.map((s) => s.id)));
   }, [surveys]);
   useEffect(() => { refreshDrafts(); }, [refreshDrafts]);
+
+  // Media tersimpan per draft (segmen rekaman & foto yang di-pending) —
+  // { `${surveyId}__${number}`: { audio: n, photo: n } }. Untuk ikon kecil 🎙️📷.
+  const [draftMedia, setDraftMedia] = useState({});
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const map = {};
+      for (const [sid, list] of Object.entries(drafts)) {
+        for (const d of list) {
+          try {
+            const media = await getDraftMedia(sid, d.number);
+            const audio = media.filter((m) => m.type === 'audio').length;
+            const photo = media.filter((m) => m.type === 'photo').length;
+            if (audio > 0 || photo > 0) map[`${sid}__${d.number}`] = { audio, photo };
+          } catch { /* storage tak tersedia — abaikan */ }
+        }
+      }
+      if (active) setDraftMedia(map);
+    })();
+    return () => { active = false; };
+  }, [drafts]);
+
+  // Teks hint media untuk sebuah draft (mis. "🎙️2 · 📷1 · ✍️"). '' bila tak ada.
+  const draftMediaHint = useCallback((surveyId, draft) => {
+    if (!draft) return '';
+    const m = draftMedia[`${surveyId}__${draft.number}`] || { audio: 0, photo: 0 };
+    const parts = [];
+    if (m.audio > 0) parts.push(`🎙️${m.audio > 1 ? m.audio : ''}`);
+    if (m.photo > 0) parts.push(`📷${m.photo > 1 ? m.photo : ''}`);
+    if (draft.hasSignature) parts.push('✍️');
+    return parts.join(' ');
+  }, [draftMedia]);
 
   // ─── Offline / Sync ─────────────────────────────────────────────────────────
   const { isOnline, isSyncing, pendingCount, pendingItems, failedItems, deleteFailedItem, retryFailedItem, retryAllFailed } = useSyncManager();
@@ -768,7 +801,17 @@ function SurveyList() {
                                     <span className={`leading-none w-5 flex items-center justify-center shrink-0 ${map.iconCls}`} aria-hidden="true">{iconSvg}</span>
                                     <span className="flex-1 min-w-0">
                                       <span className="block text-sm font-semibold text-gray-800">Kuesioner No. {num}</span>
-                                      <span className="block text-xs text-gray-500">{map.label}</span>
+                                      <span className="block text-xs text-gray-500">
+                                        {map.label}
+                                        {status === 'draft' && draftMediaHint(survey.id, rowDraft) && (
+                                          <span
+                                            className="ml-1.5"
+                                            title="Rekaman/foto/tanda tangan tersimpan — ikut terkirim saat selesai"
+                                          >
+                                            {draftMediaHint(survey.id, rowDraft)}
+                                          </span>
+                                        )}
+                                      </span>
                                     </span>
                                     <span className={`shrink-0 text-[11px] font-semibold rounded-full px-2 py-0.5 ${map.badge}`}>
                                       {{ synced: 'Terkirim', uploading: 'Mengunggah', pending: 'Menunggu', failed: 'Gagal', ready: 'Isi', not_downloaded: 'Belum', draft: 'Lanjut' }[status]}
@@ -814,6 +857,11 @@ function SurveyList() {
                               ? `${parkedDrafts.length > 1 ? `Terakhir: No. ${latestDraft.number} · ` : ''}Pertanyaan ${Math.min((latestDraft.currentStep || 0) + 1, latestDraft.totalSteps)} dari ${latestDraft.totalSteps} · ketuk untuk lanjut`
                               : 'ketuk untuk lanjut'}
                             {parkedDrafts.length > 1 ? ' · nomor lain di daftar' : ''}
+                            {draftMediaHint(survey.id, latestDraft) && (
+                              <span className="ml-1.5" title="Rekaman/foto/tanda tangan tersimpan">
+                                {draftMediaHint(survey.id, latestDraft)}
+                              </span>
+                            )}
                           </span>
                         </span>
                         <span className="shrink-0 text-xs font-bold text-amber-800 bg-amber-100 rounded-full px-3 py-1">Lanjut</span>
