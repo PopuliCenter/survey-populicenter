@@ -596,6 +596,90 @@ function buildSubmittableSurvey() {
   };
 }
 
+// ─── Anti-dobel nomor kuesioner antar TPD ─────────────────────────────────────
+
+describe('Nomor kuesioner dipakai TPD lain — blokir di depan', () => {
+  function buildSurveyWithUniqueOnly() {
+    return {
+      id: 'survey-001',
+      title: 'Test Survey',
+      description: null,
+      form_mode: 'scroll',
+      field_tools_settings: {
+        signature_mode: 'disabled', audio_mode: 'disabled',
+        photo_mode: 'disabled', gps_mode: 'disabled',
+      },
+      questions: [
+        {
+          id: 'q-uid-001',
+          text: 'Masukkan nomor kuesioner',
+          type: 'unique_id',
+          order_index: 1,
+          is_required: false,
+          randomize_options: false,
+          options: { min_length: 1, max_length: 20 },
+          skip_logic: null,
+        },
+      ],
+    };
+  }
+
+  test('gerbang awal simpan: nomor sudah dipakai → blokir SEBELUM kirim, jawaban tetap', async () => {
+    api.get.mockResolvedValue({ data: buildSurveyWithUniqueOnly() });
+    api.post.mockImplementation((url) => {
+      if (url === '/responses/check-unique') {
+        return Promise.resolve({ data: { available: false } }); // sudah dipakai TPD lain
+      }
+      return Promise.resolve({ data: { session_token: 'test-token' } });
+    });
+
+    renderSurveyForm();
+    await waitFor(() => {
+      expect(screen.getByText('Masukkan nomor kuesioner')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('Masukkan nomor kuesioner'), { target: { value: '77' } });
+    fireEvent.click(screen.getByRole('button', { name: /simpan data responden/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/sudah diisi TPD lain/i)).toBeInTheDocument();
+    });
+    // TIDAK pernah mencoba submit ke server — dihentikan di gerbang awal.
+    expect(api.post).not.toHaveBeenCalledWith('/responses/submit', expect.anything());
+    // Jawaban nomor tetap ada di layar (tinggal diganti).
+    expect(screen.getByPlaceholderText('Masukkan nomor kuesioner').value).toBe('77');
+  });
+
+  test('pilih nomor tugasan yang baru dipakai TPD lain → dibatalkan + ditandai "Sudah diisi"', async () => {
+    api.get.mockImplementation((url) => {
+      if (String(url).startsWith('/responses/assigned-numbers/')) {
+        return Promise.resolve({ data: { assigned_numbers: ['1', '2'], used_numbers: [] } });
+      }
+      return Promise.resolve({ data: buildSurveyWithUniqueOnly() });
+    });
+    api.post.mockImplementation((url) => {
+      if (url === '/responses/check-unique') {
+        return Promise.resolve({ data: { available: false } });
+      }
+      return Promise.resolve({ data: { session_token: 'test-token' } });
+    });
+
+    renderSurveyForm();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /nomor 1/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /nomor 1/i }));
+
+    // Pemberitahuan inline + pilihan dibatalkan + badge jadi "Sudah diisi" (disabled).
+    await waitFor(() => {
+      expect(screen.getByText(/baru saja diisi TPD lain/i)).toBeInTheDocument();
+    });
+    const badge1 = screen.getByRole('button', { name: /nomor 1: sudah diisi/i });
+    expect(badge1).toBeDisabled();
+  });
+});
+
 // ─── Auto-isi jenis kelamin dari paritas Nomor Kuesioner ──────────────────────
 function buildSurveyGenderAutoFill() {
   return {

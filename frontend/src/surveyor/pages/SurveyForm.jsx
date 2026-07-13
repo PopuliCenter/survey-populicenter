@@ -497,16 +497,28 @@ function PhoneNumberField({ question, answer, onChange, hasError }) {
  * Jika admin sudah menugaskan nomor kuesioner (assignedNumbers), tampilkan dropdown.
  * Jika tidak, tampilkan input bebas digit (0-9) dengan indikator ketersediaan real-time.
  *
- * @param {{ question: object, answer: string, onChange: function, hasError: boolean, surveyId: string, isOnline: boolean, assignedNumbers: string[]|null, usedNumbers: string[] }} props
+ * Anti-dobel antar TPD: saat nomor dipilih/diketik (online), ketersediaan dicek
+ * LANGSUNG ke server — nomor yang baru saja diisi TPD lain ditolak di DEPAN,
+ * bukan gagal di akhir saat simpan.
+ *
+ * @param {{ question: object, answer: string, onChange: function, hasError: boolean, surveyId: string, isOnline: boolean, assignedNumbers: string[]|null, usedNumbers: string[], onAvailabilityChange?: function, onNumberTaken?: function }} props
  */
-function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnline, assignedNumbers, usedNumbers }) {
+function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnline, assignedNumbers, usedNumbers, onAvailabilityChange, onNumberTaken }) {
   const config = question.options && !Array.isArray(question.options) ? question.options : {};
   const { min_length, max_length } = config;
 
   const [availability, setAvailability] = useState(null);
+  // Nomor tugasan yang baru saja ketahuan sudah dipakai TPD lain (notif inline).
+  const [takenNumber, setTakenNumber] = useState(null);
   const debounceRef = useRef(null);
 
   const usedSet = useMemo(() => new Set(usedNumbers || []), [usedNumbers]);
+
+  // Laporkan status ketersediaan ke induk (dipakai memblokir Lanjut/Simpan).
+  const updateAvailability = (v) => {
+    setAvailability(v);
+    if (onAvailabilityChange) onAvailabilityChange(v);
+  };
 
   // Bersihkan timer debounce saat unmount. WAJIB dipanggil SEBELUM early-return
   // di bawah agar urutan hook konsisten di kedua mode (rules-of-hooks).
@@ -519,6 +531,32 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
   // Jika ada assigned_numbers dari admin, tampilkan dropdown
   if (assignedNumbers && Array.isArray(assignedNumbers) && assignedNumbers.length > 0) {
     const availableNumbers = assignedNumbers.filter((num) => !usedSet.has(num));
+
+    // Pilih nomor: cek ketersediaan LIVE ke server (online). Bila ternyata baru
+    // saja diisi TPD lain → batalkan pilihan + tandai "Sudah diisi".
+    async function handlePickNumber(num) {
+      setTakenNumber(null);
+      onChange(num);
+      if (!isOnline) return;
+      updateAvailability('checking');
+      try {
+        const res = await api.post('/responses/check-unique', {
+          survey_id: surveyId,
+          question_id: question.id,
+          value: num,
+        });
+        if (res.data.available) {
+          updateAvailability('available');
+        } else {
+          updateAvailability(null);
+          setTakenNumber(num);
+          onChange(''); // batalkan pilihan
+          if (onNumberTaken) onNumberTaken(num);
+        }
+      } catch {
+        updateAvailability(null); // cek gagal — biarkan; gerbang simpan & server tetap menjaga
+      }
+    }
 
     return (
       <div className="space-y-3">
@@ -558,7 +596,7 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
                 key={num}
                 type="button"
                 disabled={isUsed}
-                onClick={() => !isUsed && onChange(num)}
+                onClick={() => !isUsed && handlePickNumber(num)}
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border transition-all min-w-[48px] min-h-[44px] ${badgeClass}`}
                 title={`Nomor ${num}: ${label}`}
                 aria-label={`Nomor ${num}: ${label}`}
@@ -583,6 +621,16 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
           </span>
         </div>
 
+        {/* Cek live saat memilih nomor */}
+        {availability === 'checking' && (
+          <p className="text-xs text-gray-400">Memeriksa ketersediaan nomor…</p>
+        )}
+        {takenNumber && (
+          <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            Nomor {takenNumber} baru saja diisi TPD lain — pilih nomor lain.
+          </p>
+        )}
+
         {availableNumbers.length === 0 && (
           <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-lg px-3 py-2">
             Semua nomor kuesioner sudah diisi.
@@ -598,13 +646,13 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
     onChange(digits);
 
     if (!isOnline) {
-      setAvailability(null);
+      updateAvailability(null);
       return;
     }
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (digits.length > 0) {
-      setAvailability('checking');
+      updateAvailability('checking');
       debounceRef.current = setTimeout(async () => {
         try {
           const res = await api.post('/responses/check-unique', {
@@ -612,13 +660,13 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
             question_id: question.id,
             value: digits,
           });
-          setAvailability(res.data.available ? 'available' : 'taken');
+          updateAvailability(res.data.available ? 'available' : 'taken');
         } catch {
-          setAvailability(null);
+          updateAvailability(null);
         }
       }, 500);
     } else {
-      setAvailability(null);
+      updateAvailability(null);
     }
   }
 
@@ -822,7 +870,7 @@ function MatrixField({ question, answer, onChange, hasError }) {
 /**
  * Renders a single question based on its type.
  */
-function QuestionField({ question, answer, onChange, hasError, displayOptions, surveyId, isOnline, assignedNumbers, usedNumbers }) {
+function QuestionField({ question, answer, onChange, hasError, displayOptions, surveyId, isOnline, assignedNumbers, usedNumbers, onAvailabilityChange, onNumberTaken }) {
   const baseInputClass =
     'w-full border rounded-lg px-3 py-2 text-base leading-6 focus:outline-none focus:ring-2 focus:ring-accent-400 transition-colors';
   const errorBorder = hasError ? 'border-red-400 bg-red-50' : 'border-gray-300';
@@ -1081,6 +1129,8 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
           isOnline={isOnline}
           assignedNumbers={assignedNumbers}
           usedNumbers={usedNumbers}
+          onAvailabilityChange={onAvailabilityChange}
+          onNumberTaken={onNumberTaken}
         />
       );
 
@@ -1217,6 +1267,18 @@ function SurveyForm() {
   const [assignedNumbers, setAssignedNumbers] = useState(null); // string[] | null
   const [usedNumbers, setUsedNumbers] = useState([]); // string[]
 
+  // Ketersediaan nomor kuesioner terkini dari cek live server (via UniqueIdField):
+  // null | 'checking' | 'available' | 'taken'. Dipakai memblokir Lanjut/Simpan
+  // agar bentrok nomor antar TPD ketahuan di DEPAN, bukan gagal di akhir.
+  const [uniqueAvailability, setUniqueAvailability] = useState(null);
+
+  // Tandai nomor sudah terpakai (mis. baru saja diisi TPD lain) → badge "Sudah diisi".
+  const markNumberUsed = useCallback((num) => {
+    const n = String(num || '').trim();
+    if (!n) return;
+    setUsedNumbers((prev) => (prev.includes(n) ? prev : [...prev, n]));
+  }, []);
+
   // ─── Skip logic ─────────────────────────────────────────────────────────────
   const { visibleQuestions } = useSkipLogic(questions, answers);
 
@@ -1241,6 +1303,24 @@ function SurveyForm() {
   useEffect(() => {
     draftNumberRef.current = String(currentQuestionnaireNumber || '');
   }, [currentQuestionnaireNumber]);
+
+  // Kembali ke pertanyaan Nomor Kuesioner (mis. saat nomor ternyata sudah dipakai
+  // TPD lain) — di wizard pindah step; di mode scroll cukup scroll ke elemennya.
+  const goToUniqueIdStep = useCallback(() => {
+    if (!uniqueIdQuestion) return;
+    const idx = visibleQuestions.findIndex((q) => q.id === uniqueIdQuestion.id);
+    if (idx >= 0) {
+      setShowOverview(false);
+      setCurrentStep(idx);
+    }
+    // Scroll bila elemennya ada (mode scroll; di wizard baru ada setelah re-render).
+    setTimeout(() => {
+      const el = document.getElementById(`question-${uniqueIdQuestion.id}`);
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 50);
+  }, [uniqueIdQuestion, visibleQuestions]);
 
   // ─── Isi otomatis jenis kelamin dari paritas Nomor Kuesioner ────────────────
   // Pertanyaan single_choice yang ditandai admin (auto_fill) akan terisi otomatis
@@ -1675,13 +1755,19 @@ function SurveyForm() {
       }
     }
 
+    // Nomor kuesioner yang sudah dipakai TPD lain (cek live) → blokir Lanjut.
+    if (question.type === 'unique_id' && isOnline && uniqueAvailability === 'taken') {
+      setErrorQuestionIds(new Set([question.id]));
+      return false;
+    }
+
     // Check answer validation errors
     if (validationErrors[question.id]) {
       return false;
     }
 
     return true;
-  }, [visibleQuestions, currentStep, answers, photoPaths, validationErrors, isOnline]);
+  }, [visibleQuestions, currentStep, answers, photoPaths, validationErrors, isOnline, uniqueAvailability]);
 
   /**
    * Navigate to the next question. Validates current question first.
@@ -1767,6 +1853,31 @@ function SurveyForm() {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
       return;
+    }
+
+    // ─── Gerbang AWAL nomor kuesioner (online) ─────────────────────────────
+    // Cek ke server SEBELUM menghentikan rekaman / mengunggah media: bila nomor
+    // ternyata sudah diisi TPD lain (race saat mengisi bersamaan), hentikan di
+    // sini dengan pesan jelas — jawaban tetap ada, TPD tinggal ganti nomor.
+    // Tanpa gerbang ini kegagalan baru muncul di ujung (constraint DB) setelah
+    // media terunggah — buang waktu.
+    const uniqueVal = uniqueIdQuestion ? String(answers[uniqueIdQuestion.id] || '').trim() : '';
+    if (uniqueIdQuestion && uniqueVal && isOnline) {
+      try {
+        const chk = await api.post('/responses/check-unique', {
+          survey_id: id,
+          question_id: uniqueIdQuestion.id,
+          value: uniqueVal,
+        });
+        if (!chk.data.available) {
+          markNumberUsed(uniqueVal);
+          setSubmitError(
+            `Nomor kuesioner ${uniqueVal} sudah diisi TPD lain. Pilih/ganti nomor lain lalu simpan lagi — jawaban Anda tetap tersimpan.`
+          );
+          goToUniqueIdStep();
+          return;
+        }
+      } catch { /* cek gagal (jaringan) — lanjutkan; server tetap penjaga akhir */ }
     }
 
     // Auto-stop rekaman & ambil blob final sebelum menyusun payload — rekaman
@@ -2046,11 +2157,22 @@ function SurveyForm() {
         }
         setValidationErrors((prev) => ({ ...prev, ...backendErrors }));
         const firstQid = errData.validation_errors[0]?.question_id;
-        if (firstQid) {
-          const el = document.getElementById(`question-${firstQid}`);
-          if (el && typeof el.scrollIntoView === 'function') {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
+        // Nomor kuesioner keburu dipakai TPD lain (race di detik terakhir) →
+        // tandai terpakai & kembali ke langkah nomor agar mudah diganti.
+        if (uniqueIdQuestion && backendErrors[uniqueIdQuestion.id]) {
+          markNumberUsed(String(answers[uniqueIdQuestion.id] || ''));
+          goToUniqueIdStep();
+        } else if (firstQid) {
+          // Wizard: lompat ke langkah pertanyaan bermasalah (scroll saja tidak
+          // cukup karena elemennya belum dirender di step lain).
+          const idx = visibleQuestions.findIndex((q) => q.id === firstQid);
+          if (idx >= 0) { setShowOverview(false); setCurrentStep(idx); }
+          setTimeout(() => {
+            const el = document.getElementById(`question-${firstQid}`);
+            if (el && typeof el.scrollIntoView === 'function') {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }, 50);
         }
         setSubmitError(errData.error || 'Validasi jawaban gagal');
       } else if (errData?.missing_questions) {
@@ -2058,8 +2180,15 @@ function SurveyForm() {
         setErrorQuestionIds(new Set(errData.missing_questions));
         setSubmitError('Harap isi semua pertanyaan wajib yang ditandai.');
       } else {
+        // Backstop unique-constraint (422 tanpa validation_errors) yang pesannya
+        // menyebut nomor sudah digunakan → perlakukan sama: tandai & kembali.
+        const msg = errData?.error || errData?.message || '';
+        if (uniqueIdQuestion && err.response?.status === 422 && /nomor|unik|sudah digunakan/i.test(msg)) {
+          markNumberUsed(String(answers[uniqueIdQuestion.id] || ''));
+          goToUniqueIdStep();
+        }
         setSubmitError(
-          errData?.error || errData?.message || 'Gagal menyimpan data. Silakan coba kembali.'
+          msg || 'Gagal menyimpan data. Silakan coba kembali.'
         );
       }
     } finally {
@@ -2085,6 +2214,9 @@ function SurveyForm() {
     signaturePad,
     startGeo,
     fieldToolsSettings,
+    uniqueIdQuestion,
+    markNumberUsed,
+    goToUniqueIdStep,
   ]);
 
   // ─── Pending (tunda) media: audio segmen sebelumnya + status simpan ─────────
@@ -2496,6 +2628,8 @@ function SurveyForm() {
                       isOnline={isOnline}
                       assignedNumbers={assignedNumbers}
                       usedNumbers={usedNumbers}
+                      onAvailabilityChange={setUniqueAvailability}
+                      onNumberTaken={markNumberUsed}
                     />
                   )}
 
@@ -2692,6 +2826,8 @@ function SurveyForm() {
                       isOnline={isOnline}
                       assignedNumbers={assignedNumbers}
                       usedNumbers={usedNumbers}
+                      onAvailabilityChange={setUniqueAvailability}
+                      onNumberTaken={markNumberUsed}
                     />
                   )}
 

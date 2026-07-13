@@ -617,7 +617,10 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
  * Get assigned questionnaire numbers for the current TPD on a specific survey.
  * Returns: { assigned_numbers: string[] | null, used_numbers: string[] }
  * - assigned_numbers: nomor yang ditugaskan admin, null jika tidak ada penugasan
- * - used_numbers: nomor yang sudah dipakai oleh TPD ini
+ * - used_numbers: nomor yang sudah dipakai pada survei ini oleh TPD MANA PUN.
+ *   (Global, bukan per-TPD — bila nomor yang sama tertugaskan/terisi ke akun
+ *   lain, nomor itu harus tampil "sudah diisi" agar tidak dikerjakan dobel
+ *   lalu gagal di akhir saat simpan.)
  * Requires: authMiddleware + requireRole('surveyor')
  */
 router.get('/assigned-numbers/:surveyId', authMiddleware, requireRole('surveyor'), async (req, res, next) => {
@@ -632,11 +635,10 @@ router.get('/assigned-numbers/:surveyId', authMiddleware, requireRole('surveyor'
 
     const assignedNumbers = quotaRecord?.assigned_numbers || null;
 
-    // Get already used questionnaire numbers by this TPD for this survey
+    // Nomor yang sudah dipakai pada survei ini (semua TPD, hanya yang committed)
     const usedResponses = await Response.findAll({
       where: {
         survey_id: surveyId,
-        surveyor_id: surveyorId,
         questionnaire_number: { [Op.notLike]: 'PENDING-%' },
       },
       attributes: ['questionnaire_number'],
