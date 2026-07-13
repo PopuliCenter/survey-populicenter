@@ -37,6 +37,7 @@ const DEFAULT_FIELD_TOOLS_SETTINGS = {
   photo_mode: 'required',
   gps_mode: 'required',
   audio_indicator: 'shown', // 'shown' | 'hidden' — tampilkan indikator rekaman di perangkat TPD
+  device_lock: 'off', // 'enforced' | 'off' — kunci 1 akun TPD = 1 perangkat saat mengisi survei ini
 };
 
 const FIELD_TOOLS = [
@@ -733,6 +734,36 @@ function FieldToolsSettingsSection({ settings, onChange }) {
             </span>
           </div>
         )}
+
+        {/* Kunci Perangkat — 1 akun TPD = 1 perangkat (cegah double user / salah akun) */}
+        <div className="flex items-center gap-6 flex-wrap pt-3 border-t border-gray-100">
+          <span className="text-sm text-gray-700 w-36 shrink-0">Kunci Perangkat</span>
+          <div className="flex items-center gap-4 flex-wrap">
+            {[{ value: 'enforced', label: 'Aktif' }, { value: 'off', label: 'Nonaktif' }].map(({ value, label: optLabel }) => (
+              <label
+                key={value}
+                htmlFor={`device_lock_${value}`}
+                className="inline-flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer"
+              >
+                <input
+                  type="radio"
+                  id={`device_lock_${value}`}
+                  name="device_lock"
+                  value={value}
+                  checked={(settings.device_lock || 'off') === value}
+                  onChange={() => onChange('device_lock', value)}
+                  className="accent-primary-600 focus:ring-2 focus:ring-primary-400"
+                />
+                {optLabel}
+              </label>
+            ))}
+          </div>
+          <span className="text-xs text-gray-400 basis-full">
+            1 akun TPD terkunci ke 1 perangkat (HP pertama yang dipakai mengisi) — mencegah pengisian
+            memakai akun orang lain. Bila TPD ganti HP, reset dari Manajemen TPD ("Reset Perangkat").
+            Nonaktifkan saat uji coba.
+          </span>
+        </div>
       </div>
     </div>
   );

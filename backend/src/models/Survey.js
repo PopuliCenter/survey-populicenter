@@ -58,7 +58,10 @@ module.exports = (sequelize) => {
           const requiredProperties = ['signature_mode', 'audio_mode', 'photo_mode', 'gps_mode'];
           const validModes = ['required', 'optional', 'disabled'];
           // Properti opsional (kompatibel mundur).
-          const optionalEnums = { audio_indicator: ['shown', 'hidden'] };
+          const optionalEnums = {
+            audio_indicator: ['shown', 'hidden'],
+            device_lock: ['enforced', 'off'],
+          };
           const allowedProperties = [...requiredProperties, ...Object.keys(optionalEnums)];
 
           if (!value || typeof value !== 'object') {

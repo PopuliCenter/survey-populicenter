@@ -38,6 +38,20 @@ module.exports = (sequelize) => {
       allowNull: false,
       defaultValue: true,
     },
+    // Kunci perangkat (1 user = 1 device). Terikat saat pertama mengisi survei
+    // ber-device_lock 'enforced'; admin bisa mereset dari Manajemen TPD.
+    device_id: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    device_label: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    device_bound_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   }, {
     tableName: 'users',
     underscored: true,

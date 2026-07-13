@@ -62,6 +62,7 @@ jest.mock('../../src/models', () => {
     },
     User: {
       findOne: jest.fn(),
+      update: jest.fn(),
     },
     SurveyorQuota: {
       findOne: jest.fn(),
@@ -83,7 +84,7 @@ jest.mock('../../src/config/redis', () => ({
 }));
 
 const app = require('../../src/app');
-const { Response, Answer, Question, Survey, SurveyorQuota, sequelize } = require('../../src/models');
+const { Response, Answer, Question, Survey, User, SurveyorQuota, sequelize } = require('../../src/models');
 const redis = require('../../src/config/redis');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -205,6 +206,106 @@ describe('Response Module - POST /responses/start', () => {
       .send({ survey_id: 'survey-uuid-001' });
 
     expect(res.status).toBe(401);
+  });
+});
+
+// ─── Kunci perangkat (1 user = 1 device) pada /responses/start ────────────────
+
+describe('Kunci perangkat (device_lock) pada /responses/start', () => {
+  const lockedSurvey = {
+    id: 'survey-uuid-001',
+    status: 'active',
+    title: 'Test Survey',
+    field_tools_settings: {
+      signature_mode: 'optional', audio_mode: 'optional', photo_mode: 'optional',
+      gps_mode: 'optional', device_lock: 'enforced',
+    },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    redis.get.mockResolvedValue(null);
+    SurveyorQuota.findOne.mockResolvedValue({ survey_id: 'survey-uuid-001', surveyor_id: 'surveyor-uuid-001', quota: 10 });
+    Response.count.mockResolvedValue(0);
+    Response.create.mockResolvedValue(mockResponseRecord());
+  });
+
+  test('enforced + tanpa header X-Device-Id → 403 (minta perbarui aplikasi)', async () => {
+    const token = createSurveyorToken();
+    Survey.findOne.mockResolvedValue(lockedSurvey);
+
+    const res = await request(app)
+      .post('/responses/start')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ survey_id: 'survey-uuid-001' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/kunci perangkat/i);
+  });
+
+  test('enforced + user belum terikat → ikat perangkat & 201', async () => {
+    const token = createSurveyorToken();
+    Survey.findOne.mockResolvedValue(lockedSurvey);
+    User.findOne.mockResolvedValue({ id: 'surveyor-uuid-001', device_id: null, device_label: null });
+    User.update.mockResolvedValue([1]);
+
+    const res = await request(app)
+      .post('/responses/start')
+      .set('Authorization', `Bearer ${token}`)
+      .set('X-Device-Id', 'device-abc')
+      .set('X-Device-Label', 'Android 13; Realme RMX3286')
+      .send({ survey_id: 'survey-uuid-001' });
+
+    expect(res.status).toBe(201);
+    expect(User.update).toHaveBeenCalledWith(
+      expect.objectContaining({ device_id: 'device-abc' }),
+      expect.objectContaining({ where: { id: 'surveyor-uuid-001' } })
+    );
+  });
+
+  test('enforced + perangkat sama → 201 tanpa mengikat ulang', async () => {
+    const token = createSurveyorToken();
+    Survey.findOne.mockResolvedValue(lockedSurvey);
+    User.findOne.mockResolvedValue({ id: 'surveyor-uuid-001', device_id: 'device-abc', device_label: 'HP Lama' });
+
+    const res = await request(app)
+      .post('/responses/start')
+      .set('Authorization', `Bearer ${token}`)
+      .set('X-Device-Id', 'device-abc')
+      .send({ survey_id: 'survey-uuid-001' });
+
+    expect(res.status).toBe(201);
+    expect(User.update).not.toHaveBeenCalled();
+  });
+
+  test('enforced + perangkat BERBEDA → 403 dengan pesan jelas', async () => {
+    const token = createSurveyorToken();
+    Survey.findOne.mockResolvedValue(lockedSurvey);
+    User.findOne.mockResolvedValue({ id: 'surveyor-uuid-001', device_id: 'device-abc', device_label: 'Realme Narzo 50' });
+
+    const res = await request(app)
+      .post('/responses/start')
+      .set('Authorization', `Bearer ${token}`)
+      .set('X-Device-Id', 'device-LAIN')
+      .send({ survey_id: 'survey-uuid-001' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/terkunci ke perangkat lain/i);
+    expect(res.body.error).toContain('Realme Narzo 50');
+  });
+
+  test('device_lock off / tidak ada → tidak menyentuh User & 201', async () => {
+    const token = createSurveyorToken();
+    Survey.findOne.mockResolvedValue({ id: 'survey-uuid-001', status: 'active', title: 'Test Survey' });
+
+    const res = await request(app)
+      .post('/responses/start')
+      .set('Authorization', `Bearer ${token}`)
+      .set('X-Device-Id', 'device-apapun')
+      .send({ survey_id: 'survey-uuid-001' });
+
+    expect(res.status).toBe(201);
+    expect(User.findOne).not.toHaveBeenCalled();
   });
 });
 

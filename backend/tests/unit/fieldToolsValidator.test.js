@@ -16,6 +16,7 @@ describe('fieldToolsValidator', () => {
         photo_mode: 'required',
         gps_mode: 'required',
         audio_indicator: 'shown',
+        device_lock: 'off',
       });
     });
 
@@ -116,6 +117,14 @@ describe('fieldToolsValidator', () => {
       const result = validateFieldToolsSettings({ ...baseModes, audio_indicator: 'maybe' });
       expect(result.valid).toBe(false);
       expect(result.error).toContain('audio_indicator');
+    });
+
+    it('menerima device_lock "enforced" / "off"; menolak nilai lain', () => {
+      expect(validateFieldToolsSettings({ ...baseModes, device_lock: 'enforced' })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({ ...baseModes, device_lock: 'off' })).toEqual({ valid: true });
+      const bad = validateFieldToolsSettings({ ...baseModes, device_lock: 'yes' });
+      expect(bad.valid).toBe(false);
+      expect(bad.error).toContain('device_lock');
     });
   });
 

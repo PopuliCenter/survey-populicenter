@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { PRODUCTION_SERVER } from '../config/server';
+import { getDeviceUid, getDeviceLabel } from '../utils/deviceId';
 
 function getBaseURL() {
   if (import.meta.env.VITE_API_URL) {
@@ -25,6 +26,13 @@ api.interceptors.request.use(
     config.baseURL = getBaseURL();
     const token = localStorage.getItem('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
+    // Identitas perangkat — untuk kunci perangkat (1 user = 1 device) di server.
+    const deviceUid = getDeviceUid();
+    if (deviceUid) {
+      config.headers['X-Device-Id'] = deviceUid;
+      const label = getDeviceLabel();
+      if (label) config.headers['X-Device-Label'] = label;
+    }
     return config;
   },
   (error) => Promise.reject(error)

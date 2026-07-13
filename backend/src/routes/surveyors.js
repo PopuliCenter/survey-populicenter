@@ -193,7 +193,7 @@ router.get('/', async (req, res, next) => {
   try {
     const surveyors = await User.findAll({
       where: { role: 'surveyor' },
-      attributes: ['id', 'name', 'email', 'is_active', 'created_at'],
+      attributes: ['id', 'name', 'email', 'is_active', 'created_at', 'device_id', 'device_label', 'device_bound_at'],
       order: [['created_at', 'ASC']],
     });
 
@@ -285,6 +285,10 @@ router.get('/', async (req, res, next) => {
       created_at: s.created_at,
       response_count: responseCounts[s.id] || 0,
       quotas: quotasBySurveyor[s.id] || [],
+      // Kunci perangkat: apakah akun sudah terikat ke sebuah perangkat.
+      device_bound: !!s.device_id,
+      device_label: s.device_label || null,
+      device_bound_at: s.device_bound_at || null,
     }));
 
     res.json(result);
@@ -516,6 +520,47 @@ router.patch('/:id/activate', async (req, res, next) => {
       email: surveyor.email,
       is_active: surveyor.is_active,
       created_at: surveyor.created_at,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /surveyors/:id/reset-device
+ * Lepas ikatan perangkat TPD (kunci perangkat 1 user = 1 device).
+ * Dipakai saat TPD ganti HP atau salah perangkat. Admin/supervisor.
+ */
+router.post('/:id/reset-device', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const surveyor = await User.findOne({ where: { id, role: 'surveyor' } });
+    if (!surveyor) {
+      return res.status(404).json({ error: 'TPD tidak ditemukan' });
+    }
+
+    const oldValue = { device_id: surveyor.device_id, device_label: surveyor.device_label };
+
+    surveyor.device_id = null;
+    surveyor.device_label = null;
+    surveyor.device_bound_at = null;
+    await surveyor.save();
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'RESET_SURVEYOR_DEVICE',
+      entity_type: 'surveyor',
+      entity_id: surveyor.id,
+      old_value: oldValue,
+      new_value: { device_id: null },
+      ip_address: req.ip,
+    });
+
+    res.json({
+      id: surveyor.id,
+      device_bound: false,
+      message: 'Ikatan perangkat direset. TPD dapat memakai perangkat baru saat mengisi berikutnya.',
     });
   } catch (error) {
     next(error);

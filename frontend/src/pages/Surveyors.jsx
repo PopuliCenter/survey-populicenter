@@ -691,6 +691,22 @@ function Surveyors() {
     }
   }
 
+  // ── Reset perangkat (kunci perangkat 1 user = 1 device) ────────────────────
+  async function handleResetDevice(tpd) {
+    try {
+      await api.post(`/surveyors/${tpd.id}/reset-device`);
+      toast.success(`Perangkat "${tpd.name}" direset — HP baru akan terikat saat pengisian berikutnya.`);
+      fetchSurveyors();
+    } catch (err) {
+      toast.error(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          err.message ||
+          'Gagal mereset perangkat.'
+      );
+    }
+  }
+
   // ── Delete handler ──────────────────────────────────────────────────────────
   async function handleDeleteSurveyor(tpd) {
     setDeleting(true);
@@ -1239,6 +1255,14 @@ function Surveyors() {
                           {/* Name */}
                           <td className="px-5 py-3 font-medium text-gray-800">
                             {tpd.name}
+                            {tpd.device_bound && (
+                              <span
+                                className="ml-2 inline-flex items-center gap-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold align-middle"
+                                title={`Terkunci ke perangkat${tpd.device_label ? `: ${tpd.device_label}` : ''}${tpd.device_bound_at ? ` (sejak ${new Date(tpd.device_bound_at).toLocaleDateString('id-ID')})` : ''}`}
+                              >
+                                🔒 HP
+                              </span>
+                            )}
                           </td>
 
                           {/* Email */}
@@ -1283,6 +1307,16 @@ function Surveyors() {
                                   setModalMode('edit');
                                 }}
                               />
+
+                              {/* Reset Perangkat (kunci perangkat) — hanya bila terikat */}
+                              {tpd.device_bound && (
+                                <IconButton
+                                  icon="deviceReset"
+                                  variant="warning"
+                                  label={`Reset perangkat ${tpd.name} (lepas kunci HP)`}
+                                  onClick={() => handleResetDevice(tpd)}
+                                />
+                              )}
 
                               {/* Nonaktifkan / Aktifkan */}
                               {tpd.is_active ? (

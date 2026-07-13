@@ -21,6 +21,57 @@ const router = express.Router();
 const SESSION_SECRET = process.env.SESSION_SECRET;
 
 /**
+ * Kunci perangkat (1 user = 1 device) — berlaku bila survei menyetel
+ * field_tools_settings.device_lock === 'enforced'. Perangkat pertama yang
+ * dipakai mengisi otomatis TERIKAT ke akun; perangkat lain ditolak (403)
+ * sampai admin mereset ikatan dari Manajemen TPD. Mencegah "double user" /
+ * salah isi memakai akun TPD lain.
+ *
+ * @param {import('express').Request} req
+ * @param {object} survey - instance Survey (perlu field_tools_settings)
+ * @returns {Promise<{ ok: boolean, status?: number, error?: string }>}
+ */
+async function enforceDeviceLock(req, survey) {
+  const settings = survey && survey.field_tools_settings;
+  if (!settings || settings.device_lock !== 'enforced') return { ok: true };
+
+  const deviceId = String(req.headers['x-device-id'] || '').trim().slice(0, 100);
+  if (!deviceId) {
+    return {
+      ok: false,
+      status: 403,
+      error: 'Survei ini mewajibkan kunci perangkat. Perbarui aplikasi ke versi terbaru lalu coba lagi.',
+    };
+  }
+
+  const user = await User.findOne({
+    where: { id: req.user.id },
+    attributes: ['id', 'device_id', 'device_label'],
+  });
+  if (!user) {
+    return { ok: false, status: 403, error: 'Pengguna tidak ditemukan' };
+  }
+
+  if (!user.device_id) {
+    // Perangkat pertama → ikat ke akun ini.
+    const label = String(req.headers['x-device-label'] || '').slice(0, 255) || null;
+    await User.update(
+      { device_id: deviceId, device_label: label, device_bound_at: new Date() },
+      { where: { id: req.user.id } }
+    );
+    return { ok: true };
+  }
+
+  if (user.device_id === deviceId) return { ok: true };
+
+  return {
+    ok: false,
+    status: 403,
+    error: `Akun ini terkunci ke perangkat lain${user.device_label ? ` (${user.device_label})` : ''}. Gunakan perangkat terdaftar, atau minta admin mereset perangkat di Manajemen TPD.`,
+  };
+}
+
+/**
  * POST /responses/start
  * Start a new response session for a survey.
  * Body: { survey_id }
@@ -50,6 +101,12 @@ router.post('/start', authMiddleware, requireRole('surveyor'), async (req, res, 
     }
     if (survey.start_date && new Date(survey.start_date) > now) {
       return res.status(409).json({ error: 'Survei belum dimulai' });
+    }
+
+    // Kunci perangkat (bila diaktifkan pada survei ini)
+    const deviceCheck = await enforceDeviceLock(req, survey);
+    if (!deviceCheck.ok) {
+      return res.status(deviceCheck.status).json({ error: deviceCheck.error });
     }
 
     // --- Quota enforcement ---
@@ -200,6 +257,13 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     });
     if (!survey) {
       return res.status(409).json({ error: 'Survei tidak lagi aktif' });
+    }
+
+    // Kunci perangkat (bila diaktifkan pada survei ini) — juga menjaga jalur
+    // sinkron offline: data dari perangkat tak terdaftar ditolak saat submit.
+    const deviceCheck = await enforceDeviceLock(req, survey);
+    if (!deviceCheck.ok) {
+      return res.status(deviceCheck.status).json({ error: deviceCheck.error });
     }
 
     // Validate field tools submission against survey settings

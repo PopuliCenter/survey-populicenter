@@ -5,8 +5,11 @@ const REQUIRED_PROPERTIES = ['signature_mode', 'audio_mode', 'photo_mode', 'gps_
 
 // Properti OPSIONAL (kompatibel mundur — survei lama tanpa properti ini valid).
 // audio_indicator: apakah indikator rekaman ditampilkan di perangkat TPD.
+// device_lock: kunci 1 user = 1 perangkat saat mengisi survei ini
+//   ('enforced' = aktif, 'off' = nonaktif; admin bisa reset ikatan per TPD).
 const OPTIONAL_ENUMS = {
   audio_indicator: ['shown', 'hidden'],
+  device_lock: ['enforced', 'off'],
 };
 const ALLOWED_PROPERTIES = [...REQUIRED_PROPERTIES, ...Object.keys(OPTIONAL_ENUMS)];
 
@@ -21,6 +24,7 @@ function getDefaultFieldToolsSettings() {
     photo_mode: 'required',
     gps_mode: 'required',
     audio_indicator: 'shown',
+    device_lock: 'off',
   };
 }
 
