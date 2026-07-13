@@ -44,6 +44,33 @@ describe('evaluateCondition — operator', () => {
   test('jawaban kosong → kondisi tidak terpenuhi', () => {
     expect(evaluateCondition({ question_id: 'qX', operator: 'equals', value: 'A' }, answers)).toBe(false);
   });
+
+  test('is_answered / is_empty (pertanyaan terbuka)', () => {
+    const a = { qText: 'jawaban bebas', qKosong: '', qArr: [], qMc: ['x'] };
+    expect(evaluateCondition({ question_id: 'qText', operator: 'is_answered' }, a)).toBe(true);
+    expect(evaluateCondition({ question_id: 'qText', operator: 'is_empty' }, a)).toBe(false);
+    expect(evaluateCondition({ question_id: 'qKosong', operator: 'is_answered' }, a)).toBe(false);
+    expect(evaluateCondition({ question_id: 'qKosong', operator: 'is_empty' }, a)).toBe(true);
+    expect(evaluateCondition({ question_id: 'qMissing', operator: 'is_empty' }, a)).toBe(true);
+    expect(evaluateCondition({ question_id: 'qArr', operator: 'is_empty' }, a)).toBe(true); // array kosong
+    expect(evaluateCondition({ question_id: 'qMc', operator: 'is_answered' }, a)).toBe(true);
+  });
+
+  test('nilai __other__ cocok bila opsi "Lainnya" dipilih', () => {
+    const a = {
+      qSingle: '__other__:teks bebas responden',
+      qSingleNormal: 'opsi_a',
+      qMulti: ['opsi_b', '__other__:catatan'],
+      qMultiNormal: ['opsi_b'],
+    };
+    // single_choice
+    expect(evaluateCondition({ question_id: 'qSingle', operator: 'equals', value: '__other__' }, a)).toBe(true);
+    expect(evaluateCondition({ question_id: 'qSingleNormal', operator: 'equals', value: '__other__' }, a)).toBe(false);
+    expect(evaluateCondition({ question_id: 'qSingle', operator: 'not_equals', value: '__other__' }, a)).toBe(false);
+    // multiple_choice
+    expect(evaluateCondition({ question_id: 'qMulti', operator: 'contains', value: '__other__' }, a)).toBe(true);
+    expect(evaluateCondition({ question_id: 'qMultiNormal', operator: 'contains', value: '__other__' }, a)).toBe(false);
+  });
 });
 
 describe('evaluateRule — AND multi-kondisi & legacy', () => {

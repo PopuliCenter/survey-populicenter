@@ -5,6 +5,7 @@ const SKIP_LOGIC_SUPPORTED_TYPES = [
   'single_choice',
   'multiple_choice',
   'short_text',
+  'long_text',
   'numeric_scale',
 ];
 
@@ -15,7 +16,21 @@ const OPERATORS = [
   { value: 'contains', label: 'mengandung kata' },
   { value: 'greater_than', label: 'lebih besar dari' },
   { value: 'less_than', label: 'lebih kecil dari' },
+  { value: 'is_answered', label: 'terisi (ada jawaban)' },
+  { value: 'is_empty', label: 'kosong (tidak dijawab)' },
 ];
+
+// Operator yang TIDAK memerlukan nilai pembanding.
+const VALUELESS_OPERATORS = ['is_answered', 'is_empty'];
+
+// Nilai khusus untuk mencocokkan opsi "Lainnya" (isian bebas).
+const OTHER_VALUE = '__other__';
+
+// Kondisi dianggap "lengkap" bila ada pertanyaan sumber dan (nilai terisi ATAU
+// operator memang tak butuh nilai, mis. terisi/kosong).
+function isConditionComplete(c) {
+  return !!(c && c.question_id && (VALUELESS_OPERATORS.includes(c.operator) || c.value));
+}
 
 /**
  * Komponen satu baris kondisi dalam sebuah aturan.
@@ -23,7 +38,12 @@ const OPERATORS = [
 function ConditionRow({ condition, questionIndex, condIndex, questions, onUpdate, onRemove, canRemove }) {
   const sourceQuestion = questions.find((q) => q.id === condition.question_id);
   const isChoiceType = sourceQuestion && ['single_choice', 'multiple_choice'].includes(sourceQuestion.type);
-  const choiceOptions = isChoiceType && Array.isArray(sourceQuestion.options) ? sourceQuestion.options : [];
+  const baseOptions = isChoiceType && Array.isArray(sourceQuestion.options) ? sourceQuestion.options : [];
+  // Sertakan opsi "Lainnya" bila pertanyaan mengizinkan isian bebas.
+  const choiceOptions = isChoiceType && sourceQuestion.allow_other
+    ? [...baseOptions, { value: OTHER_VALUE, label: 'Lainnya (isian bebas)' }]
+    : baseOptions;
+  const valueless = VALUELESS_OPERATORS.includes(condition.operator);
 
   return (
     <div className="flex flex-wrap items-center gap-2 bg-white border border-gray-200 rounded-lg p-2">
@@ -66,32 +86,34 @@ function ConditionRow({ condition, questionIndex, condIndex, questions, onUpdate
         </select>
       </div>
 
-      {/* Nilai — dropdown jika pilihan ganda, input teks jika lainnya */}
-      <div className="flex flex-col gap-0.5">
-        <span className="text-xs text-gray-400">Nilai</span>
-        {isChoiceType && choiceOptions.length > 0 ? (
-          <select
-            value={condition.value}
-            onChange={(e) => onUpdate(questionIndex, condIndex, 'value', e.target.value)}
-            className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white max-w-[160px]"
-            aria-label="Pilih nilai kondisi"
-          >
-            <option value="">— pilih jawaban —</option>
-            {choiceOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label || opt.value}</option>
-            ))}
-          </select>
-        ) : (
-          <input
-            type="text"
-            value={condition.value}
-            onChange={(e) => onUpdate(questionIndex, condIndex, 'value', e.target.value)}
-            placeholder="ketik nilai..."
-            className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary-400 w-28"
-            aria-label="Masukkan nilai kondisi"
-          />
-        )}
-      </div>
+      {/* Nilai — disembunyikan untuk operator tanpa nilai (terisi/kosong) */}
+      {!valueless && (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs text-gray-400">Nilai</span>
+          {isChoiceType && choiceOptions.length > 0 ? (
+            <select
+              value={condition.value}
+              onChange={(e) => onUpdate(questionIndex, condIndex, 'value', e.target.value)}
+              className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white max-w-[160px]"
+              aria-label="Pilih nilai kondisi"
+            >
+              <option value="">— pilih jawaban —</option>
+              {choiceOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label || opt.value}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={condition.value}
+              onChange={(e) => onUpdate(questionIndex, condIndex, 'value', e.target.value)}
+              placeholder="ketik nilai..."
+              className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary-400 w-28"
+              aria-label="Masukkan nilai kondisi"
+            />
+          )}
+        </div>
+      )}
 
       {/* Tombol hapus kondisi */}
       {canRemove && (
@@ -136,7 +158,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
     return (
       <p className="text-xs text-gray-400 italic">
         Tidak ada pertanyaan yang mendukung skip logic. Tambahkan pertanyaan bertipe
-        Pilihan Tunggal, Pilihan Ganda, Teks Pendek, atau Skala Numerik terlebih dahulu.
+        Pilihan Tunggal, Pilihan Ganda, Teks Pendek, Teks Panjang, atau Skala Numerik terlebih dahulu.
       </p>
     );
   }
@@ -236,7 +258,11 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
       const srcQ = questions.find((q) => q.id === cond.question_id);
       const srcLabel = srcQ ? `P${srcQ.order_index + 1}` : '?';
       const op = OPERATORS.find((o) => o.value === cond.operator);
-      return `${srcLabel} ${op?.label || cond.operator} "${cond.value}"`;
+      if (VALUELESS_OPERATORS.includes(cond.operator)) {
+        return `${srcLabel} ${op?.label || cond.operator}`;
+      }
+      const valLabel = cond.value === OTHER_VALUE ? 'Lainnya' : cond.value;
+      return `${srcLabel} ${op?.label || cond.operator} "${valLabel}"`;
     });
 
     return `Jika ${condSummaries.join(' DAN ')} → ${targetLabel}`;
@@ -348,7 +374,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
                       ✓ Pertanyaan antara akan dilewati, langsung ke P{targetQuestion.order_index + 1}
                     </p>
                   )}
-                  {!rule.target_question_id && conditions.some((c) => c.question_id && c.value) && (
+                  {!rule.target_question_id && conditions.some(isConditionComplete) && (
                     <p className="text-xs text-amber-600">
                       ⚠ Tujuan lompatan belum dipilih — aturan ini belum berfungsi.
                     </p>
@@ -356,7 +382,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
                 </div>
 
                 {/* Preview aturan */}
-                {conditions.some((c) => c.question_id && c.value) && rule.target_question_id && (
+                {conditions.some(isConditionComplete) && rule.target_question_id && (
                   <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-xs text-indigo-700">
                     <strong>Preview:</strong> {getRuleSummary(rule)}
                   </div>

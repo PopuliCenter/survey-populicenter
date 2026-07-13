@@ -45,6 +45,28 @@ describe('evaluateCondition', () => {
     )).toBe(false);
   });
 
+  test('is_answered / is_empty: pertanyaan terbuka', () => {
+    expect(evaluateCondition({ question_id: 'q1', operator: 'is_answered' }, { q1: 'ada isi' })).toBe(true);
+    expect(evaluateCondition({ question_id: 'q1', operator: 'is_empty' }, { q1: '' })).toBe(true);
+    expect(evaluateCondition({ question_id: 'q1', operator: 'is_empty' }, {})).toBe(true);
+    expect(evaluateCondition({ question_id: 'q1', operator: 'is_answered' }, { q1: [] })).toBe(false);
+  });
+
+  test('__other__: cocok bila opsi Lainnya dipilih (single & multiple)', () => {
+    expect(evaluateCondition(
+      { question_id: 'q1', operator: 'equals', value: '__other__' },
+      { q1: '__other__:teks bebas' }
+    )).toBe(true);
+    expect(evaluateCondition(
+      { question_id: 'q1', operator: 'equals', value: '__other__' },
+      { q1: 'opsi_a' }
+    )).toBe(false);
+    expect(evaluateCondition(
+      { question_id: 'q1', operator: 'contains', value: '__other__' },
+      { q1: ['opsi_b', '__other__:catatan'] }
+    )).toBe(true);
+  });
+
   test('contains: mengembalikan true jika string jawaban mengandung nilai kondisi', () => {
     expect(evaluateCondition(
       { question_id: 'q1', operator: 'contains', value: 'survey' },

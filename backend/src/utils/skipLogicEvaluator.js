@@ -18,18 +18,43 @@
  * @param {Object.<string, string|string[]>} answers  Peta question_id → nilai jawaban
  * @returns {boolean} true bila kondisi terpenuhi
  */
+/** Apakah opsi "Lainnya" dipilih? (jawaban tersimpan sebagai "__other__:<teks>") */
+function answerHasOther(answer) {
+  if (Array.isArray(answer)) {
+    return answer.some((v) => typeof v === 'string' && v.startsWith('__other__:'));
+  }
+  return typeof answer === 'string' && answer.startsWith('__other__:');
+}
+
 function evaluateCondition(condition, answers) {
   if (!condition) return false;
   const { question_id, operator, value: conditionValue } = condition;
   const answer = answers[question_id];
 
-  // Belum ada jawaban → kondisi tidak terpenuhi
+  // Operator tanpa nilai: cek keterisian jawaban. Berguna untuk pertanyaan
+  // terbuka (mis. "jika diisi → lompat").
+  if (operator === 'is_answered' || operator === 'is_empty') {
+    const answered = !(
+      answer === undefined || answer === null || answer === '' ||
+      (Array.isArray(answer) && answer.length === 0)
+    );
+    return operator === 'is_answered' ? answered : !answered;
+  }
+
+  // Belum ada jawaban → kondisi berbasis nilai tidak terpenuhi
   if (answer === undefined || answer === null || answer === '') {
     return false;
   }
 
-  const answerStr = Array.isArray(answer) ? answer.join(',') : String(answer);
   const conditionStr = String(conditionValue);
+
+  // Nilai khusus "__other__": cocok bila opsi "Lainnya" yang dipilih.
+  if (conditionStr === '__other__') {
+    const hasOther = answerHasOther(answer);
+    return operator === 'not_equals' ? !hasOther : hasOther; // equals/contains → hasOther
+  }
+
+  const answerStr = Array.isArray(answer) ? answer.join(',') : String(answer);
 
   switch (operator) {
     case 'equals':

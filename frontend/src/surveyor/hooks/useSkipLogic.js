@@ -21,18 +21,42 @@ import { useMemo } from 'react';
  * @param {Object.<string, string|string[]>} answers  Map of question_id → answer value(s)
  * @returns {boolean}  true if the condition is satisfied
  */
+/** Apakah opsi "Lainnya" dipilih? (jawaban tersimpan sebagai "__other__:<teks>") */
+function answerHasOther(answer) {
+  if (Array.isArray(answer)) {
+    return answer.some((v) => typeof v === 'string' && v.startsWith('__other__:'));
+  }
+  return typeof answer === 'string' && answer.startsWith('__other__:');
+}
+
 function evaluateCondition(condition, answers) {
   const { question_id, operator, value: conditionValue } = condition;
   const answer = answers[question_id];
 
-  // No answer recorded yet → condition is not satisfied
+  // Operator tanpa nilai: cek keterisian (mis. "jika diisi → lompat").
+  if (operator === 'is_answered' || operator === 'is_empty') {
+    const answered = !(
+      answer === undefined || answer === null || answer === '' ||
+      (Array.isArray(answer) && answer.length === 0)
+    );
+    return operator === 'is_answered' ? answered : !answered;
+  }
+
+  // No answer recorded yet → value-based condition is not satisfied
   if (answer === undefined || answer === null || answer === '') {
     return false;
   }
 
+  const conditionStr = String(conditionValue);
+
+  // Nilai khusus "__other__": cocok bila opsi "Lainnya" yang dipilih.
+  if (conditionStr === '__other__') {
+    const hasOther = answerHasOther(answer);
+    return operator === 'not_equals' ? !hasOther : hasOther; // equals/contains → hasOther
+  }
+
   // Normalise to string for comparison; handle array answers (multiple_choice)
   const answerStr = Array.isArray(answer) ? answer.join(',') : String(answer);
-  const conditionStr = String(conditionValue);
 
   switch (operator) {
     case 'equals':
