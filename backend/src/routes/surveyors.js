@@ -16,14 +16,20 @@ const ALLOWED_UPLOAD_MIMETYPES = [
   'text/csv',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/octet-stream', // sebagian browser menandai .xlsx/.csv begini
 ];
+const ALLOWED_UPLOAD_EXTS = ['.csv', '.xlsx'];
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024; // 5 MB
 const MAX_BULK_ROWS = 500;
 
 const bulkUploadStorage = multer.memoryStorage();
 
+// Terima berdasarkan EKSTENSI (andal) ATAU mimetype (cadangan). Mimetype dari
+// browser sering keliru untuk .xlsx (mis. ms-excel/octet-stream di Windows).
 const bulkFileFilter = (req, file, cb) => {
-  if (ALLOWED_UPLOAD_MIMETYPES.includes(file.mimetype)) {
+  const name = (file.originalname || '').toLowerCase();
+  const okExt = ALLOWED_UPLOAD_EXTS.some((ext) => name.endsWith(ext));
+  if (okExt || ALLOWED_UPLOAD_MIMETYPES.includes(file.mimetype)) {
     cb(null, true);
   } else {
     cb(new Error('FORMAT_NOT_SUPPORTED'), false);
@@ -776,7 +782,8 @@ router.post('/bulk-upload', (req, res, next) => {
       const { rows, errors: parseErrors } = await parseUploadFile(
         req.file.buffer,
         req.file.mimetype,
-        ['nama', 'email', 'password']
+        ['nama', 'email', 'password'],
+        req.file.originalname
       );
 
       if (parseErrors.length > 0) {
@@ -906,7 +913,8 @@ router.post('/bulk-assign/:surveyId', (req, res, next) => {
       const { rows, errors: parseErrors } = await parseUploadFile(
         req.file.buffer,
         req.file.mimetype,
-        ['email_surveyor', 'kuota']
+        ['email_surveyor', 'kuota'],
+        req.file.originalname
       );
 
       if (parseErrors.length > 0) {

@@ -2,20 +2,31 @@ const ExcelJS = require('exceljs');
 
 /**
  * Parse file CSV atau Excel dan kembalikan array of objects.
+ *
+ * Routing UTAMA berdasarkan EKSTENSI nama file (andal), karena mimetype dari
+ * browser sering keliru — mis. Windows menandai .xlsx sebagai
+ * `application/vnd.ms-excel` (tipe .xls lama) atau `application/octet-stream`.
+ * Mimetype hanya dipakai sebagai cadangan bila nama file tak tersedia.
+ *
  * @param {Buffer} buffer - File buffer
- * @param {string} mimetype - MIME type file
+ * @param {string} mimetype - MIME type file (cadangan)
  * @param {string[]} expectedColumns - Kolom yang diharapkan
+ * @param {string} [filename] - Nama file asli (untuk deteksi ekstensi)
  * @returns {Promise<{ rows: object[], errors: string[] }>}
  */
-async function parseUploadFile(buffer, mimetype, expectedColumns) {
+async function parseUploadFile(buffer, mimetype, expectedColumns, filename = '') {
+  const name = String(filename || '').toLowerCase();
+
+  // 1) Prioritaskan ekstensi file.
+  if (name.endsWith('.xlsx')) return parseExcel(buffer, expectedColumns);
+  if (name.endsWith('.csv')) return parseCSV(buffer, expectedColumns);
+
+  // 2) Cadangan: mimetype.
+  if (mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+    return parseExcel(buffer, expectedColumns);
+  }
   if (mimetype === 'text/csv' || mimetype === 'application/vnd.ms-excel') {
     return parseCSV(buffer, expectedColumns);
-  }
-
-  if (
-    mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  ) {
-    return parseExcel(buffer, expectedColumns);
   }
 
   return {
