@@ -43,7 +43,21 @@ function DistributionChart({ data }) {
   );
 }
 
+// Untuk skala & matriks: tampilkan menurut urutan NILAI (mis. 1..10), bukan
+// frekuensi. Berlaku juga untuk snapshot lama (dipublikasikan sebelum perbaikan
+// backend) selama nilainya numerik. Nilai non-numerik dibiarkan pada urutan
+// snapshot (yang untuk matriks kini mengikuti urutan kolom).
+function orderByValueIfNumeric(distribution) {
+  if (!Array.isArray(distribution) || distribution.length === 0) return distribution;
+  const allNumeric = distribution.every(
+    (d) => d.value != null && d.value !== '' && !Number.isNaN(Number(d.value))
+  );
+  if (!allNumeric) return distribution;
+  return [...distribution].sort((a, b) => Number(a.value) - Number(b.value));
+}
+
 function QuestionBlock({ q, index }) {
+  const isScale = q.type === 'rating_scale' || q.type === 'numeric_scale';
   return (
     <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
       <h3 className="text-sm font-semibold text-gray-800 mb-1">
@@ -63,7 +77,7 @@ function QuestionBlock({ q, index }) {
             <div key={i}>
               <p className="text-xs font-medium text-gray-600 mb-1">{row.row}</p>
               {row.distribution?.length > 0 ? (
-                <DistributionChart data={row.distribution} />
+                <DistributionChart data={orderByValueIfNumeric(row.distribution)} />
               ) : (
                 <p className="text-xs text-gray-400">Belum ada data</p>
               )}
@@ -71,7 +85,7 @@ function QuestionBlock({ q, index }) {
           ))}
         </div>
       ) : q.distribution?.length > 0 ? (
-        <DistributionChart data={q.distribution} />
+        <DistributionChart data={isScale ? orderByValueIfNumeric(q.distribution) : q.distribution} />
       ) : (
         <p className="text-xs text-gray-400">Belum ada data</p>
       )}

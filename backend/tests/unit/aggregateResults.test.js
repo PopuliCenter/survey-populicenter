@@ -91,6 +91,37 @@ describe('aggregateQuestion', () => {
     expect(b1.distribution.find((d) => d.value === 'ya').count).toBe(2);
   });
 
+  test('rating/numeric scale — distribusi diurutkan NAIK menurut nilai, bukan frekuensi', () => {
+    const q = { id: 'q7', text: 'Skala 1-10', type: 'numeric_scale', order_index: 6, options: null };
+    // Nilai 1 paling sering (harusnya urutan tampil tetap 1,2,3,5,7 — menaik).
+    const answers = [
+      { answer_value: '1' }, { answer_value: '1' }, { answer_value: '1' },
+      { answer_value: '5' }, { answer_value: '3' }, { answer_value: '7' }, { answer_value: '2' },
+    ];
+    const result = aggregateQuestion(q, answers);
+    const order = result.distribution.map((d) => d.value);
+    expect(order).toEqual(['1', '2', '3', '5', '7']);
+  });
+
+  test('matrix — distribusi tiap baris mengikuti urutan KOLOM, bukan frekuensi', () => {
+    const q = {
+      id: 'q8', text: 'Kepuasan', type: 'matrix', order_index: 7,
+      options: { rows: ['Hukum'], columns: ['1', '2', '3', '4'] },
+    };
+    // "4" & "2" lebih sering dari "1", tapi urutan tampil harus 1,2,3,4 (urutan kolom).
+    const answers = [
+      { answer_json: { Hukum: '4' } },
+      { answer_json: { Hukum: '4' } },
+      { answer_json: { Hukum: '2' } },
+      { answer_json: { Hukum: '2' } },
+      { answer_json: { Hukum: '1' } },
+      { answer_json: { Hukum: '3' } },
+    ];
+    const result = aggregateQuestion(q, answers);
+    const row = result.rows.find((r) => r.row === 'Hukum');
+    expect(row.distribution.map((d) => d.value)).toEqual(['1', '2', '3', '4']);
+  });
+
   test('indonesia_region — distribusi per provinsi', () => {
     const q = { id: 'q6', text: 'Wilayah', type: 'indonesia_region', order_index: 5, options: { depth: 'village' } };
     const answers = [

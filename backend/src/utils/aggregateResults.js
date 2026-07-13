@@ -58,8 +58,16 @@ function toBucketKey(raw) {
   return String(raw);
 }
 
-/** Ubah Map<bucket,count> menjadi array distribusi terurut (desc) + persen. */
-function toDistribution(counts, total, labelMap) {
+/**
+ * Ubah Map<bucket,count> menjadi array distribusi + persen.
+ * @param {Map} counts
+ * @param {number} total
+ * @param {object} labelMap
+ * @param {Array<string>|null} orderedKeys - bila diberikan, urutkan mengikuti
+ *   urutan kunci ini (mis. kolom matriks atau skala menaik) alih-alih frekuensi.
+ *   Kunci di luar daftar (mis. "Lainnya") diletakkan di akhir, diurutkan desc by count.
+ */
+function toDistribution(counts, total, labelMap, orderedKeys = null) {
   const entries = [];
   for (const [value, count] of counts.entries()) {
     const label =
@@ -71,7 +79,17 @@ function toDistribution(counts, total, labelMap) {
       pct: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
     });
   }
-  entries.sort((a, b) => b.count - a.count);
+  if (Array.isArray(orderedKeys) && orderedKeys.length > 0) {
+    const orderIndex = new Map(orderedKeys.map((k, i) => [String(k), i]));
+    entries.sort((a, b) => {
+      const ia = orderIndex.has(a.value) ? orderIndex.get(a.value) : Infinity;
+      const ib = orderIndex.has(b.value) ? orderIndex.get(b.value) : Infinity;
+      if (ia !== ib) return ia - ib;
+      return b.count - a.count; // tie-break untuk kunci tak dikenal
+    });
+  } else {
+    entries.sort((a, b) => b.count - a.count);
+  }
   return entries;
 }
 
@@ -108,6 +126,10 @@ function aggregateQuestion(question, answers) {
     const labelMap = buildLabelMap(question); // label untuk nilai kolom (bila ada)
     const rowNames =
       question.options && Array.isArray(question.options.rows) ? question.options.rows : [];
+    // Urutkan distribusi tiap baris mengikuti urutan KOLOM yang didefinisikan
+    // (bukan frekuensi/peringkat), agar mis. skala 1..10 tampil berurutan.
+    const columns =
+      question.options && Array.isArray(question.options.columns) ? question.options.columns : null;
     const rowCounts = new Map(rowNames.map((r) => [r, new Map()]));
     const rowTotals = new Map(rowNames.map((r) => [r, 0]));
 
@@ -127,7 +149,7 @@ function aggregateQuestion(question, answers) {
       rows: rowNames.map((rowName) => ({
         row: rowName,
         total_answered: rowTotals.get(rowName),
-        distribution: toDistribution(rowCounts.get(rowName), rowTotals.get(rowName), labelMap),
+        distribution: toDistribution(rowCounts.get(rowName), rowTotals.get(rowName), labelMap, columns),
       })),
     };
   }
@@ -161,9 +183,13 @@ function aggregateQuestion(question, answers) {
         n += 1;
       }
     }
+    // Urutkan skala menaik (1,2,3,…) bukan berdasarkan frekuensi.
+    const scaleOrder = [...counts.keys()]
+      .filter((k) => k !== OTHER_BUCKET && !Number.isNaN(Number(k)))
+      .sort((a, b) => Number(a) - Number(b));
     return {
       ...base,
-      distribution: toDistribution(counts, answers.length, {}),
+      distribution: toDistribution(counts, answers.length, {}, scaleOrder),
       average: n > 0 ? Math.round((sum / n) * 100) / 100 : null,
     };
   }
