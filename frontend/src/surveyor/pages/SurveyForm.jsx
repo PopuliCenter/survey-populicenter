@@ -2194,11 +2194,19 @@ function SurveyForm() {
         <div className="max-w-2xl mx-auto px-screen pb-2">
           {fieldToolsSettings.audio_mode !== 'disabled' && (
             <div>
-              <div className="flex items-center gap-1 mb-1">
-                <span className="text-xs font-medium text-gray-600">Rekaman Audio</span>
-                <FieldToolModeLabel mode={fieldToolsSettings.audio_mode} />
-              </div>
-              <AudioRecorderPanel audioRecorder={audioRecorder} hideControlsDefault={isNativePlatform()} />
+              {/* Di perangkat TPD (native) indikator rekaman disembunyikan —
+                  rekaman tetap berjalan otomatis. Di web (uji/admin) tetap tampil. */}
+              {!isNativePlatform() && (
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-xs font-medium text-gray-600">Rekaman Audio</span>
+                  <FieldToolModeLabel mode={fieldToolsSettings.audio_mode} />
+                </div>
+              )}
+              <AudioRecorderPanel
+                audioRecorder={audioRecorder}
+                hideControlsDefault={isNativePlatform()}
+                hideIndicator={isNativePlatform()}
+              />
             </div>
           )}
         </div>

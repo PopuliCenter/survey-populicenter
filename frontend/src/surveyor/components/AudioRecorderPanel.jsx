@@ -5,6 +5,11 @@
  * durasi. Tombol manual (Mulai/Jeda/Lanjut/Berhenti) bisa disembunyikan
  * (hideControlsDefault) untuk mode otomatis (Android) — tetap ada toggle
  * "Kontrol manual" bila diperlukan.
+ *
+ * hideIndicator: sembunyikan SELURUH indikator visual (titik "merekam", durasi,
+ * tombol) di perangkat. Rekaman TETAP berjalan lewat hook + orkestrasi di
+ * SurveyForm; hanya tampilannya yang disembunyikan. Pesan izin/dukungan
+ * (mikrofon ditolak / tak didukung) tetap ditampilkan karena bersifat actionable.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -23,7 +28,7 @@ function formatDuration(seconds) {
  *   hideControlsDefault?: boolean,
  * }} props
  */
-function AudioRecorderPanel({ audioRecorder, onAudioReady, hideControlsDefault = false }) {
+function AudioRecorderPanel({ audioRecorder, onAudioReady, hideControlsDefault = false, hideIndicator = false }) {
   const {
     isSupported,
     permissionDenied,
@@ -64,6 +69,12 @@ function AudioRecorderPanel({ audioRecorder, onAudioReady, hideControlsDefault =
         </button>
       </div>
     );
+  }
+
+  // Sembunyikan indikator visual di perangkat (rekaman tetap jalan lewat hook).
+  // Ditaruh setelah cek dukungan & izin agar pesan actionable itu tetap tampil.
+  if (hideIndicator) {
+    return null;
   }
 
   const isIdle = status === 'idle';
