@@ -668,6 +668,60 @@ describe('Auto-isi jenis kelamin dari Nomor Kuesioner', () => {
   });
 });
 
+describe('GPS wajib di web (mis. iPhone) — best-effort', () => {
+  const originalOnLine = Object.getOwnPropertyDescriptor(window.navigator, 'onLine');
+  afterEach(() => {
+    if (originalOnLine) Object.defineProperty(window.navigator, 'onLine', originalOnLine);
+  });
+
+  function buildSurveyGpsRequired() {
+    return {
+      id: 'survey-001',
+      title: 'Test Survey',
+      description: null,
+      form_mode: 'scroll',
+      field_tools_settings: {
+        signature_mode: 'disabled',
+        audio_mode: 'disabled',
+        photo_mode: 'disabled',
+        gps_mode: 'required',
+      },
+      questions: [
+        {
+          id: 'q-txt-001',
+          text: 'Catatan tambahan',
+          type: 'short_text',
+          order_index: 1,
+          is_required: false,
+          randomize_options: false,
+          options: {},
+          skip_logic: null,
+        },
+      ],
+    };
+  }
+
+  test('GPS wajib TIDAK memblokir submit di web meski lokasi belum terkunci', async () => {
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
+    api.get.mockResolvedValue({ data: buildSurveyGpsRequired() });
+    api.post.mockResolvedValue({ data: { session_token: 'test-token', questionnaire_number: '0001' } });
+
+    renderSurveyForm();
+    await waitFor(() => {
+      expect(screen.getByText('Catatan tambahan')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /simpan data responden/i }));
+
+    // Submit online tetap jalan (tidak terhalang gate GPS wajib di web).
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/responses/submit', expect.anything());
+    });
+    // Tidak menampilkan pesan blokir GPS wajib.
+    expect(screen.queryByText(/Lokasi GPS wajib/i)).not.toBeInTheDocument();
+  });
+});
+
 describe('Offline submit & jaring pengaman jaringan', () => {
   const originalOnLine = Object.getOwnPropertyDescriptor(window.navigator, 'onLine');
 

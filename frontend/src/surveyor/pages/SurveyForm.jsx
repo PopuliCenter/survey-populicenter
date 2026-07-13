@@ -1747,9 +1747,13 @@ function SurveyForm() {
     setSignatureError(false);
 
     // 2c. Validate required GPS — pastikan lokasi awal sudah didapat sebelum submit.
-    // Mencegah data tertahan / gagal sinkron karena lokasi wajib belum terkunci
-    // (khususnya saat offline). GPS dipantau sejak form dibuka (lihat efek di atas).
+    // Hard-block HANYA di platform native (Android APK) yang bisa fix satelit
+    // murni tanpa internet. Di WEB (mis. iPhone/Safari) geolokasi sering tak
+    // dapat fix saat offline/di dalam ruangan, sehingga GPS wajib akan MEMBLOKIR
+    // pengumpulan data — di sana GPS jadi "best-effort": tetap dicoba & statusnya
+    // direkam, tapi tidak menghalangi simpan/kirim. (Mengutamakan data terkumpul.)
     if (
+      isNativePlatform() &&
       fieldToolsSettings.gps_mode === 'required' &&
       (!startGeo || startGeo.status !== 'available' || startGeo.lat == null || startGeo.lng == null)
     ) {
