@@ -27,6 +27,22 @@ vi.mock('../../../services/api', () => ({
   },
 }));
 
+// Mock navigate (untuk memastikan penolakan server memulangkan ke Daftar Survei)
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return { ...actual, useNavigate: () => mockNavigate };
+});
+
+// Mock toast bus (pop-up peringatan)
+vi.mock('../../../utils/toastBus', () => ({
+  toastError: vi.fn(),
+  toastWarning: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastInfo: vi.fn(),
+  showToast: vi.fn(),
+}));
+
 // Mock useGeolocation
 vi.mock('../../../surveyor/hooks/useGeolocation', () => ({
   default: () => ({
@@ -595,6 +611,29 @@ function buildSubmittableSurvey() {
     ],
   };
 }
+
+// ─── Penolakan server saat membuka form → POP-UP, bukan laman peringatan ──────
+
+describe('Server menolak membuka form (mis. kunci perangkat)', () => {
+  test('403 → tampilkan toast & kembali ke Daftar Survei (tanpa laman error)', async () => {
+    const { toastError } = await import('../../../utils/toastBus');
+    const pesan = 'Akun ini terkunci ke perangkat lain (Samsung SM-A515F). Gunakan perangkat terdaftar.';
+
+    // /responses/start ditolak server (kunci perangkat)
+    api.post.mockRejectedValue({ response: { status: 403, data: { error: pesan } } });
+    api.get.mockResolvedValue({ data: { id: 'survey-001', title: 'T', questions: [] } });
+
+    renderSurveyForm();
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(pesan, expect.objectContaining({ duration: expect.any(Number) }));
+    });
+    // Kembali ke daftar survei (replace), bukan berhenti di laman peringatan.
+    expect(mockNavigate).toHaveBeenCalledWith('/surveyor', { replace: true });
+    // Tidak ada laman peringatan buntu dengan tombol kembali.
+    expect(screen.queryByText('Kembali ke Daftar Survei')).not.toBeInTheDocument();
+  });
+});
 
 // ─── Anti-dobel nomor kuesioner antar TPD ─────────────────────────────────────
 

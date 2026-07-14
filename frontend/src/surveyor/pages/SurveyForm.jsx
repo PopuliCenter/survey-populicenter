@@ -31,6 +31,7 @@ import AudioRecorderPanel from '../components/AudioRecorderPanel';
 import PhotoCapturePanel from '../components/PhotoCapturePanel';
 import SignaturePadCanvas from '../components/SignaturePadCanvas';
 import { addBackButtonListener, isNativePlatform, getNetworkStatus } from '../../utils/capacitorBridge';
+import { toastError } from '../../utils/toastBus';
 
 // ─── Rekaman audio: batas & strategi "awal + akhir" ─────────────────────────────
 const AUDIO_TOTAL_MAX_SEC = 180;      // maksimal 3 menit total (terekam)
@@ -1461,11 +1462,13 @@ function SurveyForm() {
           } catch {
             if (!cancelled) setLoadingError('Gagal memuat data survei dari cache.');
           }
-        } else {
-          // Server error (4xx/5xx)
-          if (!cancelled) {
-            setLoadingError(err.response?.data?.error || err.response?.data?.message || 'Gagal memuat survei.');
-          }
+        } else if (!cancelled) {
+          // Server menolak membuka form (mis. kunci perangkat, kuota habis,
+          // survei tidak aktif). Tampilkan POP-UP lalu kembali ke Daftar Survei —
+          // lebih ramah daripada laman peringatan buntu (terutama di Android).
+          const msg = err.response?.data?.error || err.response?.data?.message || 'Gagal memuat survei.';
+          toastError(msg, { duration: 6000 });
+          navigate('/surveyor', { replace: true });
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -1476,6 +1479,8 @@ function SurveyForm() {
     return () => {
       cancelled = true;
     };
+  // navigate stabil dari react-router; sengaja tidak masuk deps agar init tak berulang.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // ─── Capture start geolocation on form load (Requirement 2.1) ──────────────
