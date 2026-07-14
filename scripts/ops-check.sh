@@ -12,8 +12,21 @@
 #   4. Container — semua service jalan & healthy
 #
 # Cron harian (mis. 07:00, agar Anda lihat paginya) — `crontab -e`:
-#   MAILTO=info@populicenter.org
-#   0 7 * * *  cd /var/www/survey-populicenter && bash scripts/ops-check.sh
+#   0 7 * * *  cd /var/www/survey-populicenter && bash scripts/ops-check.sh >> /var/log/populi-ops.log 2>&1
+#
+# ⚠ JANGAN andalkan MAILTO cron: VPS umumnya TIDAK punya MTA, jadi email cron
+#   tidak ke mana-mana dan peringatan tenggelam di file log yang tak dibaca.
+#   Pakai HC_PING_URL (Healthchecks.io, gratis) — lihat di bawah.
+#
+# DEAD MAN'S SWITCH (sangat disarankan):
+#   Set HC_PING_URL → skrip melapor ke Healthchecks.io tiap kali jalan.
+#   Ini menangkap DUA kegagalan sekaligus:
+#     · ada masalah  → skrip ping /fail  → Anda dapat alarm
+#     · skrip/server/cron MATI → tak ada ping sama sekali → Anda TETAP dapat alarm
+#   Kegagalan kedua itulah yang paling berbahaya (cron mati diam-diam) dan
+#   TIDAK bisa dideteksi oleh mekanisme apa pun yang hidup di server ini.
+#
+#   export HC_PING_URL=https://hc-ping.com/<uuid>   # atau taruh di /etc/environment
 #
 # Ambang bisa diubah via env: DISK_WARN_PCT, BACKUP_MAX_AGE_H
 # ─────────────────────────────────────────────────────────────────────────────
@@ -27,6 +40,7 @@ DISK_WARN_PCT="${DISK_WARN_PCT:-80}"      # peringatkan bila pemakaian ≥ 80%
 BACKUP_MAX_AGE_H="${BACKUP_MAX_AGE_H:-30}" # backup harian → basi bila > 30 jam
 BACKUP_DIR="${BACKUP_DIR:-$REPO_ROOT/backups}"
 OFFSITE_MARKER="${OFFSITE_MARKER:-}"       # opsional: file penanda sinkron off-site
+HC_PING_URL="${HC_PING_URL:-}"             # opsional: dead man's switch (Healthchecks.io)
 
 PROBLEMS=0
 warn() { echo "⚠  $*"; PROBLEMS=$((PROBLEMS + 1)); }
@@ -111,11 +125,14 @@ for svc in postgres redis backend worker nginx; do
   fi
 done
 
-# ── Ringkasan ───────────────────────────────────────────────────────────────
+# ── Ringkasan + lapor ke dead man's switch ──────────────────────────────────
 echo
 if [ "$PROBLEMS" -eq 0 ]; then
   echo "✅ Semua sehat."
+  [ -n "$HC_PING_URL" ] && curl -fsS -m 10 --retry 3 -o /dev/null "$HC_PING_URL" || true
   exit 0
 fi
 echo "❌ $PROBLEMS masalah ditemukan — perlu tindakan."
+# Ping /fail → Healthchecks.io langsung mengirim alarm (email/WA/Telegram).
+[ -n "$HC_PING_URL" ] && curl -fsS -m 10 --retry 3 -o /dev/null "${HC_PING_URL}/fail" || true
 exit 1

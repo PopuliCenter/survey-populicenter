@@ -44,43 +44,68 @@ bash scripts/restore-media.sh backups/uploads_20260715_023000.tar.gz
 crontab -e
 ```
 ```cron
-MAILTO=info@populicenter.org
+RCLONE_REMOTE=b2:populi-backup
+OFFSITE_MARKER=/var/lib/populi-offsite-ok
+HC_PING_URL=https://hc-ping.com/GANTI-DENGAN-UUID-ANDA
 
-15 2 * * *  cd /var/www/survey-populicenter && bash scripts/backup-db.sh    >> /var/log/populi-backup.log 2>&1
-30 2 * * *  cd /var/www/survey-populicenter && bash scripts/backup-media.sh >> /var/log/populi-backup.log 2>&1
-0  4 * * *  cd /var/www/survey-populicenter && bash scripts/sync-offsite.sh >> /var/log/populi-backup.log 2>&1
-0  7 * * *  cd /var/www/survey-populicenter && bash scripts/ops-check.sh
+15 2 * * *  cd /var/www/survey-populicenter && bash scripts/backup-db.sh      >> /var/log/populi-backup.log 2>&1
+30 2 * * *  cd /var/www/survey-populicenter && bash scripts/backup-media.sh   >> /var/log/populi-backup.log 2>&1
+0  4 * * *  cd /var/www/survey-populicenter && bash scripts/sync-offsite.sh   >> /var/log/populi-backup.log 2>&1
+0  7 * * *  cd /var/www/survey-populicenter && bash scripts/ops-check.sh      >> /var/log/populi-ops.log 2>&1
 0  3 * * 0  cd /var/www/survey-populicenter && bash scripts/verify-restore.sh >> /var/log/populi-backup.log 2>&1
 ```
 
-`ops-check.sh` sengaja **tanpa** redirect log: ia diam bila sehat, dan hanya
-mencetak (→ cron mengirim email ke `MAILTO`) bila ada masalah.
+> ⚠️ **Jangan andalkan `MAILTO` cron.** VPS umumnya **tidak punya MTA**, sehingga
+> email cron tidak ke mana-mana dan peringatan tenggelam di berkas log yang tak
+> pernah dibaca siapa pun. Pakai `HC_PING_URL` (lihat di bawah).
 
-## Salinan luar server (WAJIB)
+## Dead man's switch (Healthchecks.io — gratis)
+
+`ops-check.sh` hidup **di dalam** server. Kalau server mati, cron dihapus, atau
+skripnya sendiri tak pernah jalan, ia **tidak bisa mengeluh** — dan justru itulah
+kegagalan paling berbahaya: senyap, dan baru ketahuan saat Anda butuh backup.
+
+Solusinya adalah pemantau yang mengeluh **karena tidak dihubungi**:
+
+1. Daftar di [healthchecks.io](https://healthchecks.io) (gratis) → buat check
+   *"Populi ops-check"* → **Period 1 day**, **Grace 6 hours**.
+2. Salin *ping URL*-nya → set `HC_PING_URL` di crontab (contoh di atas).
+3. Hubungkan notifikasi ke **email + WhatsApp/Telegram**.
+
+Hasilnya `ops-check.sh` menangkap dua kegagalan sekaligus:
+
+| Kejadian | Yang terjadi | Anda tahu? |
+|---|---|---|
+| Disk penuh / backup basi / container mati | ping `/fail` | ✅ alarm segera |
+| **Cron mati, skrip tak pernah jalan, server tumbang** | **tak ada ping sama sekali** | ✅ alarm dari Healthchecks |
+
+Baris kedua itu **tidak mungkin** dideteksi oleh apa pun yang hidup di server ini —
+dan itulah persis kegagalan yang sempat terjadi (cron backup DB tak pernah ada,
+baru ketahuan seminggu kemudian).
+
+## Salinan luar server (WAJIB) — `sync-offsite.sh`
 
 Backup yang hanya ada di VPS **tidak melindungi dari VPS-nya sendiri hilang**
-(disk rusak, akun ditangguhkan, salah `rm`). Pakai storage murah — Backblaze B2 /
-Wasabi / S3 / bahkan `rsync` ke mesin lain.
+(disk rusak, akun ditangguhkan, salah `rm`). Skripnya sudah ada; yang perlu Anda
+lakukan **sekali**:
 
-Contoh dengan [rclone](https://rclone.org) (`rclone config` dulu, remote `b2`):
+1. Buat **bucket privat** di penyedia murah (Backblaze B2 / Wasabi / S3).
+2. `apt install rclone` → `rclone config` → buat remote, mis. `b2`.
+   ⚠️ **Kunci akses hanya Anda yang mengetik**, di dalam `rclone config`.
+   Jangan pernah menaruhnya di skrip, `.env`, atau repo.
+3. (Disarankan) Buat remote **`crypt`** di atasnya — berkas backup berisi
+   **seluruh data responden**, jadi enkripsi at-rest sangat dianjurkan.
+4. Uji:
+   ```bash
+   RCLONE_REMOTE=b2:populi-backup bash scripts/sync-offsite.sh
+   ```
 
-```bash
-# scripts/sync-offsite.sh — buat sendiri sesuai remote Anda:
-#!/usr/bin/env bash
-set -euo pipefail
-cd /var/www/survey-populicenter
-rclone copy backups/ b2:populi-backup/ --include 'web_survey_platform_*.dump' --include 'uploads_*.tar.gz'
-touch /var/lib/populi-offsite-ok      # penanda untuk ops-check.sh
-```
+Skrip ini **gagal keras** bila `RCLONE_REMOTE` kosong, rclone belum ada, backup
+belum lengkap, atau remote ternyata kosong setelah sinkron — sengaja, agar tidak
+pernah "berhasil" tanpa benar-benar menyalin apa pun.
 
-Lalu aktifkan pemantauannya:
-```bash
-# di crontab, sebelum ops-check.sh:
-OFFSITE_MARKER=/var/lib/populi-offsite-ok
-```
-
-> ⚠️ File backup berisi **seluruh data responden**. Perlakukan sebagai rahasia:
-> gunakan bucket **privat**, dan pertimbangkan enkripsi (`rclone crypt`).
+Setelah sukses, ia menyentuh `/var/lib/populi-offsite-ok`, dan `ops-check.sh`
+akan memantau kesegarannya.
 
 ## Konfigurasi (env, opsional)
 
