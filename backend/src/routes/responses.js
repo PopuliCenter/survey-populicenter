@@ -6,6 +6,7 @@ const { authMiddleware, requireRole } = require('../middleware/auth');
 const { createAuditLog } = require('../middleware/auditLog');
 const { validateAllAnswers } = require('../utils/answerValidator');
 const { isGenderParityMismatch } = require('../utils/genderParity');
+const { readDeviceHeaders, lockedToOtherDeviceMessage } = require('../utils/deviceLock');
 const { validateDateFormat, validateTimeFormat, validateDateAnswer, validateMatrixAnswer } = require('../utils/validators');
 const { validateFieldToolsSubmission } = require('../utils/fieldToolsValidator');
 const { incrementResponseStats, markStatsDirty } = require('../utils/statisticsUpdater');
@@ -35,7 +36,7 @@ async function enforceDeviceLock(req, survey) {
   const settings = survey && survey.field_tools_settings;
   if (!settings || settings.device_lock !== 'enforced') return { ok: true };
 
-  const deviceId = String(req.headers['x-device-id'] || '').trim().slice(0, 100);
+  const { deviceId, deviceLabel } = readDeviceHeaders(req);
   if (!deviceId) {
     return {
       ok: false,
@@ -54,9 +55,8 @@ async function enforceDeviceLock(req, survey) {
 
   if (!user.device_id) {
     // Perangkat pertama → ikat ke akun ini.
-    const label = String(req.headers['x-device-label'] || '').slice(0, 255) || null;
     await User.update(
-      { device_id: deviceId, device_label: label, device_bound_at: new Date() },
+      { device_id: deviceId, device_label: deviceLabel, device_bound_at: new Date() },
       { where: { id: req.user.id } }
     );
     return { ok: true };
@@ -64,11 +64,7 @@ async function enforceDeviceLock(req, survey) {
 
   if (user.device_id === deviceId) return { ok: true };
 
-  return {
-    ok: false,
-    status: 403,
-    error: `Akun ini terkunci ke perangkat lain${user.device_label ? ` (${user.device_label})` : ''}. Gunakan perangkat terdaftar, atau minta admin mereset perangkat di Manajemen TPD.`,
-  };
+  return { ok: false, status: 403, error: lockedToOtherDeviceMessage(user.device_label) };
 }
 
 /**

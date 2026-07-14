@@ -13,6 +13,7 @@ jest.mock('../../src/models', () => ({
   User: {
     findOne: jest.fn(),
     findByPk: jest.fn(),
+    update: jest.fn(),
   },
   AuditLog: {
     create: jest.fn().mockResolvedValue({}),
@@ -515,5 +516,106 @@ describe('Auth Module - Logout Invalidates Token', () => {
       .get('/auth/me')
       .set('Authorization', `Bearer ${token}`);
     expect(meRes.status).toBe(401);
+  });
+});
+
+// ─── Kunci perangkat (1 akun TPD = 1 HP) pada /auth/login ────────────────────
+// Akun TPD yang SUDAH terikat hanya boleh login dari perangkat terdaftar.
+// Login tidak pernah MENGIKAT perangkat (pengikatan hanya lewat survei ber-lock).
+
+describe('Kunci perangkat pada POST /auth/login', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    redis.get.mockResolvedValue(null);
+    redis.incr.mockResolvedValue(1);
+    redis.expire.mockResolvedValue(1);
+    redis.del.mockResolvedValue(1);
+  });
+
+  async function mockSurveyor(overrides = {}) {
+    User.findOne.mockResolvedValue({
+      id: 'tpd-uuid-001',
+      name: 'TPD Satu',
+      email: 'tpd@example.com',
+      password_hash: await hashPassword('TpdPass1'),
+      role: 'surveyor',
+      is_active: true,
+      device_id: null,
+      device_label: null,
+      ...overrides,
+    });
+  }
+
+  test('TPD belum terikat → login bebas dari perangkat mana pun (200)', async () => {
+    await mockSurveyor({ device_id: null });
+
+    const res = await request(app)
+      .post('/auth/login')
+      .set('X-Device-Id', 'device-baru')
+      .send({ email: 'tpd@example.com', password: 'TpdPass1' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('token');
+    // Login TIDAK mengikat perangkat — pengikatan hanya lewat survei ber-lock.
+    expect(User.update).not.toHaveBeenCalled();
+  });
+
+  test('TPD terikat + perangkat SAMA → login berhasil (200)', async () => {
+    await mockSurveyor({ device_id: 'device-abc', device_label: 'Samsung SM-A515F' });
+
+    const res = await request(app)
+      .post('/auth/login')
+      .set('X-Device-Id', 'device-abc')
+      .send({ email: 'tpd@example.com', password: 'TpdPass1' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('token');
+  });
+
+  test('TPD terikat + perangkat BERBEDA → login DITOLAK (403) dengan label HP', async () => {
+    await mockSurveyor({ device_id: 'device-abc', device_label: 'Samsung SM-A515F' });
+
+    const res = await request(app)
+      .post('/auth/login')
+      .set('X-Device-Id', 'device-LAIN')
+      .send({ email: 'tpd@example.com', password: 'TpdPass1' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).not.toHaveProperty('token');
+    expect(res.body.error).toMatch(/terkunci ke perangkat lain/i);
+    expect(res.body.error).toContain('Samsung SM-A515F');
+  });
+
+  test('TPD terikat + APK lama (tanpa header) → ditolak, minta perbarui aplikasi', async () => {
+    await mockSurveyor({ device_id: 'device-abc' });
+
+    const res = await request(app)
+      .post('/auth/login')
+      .send({ email: 'tpd@example.com', password: 'TpdPass1' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).not.toHaveProperty('token');
+    expect(res.body.error).toMatch(/perbarui aplikasi/i);
+  });
+
+  test('ADMIN terikat perangkat lain → tetap bisa login (kunci hanya untuk TPD)', async () => {
+    User.findOne.mockResolvedValue({
+      id: 'admin-uuid-1',
+      name: 'Admin',
+      email: 'admin@example.com',
+      password_hash: await hashPassword('AdminPass1'),
+      role: 'admin',
+      is_active: true,
+      device_id: 'device-abc',
+      device_label: 'HP lain',
+    });
+
+    const res = await request(app)
+      .post('/auth/login')
+      .set('X-Device-Id', 'device-BEDA')
+      .send({ email: 'admin@example.com', password: 'AdminPass1' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('token');
   });
 });

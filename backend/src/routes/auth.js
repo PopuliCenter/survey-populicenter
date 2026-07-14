@@ -7,6 +7,7 @@ const { User } = require('../models');
 const redis = require('../config/redis');
 const { authMiddleware } = require('../middleware/auth');
 const { createAuditLog } = require('../middleware/auditLog');
+const { readDeviceHeaders, checkBoundDevice } = require('../utils/deviceLock');
 
 const router = express.Router();
 
@@ -76,6 +77,19 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     // Check if account is active (after password verification to avoid user enumeration)
     if (!user.is_active) {
       return res.status(403).json({ error: 'Akun Anda tidak aktif. Hubungi administrator' });
+    }
+
+    // Kunci perangkat (1 akun TPD = 1 HP): akun TPD yang SUDAH terikat hanya boleh
+    // login dari perangkat terdaftar — ditolak sejak halaman masuk, bukan baru
+    // ketahuan saat mau mengisi. Login TIDAK pernah mengikat perangkat baru;
+    // pengikatan hanya lewat survei ber-device_lock. Jadi TPD yang belum terikat
+    // tetap bebas login dari mana pun. Admin/supervisor tidak terpengaruh.
+    if (user.role === 'surveyor') {
+      const { deviceId } = readDeviceHeaders(req);
+      const deviceCheck = checkBoundDevice(user, deviceId);
+      if (!deviceCheck.ok) {
+        return res.status(deviceCheck.status).json({ error: deviceCheck.error });
+      }
     }
 
     // Clear rate limit on successful login
