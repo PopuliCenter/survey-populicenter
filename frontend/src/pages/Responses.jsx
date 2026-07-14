@@ -322,7 +322,7 @@ function Responses() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="mis. 0001 atau SK-20260528-0001"
+                placeholder="mis. 0001 atau SK-YYYYMMDD-0001"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
               />
             </div>
