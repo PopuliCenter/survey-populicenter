@@ -1,8 +1,9 @@
 # ✅ Checklist Rilis Play Store — Survei Populi Center
 
 Checklist berurut, tinggal contreng. Ikuti dari atas ke bawah. Detail tiap bagian
-ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-safety.md) ·
-[reviewer-access.md](reviewer-access.md) · [keystore-setup.md](keystore-setup.md).
+ada di dokumen pendamping: [account-setup.md](account-setup.md) · [listing.md](listing.md) ·
+[data-safety.md](data-safety.md) · [reviewer-access.md](reviewer-access.md) ·
+[keystore-setup.md](keystore-setup.md).
 
 **Fakta app** (untuk disalin):
 | | |
@@ -57,7 +58,9 @@ pribadi responden).
       **Yayasan Populi Indonesia**, brand = **Populi Center**. Kalau rekaman D&B sudah
       memuat nama dagang, pemakaian "Populi Center" jadi sah di **kedua** toko.
 - [ ] **(Organisasi)** Siapkan dokumen legal lembaga + email domain + alamat/telepon kantor
-- [ ] **Akun Google Play Developer** aktif ($25 sekali)
+- [ ] **Akun Google Play Developer** aktif ($25 sekali) — daftar dari **email lembaga**
+      (`info@populicenter.org`), **bukan** Gmail pribadi (pemilik akun tak bisa diganti
+      begitu saja). ➜ **panduan langkah demi langkah: [account-setup.md](account-setup.md)**
 - [ ] **Developer name** (nama yang tampil di Play Store, seperti "GARENA INTERNATIONAL I")
       → set ke **`Populi Center`** di *Play Console → Settings → Developer account →
       Developer name*. Ini **field terpisah** dari nama akun (yang legal = Yayasan
