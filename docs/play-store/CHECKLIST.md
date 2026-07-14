@@ -31,10 +31,43 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 
 ---
 
-## 0 · Prasyarat (sebelum buka Play Console)
-- [ ] **Akun Google Play Developer** aktif (biaya $25 sekali). ➜ Daftar sebagai
-      **Organisasi/Perusahaan** bila bisa → **lolos** syarat closed testing wajib
-      (12 penguji × 14 hari) yang dikenakan ke akun pribadi baru.
+## 0 · Jenis akun developer — PUTUSKAN PALING AWAL ⏳
+
+> ⏳ **Jalur kritis:** kalau pilih Organisasi, **urus D-U-N-S number SEKARANG**
+> (gratis, tapi bisa memakan **~30 hari**). Sambil menunggu, aset grafis, akun
+> demo, dan pengujian tetap bisa dikerjakan.
+
+**Rekomendasi: daftar sebagai ORGANISASI** (app ini milik lembaga & menyimpan data
+pribadi responden).
+
+| | **Akun Pribadi** | **Akun Organisasi** ✅ |
+|---|---|---|
+| Biaya | $25 | $25 (**sama**) |
+| **Closed testing wajib** | ⚠️ **12 penguji × 14 hari** (akun baru sejak Nov 2023) | **Dibebaskan** |
+| Yang tampil publik | Nama & **alamat pribadi** Anda | Nama & **alamat lembaga** |
+| Nama developer "Populi Center" | Berisiko dianggap **menyesatkan** | Sah & terverifikasi |
+| Pemilik app | **Individu** — transfer app ribet bila orangnya keluar | **Lembaga** |
+| Syarat | Verifikasi identitas pribadi (KTP/paspor) | **D-U-N-S** (gratis) + dokumen legal |
+
+- [ ] **Putuskan jenis akun** (rekomendasi: Organisasi)
+- [ ] **(Organisasi)** Ajukan **D-U-N-S number** — gratis, Dun & Bradstreet. ⏳ **mulai duluan**
+- [ ] **(Organisasi)** Siapkan dokumen legal lembaga + email domain + alamat/telepon kantor
+- [ ] **Akun Google Play Developer** aktif ($25 sekali)
+- [ ] **Developer name** (nama yang tampil di Play Store, seperti "GARENA INTERNATIONAL I")
+      → set ke **`Populi Center`** di *Play Console → Settings → Developer account →
+      Developer name*. Ini **field terpisah** dari nama akun.
+
+> ⚠️ Kalau **terpaksa** pakai akun pribadi: **jangan** langsung memakai nama
+> "Populi Center" sebagai developer name tanpa bukti kewenangan (risiko ditolak/
+> ditangguhkan). Pakai nama Anda dulu, ganti/transfer setelah akun organisasi siap
+> — konsekuensinya tertahan **12 penguji × 14 hari**.
+>
+> Kebijakan Play sering berubah — konfirmasikan syarat terbaru (D-U-N-S & closed
+> testing) langsung di Play Console saat mendaftar.
+
+---
+
+## 1 · Prasyarat (sebelum buka Play Console)
 - [ ] **Web produksi live & stabil** (`populicenter.com`) — reviewer benar-benar
       menjalankan app terhadap server ini.
 - [ ] **Halaman legal live**: privasi, S&K, FAQ (sudah tayang + logo).
@@ -49,20 +82,20 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 
 ---
 
-## 1 · Buat aplikasi
+## 2 · Buat aplikasi
 - [ ] Play Console → **Create app**.
 - [ ] Nama: **Survei Populi Center** · Bahasa default: **Indonesia (id-ID)**.
 - [ ] Tipe: **App** (bukan Game) · **Free** (gratis).
 - [ ] Setujui deklarasi (Developer Program Policies, US export laws).
 
-## 2 · Main store listing
+## 3 · Main store listing
 - [ ] **Judul**, **deskripsi singkat**, **deskripsi lengkap** → salin dari [listing.md](listing.md).
 - [ ] **Ikon** 512×512 PNG (< 1 MB).
 - [ ] **Feature graphic** 1024×500.
 - [ ] **Screenshot HP** (≥2; ideal 4: Login, Daftar survei, Form pengisian, Status offline/sinkron).
 - [ ] **Kategori aplikasi**: Bisnis · Email kontak: `info@populicenter.org` · Website: `populicenter.org`.
 
-## 3 · App content (kebijakan — paling sering bikin ditolak)
+## 4 · App content (kebijakan — paling sering bikin ditolak)
 - [ ] **Privacy policy** → `https://populicenter.com/kebijakan-privasi.html`.
 - [ ] **App access** → "All or some functionality is restricted" → tambah akun demo
       reviewer + instruksi login. ➜ [reviewer-access.md](reviewer-access.md) §2.
@@ -76,7 +109,7 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 - [ ] **Data deletion** → nyatakan jalur permintaan hapus via dukungan. ➜ [reviewer-access.md](reviewer-access.md) §3.
 - [ ] **Government app?** → Tidak (kecuali memang instansi).
 
-## 4 · Rilis ke Closed testing (WAJIB dulu, sebelum Production)
+## 5 · Rilis ke Closed testing (WAJIB dulu, sebelum Production)
 - [ ] **Testing → Closed testing** → buat track → tambah **penguji** (daftar email
       atau Google Group).
 - [ ] **Create new release** → aktifkan **Play App Signing** (saat diminta di upload
@@ -88,7 +121,7 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 - [ ] **Akun pribadi**: jalankan **12 penguji × 14 hari** berturut sebelum boleh Production.
       (Akun organisasi: lewati.)
 
-## 5 · Production
+## 6 · Production
 - [ ] **Countries/regions**: pilih Indonesia (atau sesuai kebutuhan).
 - [ ] **Production → Create release** → pakai AAB yang sama (atau versi lebih baru).
 - [ ] **Review** semua peringatan hijau → **Start rollout to Production** → **Submit**.
@@ -108,6 +141,12 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
   perilaku app. App ini juga mengumpulkan **ID perangkat** (kunci perangkat) —
   pastikan ikut dideklarasikan.
 - **Akun demo jangan** dikunci OTP/perangkat, jangan dinonaktifkan selama review.
+- **Nama developer ≠ nama app.** "Populi Center" (developer, tampil di bawah judul
+  app) diatur di *Settings → Developer account*; "Survei Populi Center" (nama app)
+  di *Create app*. Nama developer harus **akurat** — memakai nama lembaga di akun
+  **pribadi** tanpa kewenangan berisiko ditolak/ditangguhkan. ➜ §0
+- **D-U-N-S bisa ~30 hari** — kalau menargetkan akun Organisasi, urus **paling awal**,
+  jangan menunggu app siap. ➜ §0
 - **Keystore/password hilang = tak bisa update app** (kecuali reset upload key via
   Play App Signing). Backup sekarang.
 
