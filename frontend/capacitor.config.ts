@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.populicenter.survey',
-  appName: 'Populi Survey',
+  appName: 'Survei Populi Center',
   webDir: 'dist',
   server: {
     cleartext: true,
