@@ -22,55 +22,40 @@ Reaper hanya menghapus file yang **tak dirujuk** respons/jawaban mana pun — am
 
 ---
 
-## 2. Backup otomatis (pg_dump DB + tar media) via cron
+## 2. Backup otomatis (DB + media) via cron
 
-Buat skrip `/opt/populi/backup.sh` di VPS:
+➜ **Panduan lengkap & skrip siap pakai: [`scripts/BACKUP.md`](../../scripts/BACKUP.md)**
+
+Ringkasnya, jalankan **dua** backup — DB dan media itu terpisah:
 
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-STAMP=$(date +%Y%m%d-%H%M%S)
-DEST=/var/backups/populi
-mkdir -p "$DEST"
-
-# --- 1. Dump database (via container postgres) ---
-# Ganti nama service/db/user sesuai docker-compose.yml Anda.
-docker compose -f /var/www/survey-populicenter/docker-compose.yml \
-  exec -T postgres pg_dump -U postgres web_survey_platform \
-  | gzip > "$DEST/db-$STAMP.sql.gz"
-
-# --- 2. Arsipkan media uploads ---
-tar -czf "$DEST/media-$STAMP.tar.gz" \
-  -C /var/www/survey-populicenter/backend uploads
-
-# --- 3. Retensi lokal: simpan 7 hari terakhir ---
-find "$DEST" -name 'db-*.sql.gz'    -mtime +7 -delete
-find "$DEST" -name 'media-*.tar.gz' -mtime +7 -delete
-
-# --- 4. (Disarankan) Kirim off-site ke storage murah ---
-# Pasang rclone (https://rclone.org), konfigurasi remote 'b2'/'s3'/'wasabi'.
-# rclone copy "$DEST/db-$STAMP.sql.gz"    remote:populi-backup/db/
-# rclone copy "$DEST/media-$STAMP.tar.gz" remote:populi-backup/media/
-
-echo "[backup] selesai: $STAMP"
+cd /var/www/survey-populicenter
+bash scripts/backup-db.sh       # Postgres  → backups/*.dump
+bash scripts/backup-media.sh    # media     → backups/uploads_*.tar.gz
+bash scripts/ops-check.sh       # cek disk + kesegaran backup + container
 ```
 
-Jadwalkan harian jam 02:00 (crontab):
-```
-0 2 * * * /opt/populi/backup.sh >> /var/log/populi-backup.log 2>&1
-```
+> 🚨 **Media TIDAK ada di database.** Foto, tanda tangan, dan **rekaman audio
+> wawancara** ada di *named volume* Docker `uploads`. `pg_dump` tidak
+> menyentuhnya. Backup DB saja = rekaman wawancara hilang bila server hilang.
 
-> **Penting:** backup di server yang SAMA tidak melindungi dari kegagalan disk.
-> Aktifkan langkah #4 (off-site) — Backblaze B2 / Wasabi / S3 sangat murah.
+> ⚠️ **Jangan** mencoba mengarsipkan media lewat path host seperti
+> `tar -C /var/www/survey-populicenter/backend uploads` — path itu **tidak ada**.
+> `uploads` adalah *named volume*, hanya bisa diakses **lewat container**
+> (itulah yang dilakukan `backup-media.sh`). Perintah semacam itu akan
+> menghasilkan arsip **kosong tanpa error** — rasa aman palsu yang berbahaya.
+
+Jadwal cron lengkap (backup, off-site, uji-restore mingguan, cek harian) ada di
+[`scripts/BACKUP.md`](../../scripts/BACKUP.md).
 
 ### Restore (ringkas)
 ```bash
-# DB:
-gunzip -c db-YYYYMMDD-HHMMSS.sql.gz | \
-  docker compose exec -T postgres psql -U postgres web_survey_platform
-# Media:
-tar -xzf media-YYYYMMDD-HHMMSS.tar.gz -C /var/www/survey-populicenter/backend
+bash scripts/restore-db.sh    backups/web_survey_platform_YYYYmmdd_HHMMSS.dump   # ⚠ destruktif
+bash scripts/restore-media.sh backups/uploads_YYYYmmdd_HHMMSS.tar.gz             # ⚠ destruktif
+
+# Uji dulu tanpa menyentuh produksi:
+bash scripts/verify-restore.sh
+bash scripts/restore-media.sh --dry-run backups/uploads_YYYYmmdd_HHMMSS.tar.gz
 ```
 
 ---
@@ -86,5 +71,15 @@ yang sudah selesai.
 
 ## 4. Pantauan
 
-Ukuran disk `uploads/` + status DB/Redis dapat dilihat di laman **Status Sistem**
-(sidebar admin). Cek berkala; bila mendekati penuh, arsipkan & hapus survei lama.
+**Di dalam server** — `bash scripts/ops-check.sh` (jadwalkan harian via cron).
+Memeriksa pemakaian disk, ukuran volume media, **kesegaran backup** (mendeteksi
+cron backup yang diam-diam mati), dan kesehatan semua container. Ia **diam bila
+sehat**, dan hanya mengirim email lewat cron bila ada masalah.
+
+**Di luar server** — daftarkan `https://populicenter.com/health` di UptimeRobot /
+Better Stack / Healthchecks.io (paket gratis cukup), interval 5 menit.
+Ini wajib: kalau servernya mati, `ops-check.sh` ikut mati dan tak bisa
+memberi tahu siapa pun.
+
+**Di dashboard** — ukuran `uploads/` + status DB/Redis ada di laman **Status Sistem**
+(sidebar admin). Bila mendekati penuh, arsipkan & hapus survei lama.
