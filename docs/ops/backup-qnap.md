@@ -4,6 +4,14 @@ Menyalin backup VPS (`*.dump` + `uploads_*.tar.gz`) ke **NAS QNAP di kantor
 Populi Center**. Karena NAS berada di jaringan berbeda dari VPS, ini memenuhi
 syarat *off-site* yang sesungguhnya.
 
+> ✅ **Sudah terpasang & teruji (15 Jul 2026).** NAS `PopuliCenter` (TS-431P2)
+> menarik dari VPS tiap **04:00** → `/share/Backup/populi-survey/`.
+> Kunci `backupro` terbukti **ditolak** saat mencoba menjalankan perintah non-rsync.
+>
+> Dokumen ini memakai placeholder `IP_VPS` — **jangan menuliskan IP asli VPS di
+> repo**. Itu IP asal di balik Cloudflare; membocorkannya memudahkan penyerang
+> melewati WAF/rate-limit Cloudflare dengan menyerang server langsung.
+
 ---
 
 ## 🔑 Prinsip: QNAP **MENARIK**, VPS tidak pernah **MENDORONG**
@@ -109,11 +117,34 @@ resmi QNAP. Di sebagian model sudah terpasang bawaan.)
 > tidak menemukan opsi persis seperti di atas, cari job bertipe **Sync/Backup**
 > dengan sumber **rsync remote**. Prinsipnya sama: **NAS menarik dari VPS**.
 
-**Alternatif tanpa HBS 3** (kalau HBS bermasalah — ini pasti jalan): buat cron di
-QNAP (Control Panel → *Task Scheduler*, atau `crontab -e` via SSH):
-```cron
-0 4 * * *  rsync -az -e "ssh -i /share/homes/admin/.ssh/id_ed25519 -o StrictHostKeyChecking=yes" backupro@IP_VPS:/ /share/Backup/populi-survey/
+**Alternatif tanpa HBS 3 — INI YANG DIPAKAI** (sudah terpasang & teruji):
+
+> 🚨 **`crontab -e` saja TIDAK CUKUP di QNAP.** QTS **menimpa** crontab dari
+> `/etc/config/crontab` saat reboot — jadwal Anda akan **hilang diam-diam**.
+> Harus ditulis ke `/etc/config/crontab`, lalu di-load ulang:
+
+```bash
+cp /etc/config/crontab /etc/config/crontab.bak     # cadangkan dulu
+
+echo '0 4 * * * { date; /usr/bin/rsync -az --stats -e "ssh -i /mnt/HDA_ROOT/.config/ssh/id_ed25519 -o StrictHostKeyChecking=yes" backupro@IP_VPS:/ /share/Backup/populi-survey/; echo "---"; } >> /share/Backup/populi-survey-rsync.log 2>&1' >> /etc/config/crontab
+
+crontab /etc/config/crontab
+/etc/init.d/crond.sh restart
+crontab -l | grep populi                            # pastikan ada
 ```
+
+Jadwal **04:00** — setelah backup VPS selesai (02:15 DB, 02:30 media).
+
+**Kenapa dibungkus `{ date; ...; echo "---"; }`:** rsync **tidak mencetak apa pun**
+bila tak ada berkas baru. Tanpa `date`, log kosong karena *"tidak ada yang baru"*
+akan **terlihat identik** dengan log kosong karena *"cron tak pernah jalan"* —
+tepat jenis kegagalan senyap yang sedang kita cegah. Dengan stempel waktu, log
+membuktikan cron benar-benar berjalan.
+
+**Catatan path:** kunci ada di `/mnt/HDA_ROOT/.config/ssh/` (partisi sistem QNAP;
+`~/.ssh` adalah symlink ke sana). Cron tidak selalu memahami `~`, jadi **pakai
+path absolut**. ⚠️ Update firmware QTS dapat menghapus `/mnt/HDA_ROOT/.config` —
+bila sinkron tiba-tiba berhenti setelah update, buat ulang kuncinya.
 
 ## 5 · 🚨 JANGAN pakai `--delete` (dan kenapa itu justru menyelamatkan Anda)
 
