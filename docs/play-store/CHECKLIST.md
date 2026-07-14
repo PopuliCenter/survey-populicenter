@@ -15,14 +15,19 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 | Dukungan | `info@populicenter.org` · WA +62 812-9206-8362 |
 | Kategori | Bisnis |
 
-> 🚨 **BACA DULU — Kunci Perangkat bisa membuat app DITOLAK review.**
-> App kini punya fitur *kunci perangkat* (1 akun TPD = 1 HP). Reviewer Google login
-> dari perangkat/emulator **mereka sendiri**. Kalau akun demo sudah terikat ke HP
-> lain, reviewer **ditolak login** → app ditolak. Sebelum submit **WAJIB**:
-> - [ ] Akun demo reviewer **belum terikat perangkat** → Manajemen TPD → **Reset Perangkat**
->       (pastikan chip 🔒 HP **tidak** muncul di baris akun demo).
-> - [ ] Survei **"Demo"** yang dipakai reviewer: Field Tools → **Kunci Perangkat = Nonaktif**.
-> - [ ] Jangan login pakai akun demo dari HP Anda sesudah reset (nanti terikat lagi).
+> 🚨 **BACA DULU — 3 hal ini membuat reviewer TERJEBAK → app DITOLAK.**
+> Reviewer Google menjalankan app di **perangkat/emulator mereka sendiri**, sering
+> **tanpa GPS nyata, tanpa mikrofon/kamera**, dan mereka **boleh menolak izin**.
+> Sebelum submit **WAJIB** (detail: [reviewer-access.md](reviewer-access.md)):
+> - [ ] **Kunci Perangkat** — akun demo **belum terikat**: Manajemen TPD → **Reset Perangkat**
+>       (chip 🔒 HP hilang) **dan** survei Demo → **Kunci Perangkat = Nonaktif**.
+>       Setelah reset, **jangan** login akun demo dari HP Anda (nanti terikat lagi).
+> - [ ] **GPS Wajib memblokir tombol Simpan** di APK → survei Demo: **Lokasi GPS = Opsional**.
+> - [ ] **Audio/Foto/Tanda tangan Wajib ditolak server (422)** bila reviewer menolak izin
+>       → survei Demo: **semuanya Opsional**.
+>
+> ✅ **Uji sendiri:** login akun demo di HP bersih, **tolak semua izin**, lalu isi
+> 1 kuesioner sampai **tersimpan**. Kalau itu berhasil, reviewer pasti bisa.
 
 ---
 
@@ -36,7 +41,9 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 - [ ] **AAB signed siap** — bangun dengan `npm run cap:release` (tanpa `--apk`).
       ⚠ Play Store butuh **AAB**, bukan APK. APK hanya untuk sideload ke TPD.
 - [ ] **Keystore sudah di-backup** di ≥2 tempat + password di manager. ➜ [keystore-setup.md](keystore-setup.md)
-- [ ] **Akun demo reviewer + survei "Demo"** dibuat & aktif. ➜ [reviewer-access.md](reviewer-access.md)
+- [ ] **Akun demo reviewer + survei "Demo"** dibuat & aktif, **Field Tools semua
+      Opsional** + **Kunci Perangkat Nonaktif**, kuota & nomor kuesioner tersedia.
+      ➜ [reviewer-access.md](reviewer-access.md)
 - [ ] **Aset grafis siap**: ikon 512×512, feature 1024×500, 2–6 screenshot HP. ➜ [listing.md](listing.md)
 - [ ] **Uji AAB/APK di HP asli** (build R8/minify) — login + simpan 1 responden OK.
 
@@ -76,7 +83,7 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
       pertama — Google pegang kunci final, keystore-mu jadi *upload key*).
 - [ ] **Upload** AAB dari `frontend/android/app/build/outputs/bundle/release/`
       → pakai berkas bernama unik, mis. **`SurveiPopuliCenter-v1.0.0-code8.aab`**.
-- [ ] Isi **release notes** (mis. "Rilis awal Survei Populi Center.").
+- [ ] Isi **release notes** → salin dari [reviewer-access.md](reviewer-access.md) §4.
 - [ ] **Save → Review release → Start rollout** ke Closed testing.
 - [ ] **Akun pribadi**: jalankan **12 penguji × 14 hari** berturut sebelum boleh Production.
       (Akun organisasi: lewati.)
