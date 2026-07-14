@@ -8,12 +8,21 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 | | |
 |---|---|
 | Application ID | `com.populicenter.survey` |
-| Nama app | Populi Survey |
-| Versi AAB pertama | versionName **1.0.0** / versionCode **1** |
+| Nama app (launcher) | **Survei Populi Center** |
+| Versi | versionName **1.0.0** · versionCode **naik otomatis** tiap `cap:release` |
 | Privacy Policy | `https://populicenter.com/kebijakan-privasi.html` |
 | Syarat & Ketentuan | `https://populicenter.com/syarat-ketentuan.html` |
 | Dukungan | `info@populicenter.org` · WA +62 812-9206-8362 |
 | Kategori | Bisnis |
+
+> 🚨 **BACA DULU — Kunci Perangkat bisa membuat app DITOLAK review.**
+> App kini punya fitur *kunci perangkat* (1 akun TPD = 1 HP). Reviewer Google login
+> dari perangkat/emulator **mereka sendiri**. Kalau akun demo sudah terikat ke HP
+> lain, reviewer **ditolak login** → app ditolak. Sebelum submit **WAJIB**:
+> - [ ] Akun demo reviewer **belum terikat perangkat** → Manajemen TPD → **Reset Perangkat**
+>       (pastikan chip 🔒 HP **tidak** muncul di baris akun demo).
+> - [ ] Survei **"Demo"** yang dipakai reviewer: Field Tools → **Kunci Perangkat = Nonaktif**.
+> - [ ] Jangan login pakai akun demo dari HP Anda sesudah reset (nanti terikat lagi).
 
 ---
 
@@ -24,7 +33,8 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 - [ ] **Web produksi live & stabil** (`populicenter.com`) — reviewer benar-benar
       menjalankan app terhadap server ini.
 - [ ] **Halaman legal live**: privasi, S&K, FAQ (sudah tayang + logo).
-- [ ] **AAB signed siap** — `app-release.aab` (v1.0.0 / code 1). ✔ selesai
+- [ ] **AAB signed siap** — bangun dengan `npm run cap:release` (tanpa `--apk`).
+      ⚠ Play Store butuh **AAB**, bukan APK. APK hanya untuk sideload ke TPD.
 - [ ] **Keystore sudah di-backup** di ≥2 tempat + password di manager. ➜ [keystore-setup.md](keystore-setup.md)
 - [ ] **Akun demo reviewer + survei "Demo"** dibuat & aktif. ➜ [reviewer-access.md](reviewer-access.md)
 - [ ] **Aset grafis siap**: ikon 512×512, feature 1024×500, 2–6 screenshot HP. ➜ [listing.md](listing.md)
@@ -34,7 +44,7 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 
 ## 1 · Buat aplikasi
 - [ ] Play Console → **Create app**.
-- [ ] Nama: **Populi Survey** · Bahasa default: **Indonesia (id-ID)**.
+- [ ] Nama: **Survei Populi Center** · Bahasa default: **Indonesia (id-ID)**.
 - [ ] Tipe: **App** (bukan Game) · **Free** (gratis).
 - [ ] Setujui deklarasi (Developer Program Policies, US export laws).
 
@@ -79,11 +89,16 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
 ---
 
 ## ⚠️ Gotcha yang sering menggagalkan
-- **versionCode wajib naik tiap upload** → sudah otomatis via `npm run cap:release`
-  (build ini code 1; berikutnya code 2, dst.).
+- 🚨 **Kunci Perangkat vs reviewer** — lihat kotak merah di atas. Akun demo **harus**
+  bebas ikatan perangkat & survei Demo **harus** `Kunci Perangkat = Nonaktif`,
+  kalau tidak reviewer tak bisa login → **ditolak**.
+- **versionCode wajib naik tiap upload** → otomatis via `npm run cap:release`.
+  Cek nilai berjalan di `frontend/android/version.properties`.
 - **Server harus online selama review** — reviewer menjalankan app sungguhan.
+  Jangan deploy/restart berisiko saat masa review.
 - **Data Safety vs izin** harus konsisten; Play membandingkan deklarasi dengan
-  perilaku app.
+  perilaku app. App ini juga mengumpulkan **ID perangkat** (kunci perangkat) —
+  pastikan ikut dideklarasikan.
 - **Akun demo jangan** dikunci OTP/perangkat, jangan dinonaktifkan selama review.
 - **Keystore/password hilang = tak bisa update app** (kecuali reset upload key via
   Play App Signing). Backup sekarang.
