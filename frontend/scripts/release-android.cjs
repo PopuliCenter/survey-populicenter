@@ -66,7 +66,7 @@ const outPath = BUILD_APK
   : path.join(ANDROID_DIR, 'app/build/outputs/bundle/release/app-release.aab');
 
 console.log('─────────────────────────────────────────────');
-console.log('  Rilis Android — Populi Survey');
+console.log('  Rilis Android — Survei Populi Center');
 console.log('─────────────────────────────────────────────');
 console.log(`  Artefak      : ${artifact}`);
 console.log(`  versionName  : ${name}`);
@@ -103,6 +103,13 @@ run(gradlew, [gradleTask, `-PappVersionCode=${code}`, `-PappVersionName=${name}`
 if (!fs.existsSync(outPath)) die(`Build selesai tapi artefak tak ditemukan di ${outPath}`);
 const sizeMB = (fs.statSync(outPath).size / 1048576).toFixed(1);
 
+// ── 3b) Salin ke nama UNIK agar tak bentrok "app-release.apk" aplikasi lain ──
+// Tetap di folder yang sama (di dalam app/build/, terabaikan git).
+const ext = BUILD_APK ? 'apk' : 'aab';
+const distName = `SurveiPopuliCenter-v${name}-code${code}.${ext}`;
+const distPath = path.join(path.dirname(outPath), distName);
+fs.copyFileSync(outPath, distPath);
+
 if (NO_BUMP) {
   // Bump dilewati atas permintaan (--no-bump).
 } else if (!signed) {
@@ -119,8 +126,11 @@ if (NO_BUMP) {
 
 console.log('\n─────────────────────────────────────────────');
 console.log(`✅ Sukses: ${artifact}  (${sizeMB} MB, v${name} / code ${code})`);
-console.log(`   ${outPath}`);
+console.log(`   📦 Ambil file ini (nama unik): ${distPath}`);
+console.log(`   (salinan asli: ${outPath})`);
 console.log(signed
-  ? '   Unggah AAB ini ke Play Console (Closed testing → Production).'
+  ? (BUILD_APK
+      ? '   APK bertanda-tangan — bisa langsung dipasang di HP / dibagikan ke TPD.'
+      : '   Unggah AAB ini ke Play Console (Closed testing → Production).')
   : '   ⚠ UNSIGNED — hanya untuk verifikasi build. Siapkan keystore untuk rilis.');
 console.log('─────────────────────────────────────────────');
