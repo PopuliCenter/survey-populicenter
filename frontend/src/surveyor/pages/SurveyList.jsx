@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import QuotaProgress from '../../components/QuotaProgress';
@@ -162,7 +162,7 @@ function SurveyList() {
   }, [draftMedia]);
 
   // ─── Offline / Sync ─────────────────────────────────────────────────────────
-  const { isOnline, isSyncing, pendingCount, pendingItems, failedItems, deleteFailedItem, retryFailedItem, retryAllFailed } = useSyncManager();
+  const { isOnline, isSyncing, pendingCount, pendingItems, failedItems, syncNow, deleteFailedItem, retryFailedItem, retryAllFailed } = useSyncManager();
 
   // ─── Load user from localStorage ───────────────────────────────────────────
   useEffect(() => {
@@ -276,6 +276,42 @@ function SurveyList() {
     fetchData();
   }, [fetchData]);
 
+  // ─── Segarkan status "Terkirim" (kuota/submitted_numbers) TANPA loading layar ─
+  // Status "Terkirim" hanya berasal dari server. Setelah antrean offline
+  // terunggah, nomor keluar dari daftar 'pending' lokal tapi belum masuk
+  // submitted_numbers sampai data server ditarik ulang — sehingga sempat tampak
+  // "Belum diisi". Fungsi ringan ini menarik ulang kuota saja (senyap).
+  const refreshQuota = useCallback(async () => {
+    try {
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (!storedUser.id) return;
+      const quotaRes = await api.get(`/surveyors/${storedUser.id}/quota`);
+      const map = {};
+      (quotaRes.data || []).forEach((item) => {
+        map[item.survey_id] = {
+          quota: item.quota,
+          filled: item.filled,
+          assigned_numbers: item.assigned_numbers || null,
+          submitted_numbers: item.submitted_numbers || [],
+        };
+      });
+      setQuotaMap(map);
+      try { localStorage.setItem('offline_quota_map', JSON.stringify(map)); } catch { /* ignore */ }
+    } catch { /* biarkan status lama bila gagal */ }
+  }, []);
+
+  // ─── Auto-refresh saat sinkron offline SELESAI ──────────────────────────────
+  // Pantau transisi isSyncing true→false: begitu unggahan antrean beres, tarik
+  // ulang status server agar nomor langsung jadi "Terkirim" tanpa perlu navigasi.
+  const prevSyncingRef = useRef(false);
+  useEffect(() => {
+    if (prevSyncingRef.current && !isSyncing) {
+      refreshQuota();
+      refreshDrafts();
+    }
+    prevSyncingRef.current = isSyncing;
+  }, [isSyncing, refreshQuota, refreshDrafts]);
+
   // ─── Muat ulang saat aplikasi kembali ke depan (resume) ─────────────────────
   // Agar notif "survei baru / dinonaktifkan" muncul saat TPD membuka app lagi.
   useEffect(() => {
@@ -371,6 +407,17 @@ function SurveyList() {
     setDownloading(false);
     localStorage.setItem('last_download_time', new Date().toISOString());
     refreshDrafts(); // "Perbarui" juga menyegarkan status draft "sedang dikerjakan"
+  }
+
+  // ─── Tombol "Perbarui"/"Unduh" — sekalian dorong-sinkron & tarik status ──────
+  // Urutan: (1) unggah antrean offline agar server terkini, (2) tarik ulang
+  // kuota/submitted_numbers ("Terkirim"), (3) unduh + cache untuk offline.
+  async function handleRefreshAll() {
+    if (isOnline && typeof syncNow === 'function') {
+      try { await syncNow(); } catch { /* gagal sinkron — tetap lanjut refresh */ }
+    }
+    await refreshQuota();
+    await handleDownloadAll();
   }
 
   // ─── Last download time ─────────────────────────────────────────────────────
@@ -520,7 +567,7 @@ function SurveyList() {
                 )}
               </div>
               <button
-                onClick={handleDownloadAll}
+                onClick={handleRefreshAll}
                 disabled={downloading}
                 className="min-h-[44px] shrink-0 inline-flex items-center gap-1.5 px-4 text-sm font-semibold text-white bg-accent-600 hover:bg-accent-700 rounded-xl disabled:opacity-50 transition-colors"
               >
