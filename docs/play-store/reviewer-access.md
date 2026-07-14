@@ -1,6 +1,6 @@
 # Akses Reviewer (App access) — wajib untuk app berpintu-login
 
-Aplikasi Populi Survey punya **login wall** dan **tanpa pendaftaran mandiri**.
+Aplikasi Survei Populi Center punya **login wall** dan **tanpa pendaftaran mandiri**.
 Karena itu, reviewer Google **tidak bisa masuk sendiri** → Anda WAJIB memberi
 **akun demo** di Play Console, atau app **ditolak**.
 

@@ -1,4 +1,4 @@
-# Setup Keystore & Signing — Populi Survey (Android)
+# Setup Keystore & Signing — Survei Populi Center (Android)
 
 Langkah **sekali seumur hidup aplikasi** untuk menandatangani rilis Play Store.
 Dikerjakan di **mesin dev** (tempat build APK/AAB), bukan di server.

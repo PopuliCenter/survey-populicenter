@@ -1,4 +1,4 @@
-# ✅ Checklist Rilis Play Store — Populi Survey
+# ✅ Checklist Rilis Play Store — Survei Populi Center
 
 Checklist berurut, tinggal contreng. Ikuti dari atas ke bawah. Detail tiap bagian
 ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-safety.md) ·
@@ -74,8 +74,9 @@ ada di dokumen pendamping: [listing.md](listing.md) · [data-safety.md](data-saf
       atau Google Group).
 - [ ] **Create new release** → aktifkan **Play App Signing** (saat diminta di upload
       pertama — Google pegang kunci final, keystore-mu jadi *upload key*).
-- [ ] **Upload** `app-release.aab`.
-- [ ] Isi **release notes** (mis. "Rilis awal Populi Survey.").
+- [ ] **Upload** AAB dari `frontend/android/app/build/outputs/bundle/release/`
+      → pakai berkas bernama unik, mis. **`SurveiPopuliCenter-v1.0.0-code8.aab`**.
+- [ ] Isi **release notes** (mis. "Rilis awal Survei Populi Center.").
 - [ ] **Save → Review release → Start rollout** ke Closed testing.
 - [ ] **Akun pribadi**: jalankan **12 penguji × 14 hari** berturut sebelum boleh Production.
       (Akun organisasi: lewati.)

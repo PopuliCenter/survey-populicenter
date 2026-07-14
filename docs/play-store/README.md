@@ -1,4 +1,4 @@
-# Rilis Publik Play Store — Populi Survey
+# Rilis Publik Play Store — Survei Populi Center
 
 Checklist & berkas pendukung untuk menerbitkan aplikasi ke Google Play (publik).
 
