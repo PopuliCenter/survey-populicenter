@@ -39,7 +39,8 @@ cd "$REPO_ROOT"
 DISK_WARN_PCT="${DISK_WARN_PCT:-80}"      # peringatkan bila pemakaian ≥ 80%
 BACKUP_MAX_AGE_H="${BACKUP_MAX_AGE_H:-30}" # backup harian → basi bila > 30 jam
 BACKUP_DIR="${BACKUP_DIR:-$REPO_ROOT/backups}"
-OFFSITE_MARKER="${OFFSITE_MARKER:-}"       # opsional: file penanda sinkron off-site
+OFFSITE_MARKER="${OFFSITE_MARKER:-}"       # model PUSH (rclone): file penanda sinkron
+OFFSITE_PULL="${OFFSITE_PULL:-}"           # model PULL (NAS menarik): set ke 1
 HC_PING_URL="${HC_PING_URL:-}"             # opsional: dead man's switch (Healthchecks.io)
 
 PROBLEMS=0
@@ -93,8 +94,14 @@ check_fresh "Arsip media" "$BACKUP_DIR/uploads_*.tar.gz"
 # ── 3. Off-site ─────────────────────────────────────────────────────────────
 echo
 echo "── Salinan luar server"
-if [ -z "$OFFSITE_MARKER" ]; then
-  warn "OFFSITE_MARKER belum diset → salinan off-site TIDAK dipantau."
+if [ "$OFFSITE_PULL" = "1" ]; then
+  # Model PULL (NAS kantor menarik dari VPS). VPS TIDAK bisa melihat NAS, jadi
+  # kesehatan tarikan HANYA dapat dipantau dari sisi NAS (cron NAS ping sendiri
+  # ke Healthchecks). Memaksa cek dari sini akan selalu gagal → alarm palsu tiap
+  # hari → alarm diabaikan. Alarm yang selalu berbunyi lebih buruk dari tak ada.
+  ok "Off-site model PULL (NAS kantor) — dipantau dari sisi NAS, bukan dari sini"
+elif [ -z "$OFFSITE_MARKER" ]; then
+  warn "Off-site TIDAK dipantau (OFFSITE_MARKER/OFFSITE_PULL belum diset)."
   echo "   Backup yang hanya ada di server ini TIDAK melindungi dari server hilang."
 elif [ ! -f "$OFFSITE_MARKER" ]; then
   warn "Penanda off-site tak ditemukan: $OFFSITE_MARKER — sinkron gagal?"
