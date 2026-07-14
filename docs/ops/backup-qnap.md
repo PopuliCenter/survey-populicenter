@@ -112,19 +112,46 @@ resmi QNAP. Di sebagian model sudah terpasang bawaan.)
 **Alternatif tanpa HBS 3** (kalau HBS bermasalah — ini pasti jalan): buat cron di
 QNAP (Control Panel → *Task Scheduler*, atau `crontab -e` via SSH):
 ```cron
-0 4 * * *  rsync -az --delete -e "ssh -i /share/homes/admin/.ssh/id_ed25519 -o StrictHostKeyChecking=yes" backupro@IP_VPS:/ /share/Backup/populi-survey/
+0 4 * * *  rsync -az -e "ssh -i /share/homes/admin/.ssh/id_ed25519 -o StrictHostKeyChecking=yes" backupro@IP_VPS:/ /share/Backup/populi-survey/
 ```
 
-## 5 · Snapshot — WAJIB
+## 5 · 🚨 JANGAN pakai `--delete` (dan kenapa itu justru menyelamatkan Anda)
 
-**RAID bukan backup, dan mirror bukan riwayat.** Kalau arsip di VPS korup atau
-terhapus, sinkron akan dengan patuh menyalin kerusakan itu ke NAS dan menimpa
-salinan yang bagus.
+Ini keputusan terpenting di seluruh dokumen ini.
 
-QNAP → **Storage & Snapshots** → aktifkan **Snapshot** pada volume tujuan:
-- Jadwal harian, simpan mis. **30 snapshot**.
-- Snapshot bersifat *read-only* → ransomware yang mengenkripsi berkas **tidak**
-  bisa merusaknya, dan Anda bisa mundur ke titik mana pun.
+Setiap backup kita adalah **berkas baru berstempel waktu**
+(`web_survey_platform_20260715_021500.dump`, `uploads_20260715_023000.tar.gz`) —
+bukan berkas yang ditimpa. Karena itu, rsync **tanpa** `--delete` menghasilkan
+**riwayat alami** di NAS: berkas lama menumpuk dan **tidak pernah** dihapus dari
+sisi NAS.
+
+| | `--delete` ❌ | **tanpa `--delete`** ✅ |
+|---|---|---|
+| VPS merotasi backup (retensi 14) | NAS ikut **menghapus** → riwayat NAS ikut terpangkas | NAS **menyimpan lebih lama** dari VPS |
+| Penyerang menghapus `backups/` di VPS | Sinkron berikutnya **menghapusnya juga di NAS** → backup musnah | NAS **tetap utuh** |
+| Arsip di VPS korup | Tersalin, tapi yang lama tetap ada | Sama — yang lama tetap ada |
+
+> Dengan `--delete`, satu perintah `rm -rf` di VPS (atau ransomware) akan
+> **direplikasi dengan patuh** ke NAS pada sinkron berikutnya. Itu mengubah
+> backup Anda menjadi sekadar cermin — dan cermin bukan backup.
+
+**Konsekuensi:** folder NAS akan tumbuh terus. Itu disengaja. Backup Anda kecil
+(±31 MB/hari) — 1 tahun ≈ 11 GB, tak berarti untuk NAS. Pangkas **manual** sesekali
+(mis. sisakan 1 berkas per bulan untuk arsip lama), **jangan** otomatis dari VPS.
+
+### Snapshot (kalau model NAS Anda mendukung)
+
+QNAP → **Storage & Snapshots** → aktifkan **Snapshot** pada volume tujuan
+(harian, simpan mis. 30). Snapshot bersifat *read-only* → ransomware yang
+mengenkripsi berkas **tidak** bisa merusaknya.
+
+> ⚠️ **TS-431P2 kemungkinan tidak mendukung Snapshot** (ARM kelas entry, RAM
+> kecil — di luar daftar dukungan snapshot QNAP). Cek sendiri di *Storage &
+> Snapshots*; bila menu-nya tidak ada/abu-abu, berarti tidak didukung.
+>
+> **Itu tidak apa-apa** — justru karena itulah aturan "tanpa `--delete`" di atas
+> menjadi **wajib, bukan opsional**: penumpukan berkas berstempel waktu adalah
+> pengganti riwayat/snapshot Anda.
 
 ## 6 · Pantau bahwa tarikannya benar-benar terjadi
 
@@ -138,7 +165,7 @@ pantau dari **sisi QNAP**:
 - Lebih kuat: tambahkan *dead man's switch* — di Task Scheduler QNAP, setelah
   rsync sukses, ping Healthchecks.io:
   ```bash
-  0 4 * * *  rsync -az --delete -e "ssh -i /share/homes/admin/.ssh/id_ed25519" backupro@IP_VPS:/ /share/Backup/populi-survey/ && curl -fsS -m 10 https://hc-ping.com/UUID-QNAP-JOB
+  0 4 * * *  rsync -az -e "ssh -i /share/homes/admin/.ssh/id_ed25519" backupro@IP_VPS:/ /share/Backup/populi-survey/ && curl -fsS -m 10 https://hc-ping.com/UUID-QNAP-JOB
   ```
   Kalau tarikan berhenti (NAS mati, listrik padam, internet kantor putus, kunci
   dicabut), **tidak ada ping** → Healthchecks mengalarm Anda. Kegagalan senyap
@@ -149,7 +176,14 @@ pantau dari **sisi QNAP**:
 ## 7 · Keamanan — ini data responden
 
 Isi backup = **seluruh data pribadi responden** (jawaban, foto, rekaman audio,
-tanda tangan). Perlakukan NAS setara server produksi:
+tanda tangan). Perlakukan NAS setara server produksi.
+
+> 🚨 **NAS Populi Center (TS-431P2) saat ini PUNYA Public IP aktif** dan Smart URL
+> myQNAPcloud → **terjangkau dari internet publik**. Model *pull* di dokumen ini
+> **tidak memerlukan itu sama sekali** (NAS hanya perlu koneksi **keluar**).
+> NAS QNAP yang terpapar internet adalah sasaran kampanye ransomware massal
+> (Qlocker, DeadBolt) yang masuk lewat lubang firmware — dan NAS ini akan
+> menyimpan seluruh data responden. **Tutup aksesnya.**
 
 - [ ] **myQNAPcloud / UPnP / port-forward ke NAS: MATIKAN** (kecuali benar-benar perlu)
 - [ ] Akun `admin` bawaan **dinonaktifkan**; pakai akun lain + **2FA**
