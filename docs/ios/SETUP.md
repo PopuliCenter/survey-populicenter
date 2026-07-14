@@ -44,15 +44,38 @@ ulang dari awal.
 - [ ] Cek nama resmi di **akta / SK Kemenkumham / NPWP** sebelum mengetik.
 - [ ] Isi **persis** seperti itu (mis. `Yayasan Populi Indonesia`).
 
-### ⚠️ Nama yang tampil di App Store ≠ "Populi Center"
+### ⚠️ Entitas legal ≠ brand — dan tiap toko beda perlakuan
+
+**Fakta:** akta = **Yayasan Populi Indonesia**; brand = **Populi Center**.
+
+> ✅ **Brand tetap terlihat.** Nama **aplikasi** (`Survei Populi Center`) bebas dan
+> tidak terikat akta — itu yang tampil besar di kedua toko. Yang dibahas di sini
+> hanya **baris kecil nama developer/penjual** di bawah judul.
+
 | | **Google Play** | **App Store** |
 |---|---|---|
-| Nama developer yang tampil | **Field bebas** → bisa diisi `Populi Center` | **Diambil dari `Legal Entity Name`** → tampil `Yayasan Populi Indonesia` |
+| Nama developer yang tampil | **Field bebas** → isi `Populi Center` | **Otomatis dari `Legal Entity Name`** → tampil `Yayasan Populi Indonesia` |
+| Nama legal tetap muncul? | Ya, di **"Verified developer info"** (wajib utk akun Organisasi) | Ya — memang itu yang tampil |
+| Ubah ke brand? | Langsung, saat setup | **Permintaan terpisah ke Apple Developer Support** setelah enrollment disetujui |
 
-Kalau ingin tetap tampil **"Populi Center"** di App Store, itu **permintaan terpisah**
-ke Apple (nama dagang/DBA) dengan bukti bahwa Populi Center adalah nama dagang
-yayasan tsb — mis. sertifikat merek. Ajukan **setelah** enrollment disetujui;
-**tidak bisa** sekadar diketik di form enrollment.
+### 🔑 Langkah kunci: daftarkan "Populi Center" sebagai **Trade Style** di D-U-N-S
+
+Saat mengajukan/memperbarui D-U-N-S, isi field **"Trade Style" / "Doing Business As"**
+(nama dagang) dengan **`Populi Center`**.
+
+Kalau rekaman D&B berbunyi *"Yayasan Populi Indonesia, trading as Populi Center"*,
+maka **Apple dan Google memverifikasi dari sumber yang sama** → kaitan brand↔entitas
+jadi resmi, dan pemakaian nama dagang **tidak** dianggap menyesatkan. Tanpa ini,
+hubungan tsb harus dibuktikan terpisah ke tiap toko.
+
+- [ ] Isi **Trade Style = `Populi Center`** saat request D-U-N-S ⏳ **jangan terlewat**
+
+### Bukti nama dagang yang perlu disiapkan
+Dipakai untuk D&B **dan** untuk banding ke Apple:
+
+- [ ] **Sertifikat merek DJKI** atas "Populi Center" — bukti terkuat
+- [ ] **Surat/SK pengurus yayasan**: Populi Center adalah nama dagang Yayasan Populi Indonesia
+- [ ] Domain `populicenter.org` / `.com`, kop surat, laman "Tentang Kami" yang menyebut **kedua** nama
 
 ### Hal lain yang diverifikasi Apple
 - [ ] Pendaftar punya **kewenangan mengikat** yayasan (atau ditunjuk oleh yang berwenang).

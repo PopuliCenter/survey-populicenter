@@ -53,11 +53,15 @@ pribadi responden).
 - [ ] **(Organisasi)** Ajukan **D-U-N-S number** — gratis, Dun & Bradstreet. ⏳ **mulai duluan**
       🎁 **Nomor yang sama juga dipakai untuk Apple Developer (Organization)** — satu
       pengurusan membuka dua toko. ➜ [`docs/ios/SETUP.md`](../ios/SETUP.md) §1b
+- [ ] **Isi Trade Style / DBA = `Populi Center`** saat request D-U-N-S. 🔑 Akta =
+      **Yayasan Populi Indonesia**, brand = **Populi Center**. Kalau rekaman D&B sudah
+      memuat nama dagang, pemakaian "Populi Center" jadi sah di **kedua** toko.
 - [ ] **(Organisasi)** Siapkan dokumen legal lembaga + email domain + alamat/telepon kantor
 - [ ] **Akun Google Play Developer** aktif ($25 sekali)
 - [ ] **Developer name** (nama yang tampil di Play Store, seperti "GARENA INTERNATIONAL I")
       → set ke **`Populi Center`** di *Play Console → Settings → Developer account →
-      Developer name*. Ini **field terpisah** dari nama akun.
+      Developer name*. Ini **field terpisah** dari nama akun (yang legal = Yayasan
+      Populi Indonesia, tetap tampil di **Verified developer info** — itu wajar & benar).
 
 > ⚠️ Kalau **terpaksa** pakai akun pribadi: **jangan** langsung memakai nama
 > "Populi Center" sebagai developer name tanpa bukti kewenangan (risiko ditolak/
@@ -143,10 +147,11 @@ pribadi responden).
   perilaku app. App ini juga mengumpulkan **ID perangkat** (kunci perangkat) —
   pastikan ikut dideklarasikan.
 - **Akun demo jangan** dikunci OTP/perangkat, jangan dinonaktifkan selama review.
-- **Nama developer ≠ nama app.** "Populi Center" (developer, tampil di bawah judul
-  app) diatur di *Settings → Developer account*; "Survei Populi Center" (nama app)
-  di *Create app*. Nama developer harus **akurat** — memakai nama lembaga di akun
-  **pribadi** tanpa kewenangan berisiko ditolak/ditangguhkan. ➜ §0
+- **Nama developer ≠ nama app ≠ nama legal.** Tiga hal berbeda:
+  *Survei Populi Center* (nama app, di *Create app*) · *Populi Center* (developer name,
+  di *Settings → Developer account*) · *Yayasan Populi Indonesia* (nama legal, muncul di
+  *Verified developer info*). Nama developer harus **akurat** — memakai nama lembaga di
+  akun **pribadi** tanpa kewenangan berisiko ditolak/ditangguhkan. ➜ §0
 - **D-U-N-S bisa ~30 hari** — kalau menargetkan akun Organisasi, urus **paling awal**,
   jangan menunggu app siap. ➜ §0
 - **Keystore/password hilang = tak bisa update app** (kecuali reset upload key via
