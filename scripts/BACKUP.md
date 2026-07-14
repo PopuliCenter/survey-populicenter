@@ -83,7 +83,16 @@ Baris kedua itu **tidak mungkin** dideteksi oleh apa pun yang hidup di server in
 dan itulah persis kegagalan yang sempat terjadi (cron backup DB tak pernah ada,
 baru ketahuan seminggu kemudian).
 
-## Salinan luar server (WAJIB) — `sync-offsite.sh`
+## Salinan luar server (WAJIB)
+
+Dua jalur, boleh dipakai bersamaan (justru dianjurkan — aturan 3-2-1):
+
+| Jalur | Melindungi dari | Panduan |
+|---|---|---|
+| **QNAP di kantor** (NAS **menarik** dari VPS) | VPS hilang/diretas | [`docs/ops/backup-qnap.md`](../docs/ops/backup-qnap.md) |
+| **Cloud** (VPS **mendorong** via rclone) | kantor & VPS hilang sekaligus | bagian di bawah |
+
+### Cloud — `sync-offsite.sh`
 
 Backup yang hanya ada di VPS **tidak melindungi dari VPS-nya sendiri hilang**
 (disk rusak, akun ditangguhkan, salah `rm`). Skripnya sudah ada; yang perlu Anda
