@@ -81,7 +81,10 @@ if (!signed) console.log('  ⚠ Lanjut membangun artefak unsigned. Untuk rilis P
 
 // ── Helper jalankan perintah (stream output apa adanya) ──────────────────────
 function run(cmd, args, cwd) {
-  const display = `${cmd} ${args.join(' ')}`;
+  // Path absolut yang mengandung spasi (mis. "D:\Survei Apps\...") wajib dikutip
+  // saat dijalankan lewat shell.
+  const quotedCmd = cmd.includes(' ') ? `"${cmd}"` : cmd;
+  const display = `${quotedCmd} ${args.join(' ')}`;
   console.log(`\n▶ ${display}   (di ${path.relative(FRONTEND_DIR, cwd) || '.'})`);
   // Windows: .bat/.cmd (npm, gradlew.bat) butuh shell. Untuk menghindari
   // DeprecationWarning DEP0190, saat shell:true berikan SATU string perintah
@@ -96,7 +99,10 @@ function run(cmd, args, cwd) {
 run('npm', ['run', 'cap:build'], FRONTEND_DIR);
 
 // ── 2) Gradle build rilis dengan versi eksplisit ─────────────────────────────
-const gradlew = isWin ? 'gradlew.bat' : './gradlew';
+// Path ABSOLUT ke gradlew — jangan mengandalkan pencarian di direktori kerja:
+// cmd.exe yang di-spawn Node tidak selalu mencari di cwd ("'gradlew.bat' is not
+// recognized"), tergantung konfigurasi sistem.
+const gradlew = path.join(ANDROID_DIR, isWin ? 'gradlew.bat' : 'gradlew');
 run(gradlew, [gradleTask, `-PappVersionCode=${code}`, `-PappVersionName=${name}`], ANDROID_DIR);
 
 // ── 3) Verifikasi artefak & bump versi ───────────────────────────────────────
