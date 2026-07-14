@@ -22,6 +22,48 @@ di Apple Developer → Identifiers).
 
 ---
 
+## 1b. Enrollment Apple Developer sebagai ORGANISASI ⏳
+
+> ⏳ **Jalur kritis — kerjakan paling awal.** D-U-N-S bisa memakan waktu. Enrollment
+> boleh jalan jauh sebelum app iOS-nya siap dibangun.
+
+### D-U-N-S Number (yang diminta form enrollment)
+Ambil **gratis** lewat halaman lookup Apple: **`developer.apple.com/enroll/duns-lookup/`**
+- Sudah punya → nomor muncul langsung.
+- Belum punya → ajukan dari situ. Apple menyebut **~5 hari kerja**; di Indonesia
+  realistisnya bisa lebih lama.
+
+🎁 **D-U-N-S yang sama bisa dipakai untuk akun Organisasi Google Play.** Satu
+pengurusan, dua toko terbuka. ➜ [`docs/play-store/CHECKLIST.md`](../play-store/CHECKLIST.md) §0
+
+### `Legal Entity Name` — sama persis dengan akta
+Apple mencocokkan **karakter per karakter** dengan rekaman D-U-N-S **dan** dokumen
+legal (akta yayasan / SK Kemenkumham). Salah satu huruf beda → enrollment ditolak,
+ulang dari awal.
+
+- [ ] Cek nama resmi di **akta / SK Kemenkumham / NPWP** sebelum mengetik.
+- [ ] Isi **persis** seperti itu (mis. `Yayasan Populi Indonesia`).
+
+### ⚠️ Nama yang tampil di App Store ≠ "Populi Center"
+| | **Google Play** | **App Store** |
+|---|---|---|
+| Nama developer yang tampil | **Field bebas** → bisa diisi `Populi Center` | **Diambil dari `Legal Entity Name`** → tampil `Yayasan Populi Indonesia` |
+
+Kalau ingin tetap tampil **"Populi Center"** di App Store, itu **permintaan terpisah**
+ke Apple (nama dagang/DBA) dengan bukti bahwa Populi Center adalah nama dagang
+yayasan tsb — mis. sertifikat merek. Ajukan **setelah** enrollment disetujui;
+**tidak bisa** sekadar diketik di form enrollment.
+
+### Hal lain yang diverifikasi Apple
+- [ ] Pendaftar punya **kewenangan mengikat** yayasan (atau ditunjuk oleh yang berwenang).
+- [ ] **Website & nomor telepon** yayasan dapat diverifikasi publik — Apple bisa **menelepon**.
+- [ ] Biaya **$99/tahun** (berulang) — beda dengan Play yang $25 sekali.
+
+> Kebijakan Apple berubah dari waktu ke waktu — konfirmasikan syarat terbaru
+> langsung di halaman enrollment saat mendaftar.
+
+---
+
 ## 2. Langkah pertama kali (di macOS)
 
 ```bash

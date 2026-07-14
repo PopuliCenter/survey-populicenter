@@ -51,6 +51,8 @@ pribadi responden).
 
 - [ ] **Putuskan jenis akun** (rekomendasi: Organisasi)
 - [ ] **(Organisasi)** Ajukan **D-U-N-S number** — gratis, Dun & Bradstreet. ⏳ **mulai duluan**
+      🎁 **Nomor yang sama juga dipakai untuk Apple Developer (Organization)** — satu
+      pengurusan membuka dua toko. ➜ [`docs/ios/SETUP.md`](../ios/SETUP.md) §1b
 - [ ] **(Organisasi)** Siapkan dokumen legal lembaga + email domain + alamat/telepon kantor
 - [ ] **Akun Google Play Developer** aktif ($25 sekali)
 - [ ] **Developer name** (nama yang tampil di Play Store, seperti "GARENA INTERNATIONAL I")
