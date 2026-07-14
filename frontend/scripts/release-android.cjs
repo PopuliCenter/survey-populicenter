@@ -56,7 +56,7 @@ let code = codeArg !== null ? parseInt(codeArg, 10) : parseInt(props.appVersionC
 let name = nameArg !== null ? nameArg : props.appVersionName;
 
 if (!Number.isInteger(code) || code < 1) die(`appVersionCode tidak valid: "${code}". Perbaiki di version.properties atau pakai --code N.`);
-if (!name || !/^[0-9A-Za-z.\-]+$/.test(name)) die(`appVersionName tidak valid: "${name}". Gunakan mis. 1.0.0 (huruf/angka/titik/strip).`);
+if (!name || !/^[0-9A-Za-z.-]+$/.test(name)) die(`appVersionName tidak valid: "${name}". Gunakan mis. 1.0.0 (huruf/angka/titik/strip).`);
 
 // ── Ringkasan & peringatan keystore ──────────────────────────────────────────
 const artifact = BUILD_APK ? 'APK (assembleRelease)' : 'AAB (bundleRelease)';
