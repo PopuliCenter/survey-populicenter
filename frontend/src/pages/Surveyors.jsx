@@ -602,6 +602,10 @@ function Surveyors() {
   const [assignPickerOpen, setAssignPickerOpen] = useState(false);
   const [assignSurveyId, setAssignSurveyId] = useState('');
   const [assignQuota, setAssignQuota] = useState('');
+  // Bagi nomor kuesioner otomatis saat penugasan massal: tiap TPD mendapat blok
+  // berurutan sebesar kuota (TPD1: 001–010, TPD2: 011–020, …).
+  const [assignAutoNumbers, setAssignAutoNumbers] = useState(false);
+  const [assignStartNumber, setAssignStartNumber] = useState('1');
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
   const toggleSelect = useCallback((id) => {
@@ -746,15 +750,53 @@ function Surveyors() {
   const bulkDelete = (ids) => runBulk(ids, (id) => api.delete(`/surveyors/${id}`), 'dihapus');
   const bulkUnassign = (ids) => runBulk(ids, (id) => api.delete(`/surveyors/${id}/quota/${filterSurveyId}`), 'dilepas dari survei');
 
+  // Blok nomor per TPD saat "bagi otomatis" aktif. Urutan TPD mengikuti tampilan
+  // agar pembagian mudah ditebak. { [tpdId]: ['001', ...] } atau null bila nonaktif.
+  function computeBulkNumberBlocks(ids, quotaNum) {
+    const start = Number(assignStartNumber);
+    if (!Number.isInteger(start) || start < 1) return { error: 'Nomor awal harus bilangan bulat ≥ 1.' };
+    const lastNum = start + ids.length * quotaNum - 1;
+    const width = Math.max(3, String(lastNum).length);
+    const pad = (n) => String(n).padStart(width, '0');
+    const byTpd = {};
+    let cursor = start;
+    for (const id of ids) {
+      const block = [];
+      for (let k = 0; k < quotaNum; k += 1) { block.push(pad(cursor)); cursor += 1; }
+      byTpd[id] = block;
+    }
+    return { byTpd };
+  }
+
   function submitBulkAssign() {
     const quotaNum = Number(assignQuota);
     if (!assignSurveyId) { toast.error('Pilih survei tujuan dulu.'); return; }
     if (!Number.isInteger(quotaNum) || quotaNum < 1) { toast.error('Kuota harus bilangan bulat ≥ 1.'); return; }
-    const ids = [...selectedIds];
+    // Urutan TPD sesuai daftar yang tampil (fallback: urutan pilih).
+    const orderedIds = filteredSurveyors.filter((t) => selectedIds.has(t.id)).map((t) => t.id);
+    const ids = orderedIds.length ? orderedIds : [...selectedIds];
+
+    let numbersByTpd = null;
+    if (assignAutoNumbers) {
+      const res = computeBulkNumberBlocks(ids, quotaNum);
+      if (res.error) { toast.error(res.error); return; }
+      numbersByTpd = res.byTpd;
+    }
+
     setAssignPickerOpen(false);
-    runBulk(ids, (id) => api.post(`/surveyors/${id}/quota`, { survey_id: assignSurveyId, quota: quotaNum }), 'ditugaskan ke survei');
+    runBulk(
+      ids,
+      (id) => api.post(`/surveyors/${id}/quota`, {
+        survey_id: assignSurveyId,
+        quota: quotaNum,
+        ...(numbersByTpd ? { assigned_numbers: numbersByTpd[id] } : {}),
+      }),
+      'ditugaskan ke survei'
+    );
     setAssignSurveyId('');
     setAssignQuota('');
+    setAssignAutoNumbers(false);
+    setAssignStartNumber('1');
   }
 
   // ── Lepas TPD dari survei terpilih (hapus penugasan, akun tetap ada) ─────────
@@ -1583,8 +1625,54 @@ function Surveyors() {
               value={assignQuota}
               onChange={(e) => setAssignQuota(e.target.value)}
               placeholder="mis. 30"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-5 focus:outline-none focus:ring-2 focus:ring-primary-400"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-primary-400"
             />
+
+            {/* Bagi nomor kuesioner otomatis: tiap TPD dapat blok berurutan */}
+            <label className="flex items-start gap-2 mb-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={assignAutoNumbers}
+                onChange={(e) => setAssignAutoNumbers(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-400"
+              />
+              <span className="text-sm text-gray-700">
+                Bagikan <b>nomor kuesioner</b> otomatis
+                <span className="block text-xs text-gray-400">Tiap TPD menerima blok nomor berurutan sesuai kuota.</span>
+              </span>
+            </label>
+
+            {assignAutoNumbers && (() => {
+              const quotaNum = Number(assignQuota);
+              const start = Number(assignStartNumber);
+              const n = selectedIds.size;
+              const valid = Number.isInteger(quotaNum) && quotaNum >= 1 && Number.isInteger(start) && start >= 1 && n > 0;
+              const last = valid ? start + n * quotaNum - 1 : 0;
+              const width = valid ? Math.max(3, String(last).length) : 3;
+              const pad = (x) => String(x).padStart(width, '0');
+              return (
+                <div className="mb-5 pl-6">
+                  <label htmlFor="bulk-assign-start" className="block text-sm font-medium text-gray-700 mb-1">Nomor awal</label>
+                  <input
+                    id="bulk-assign-start"
+                    type="number"
+                    min={1}
+                    value={assignStartNumber}
+                    onChange={(e) => setAssignStartNumber(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+                  />
+                  {valid ? (
+                    <p className="text-xs text-gray-500 mt-2">
+                      {n} TPD × {quotaNum} = <b>{n * quotaNum}</b> nomor: <b>{pad(start)}</b>–<b>{pad(last)}</b>.
+                      TPD pertama {pad(start)}–{pad(start + quotaNum - 1)}, berikutnya menyusul berurutan.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-400 mt-2">Isi kuota & nomor awal untuk melihat pembagian.</p>
+                  )}
+                  <p className="text-[11px] text-amber-600 mt-1">Nomor yang sudah dipakai TPD lain akan ditolak — pilih nomor awal setelah rentang yang ada.</p>
+                </div>
+              );
+            })()}
 
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => setAssignPickerOpen(false)} disabled={bulkBusy}
