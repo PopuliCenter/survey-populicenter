@@ -325,17 +325,41 @@ function buildEmptyAnswers(questions) {
  * @returns {Array}
  */
 function buildAnswersPayload(questions, answers, photoPaths) {
+  // Jaminan UPPERCASE untuk teks bebas (KEBUTUHAN KLIEN — ekspor SPSS).
+  // Input tidak lagi meng-kapital-kan saat mengetik (bug keyboard Samsung);
+  // kapital dijamin di sini + saat blur. Berlaku juga untuk teks "__other__:".
+  const upper = (v) => {
+    if (typeof v !== 'string') return v;
+    return v.startsWith('__other__:')
+      ? `__other__:${v.slice('__other__:'.length).toUpperCase()}`
+      : v.toUpperCase();
+  };
   return questions.map((q) => {
     if (q.type === 'photo') {
       return { question_id: q.id, photo_path: photoPaths[q.id] || null };
     }
     if (q.type === 'multiple_choice') {
-      return { question_id: q.id, answer_json: answers[q.id] || [] };
+      const arr = answers[q.id] || [];
+      // Hanya entri "Lainnya" yang berupa teks bebas; nilai opsi jangan diubah.
+      return {
+        question_id: q.id,
+        answer_json: Array.isArray(arr)
+          ? arr.map((v) => (typeof v === 'string' && v.startsWith('__other__:') ? upper(v) : v))
+          : arr,
+      };
     }
     if (q.type === 'matrix' || q.type === 'indonesia_region') {
       return { question_id: q.id, answer_json: answers[q.id] || {} };
     }
-    return { question_id: q.id, answer_value: answers[q.id] ?? '' };
+    const val = answers[q.id] ?? '';
+    // Teks bebas (short/long text & "Lainnya" pada single choice) → kapital.
+    // Tipe lain (angka, tanggal, pilihan) tidak berubah oleh toUpperCase.
+    return {
+      question_id: q.id,
+      answer_value: (q.type === 'short_text' || q.type === 'long_text' || (typeof val === 'string' && val.startsWith('__other__:')))
+        ? upper(val)
+        : val,
+    };
   });
 }
 
@@ -968,7 +992,12 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                   autoCorrect="off"
                   spellCheck="false"
                   value={answer.replace('__other__:', '')}
-                  onChange={(e) => onChange(`__other__:${e.target.value.toUpperCase()}`)}
+                  // JANGAN toUpperCase() saat mengetik: keyboard Samsung (composition/
+                  // prediksi) bentrok dgn nilai yang ditimpa → huruf yang dihapus balik
+                  // lagi (bug S23). Simpan apa adanya; tampilan tetap kapital via CSS;
+                  // data di-kapital-kan saat blur + saat buildAnswersPayload (SPSS).
+                  onChange={(e) => onChange(`__other__:${e.target.value}`)}
+                  onBlur={(e) => onChange(`__other__:${e.target.value.toUpperCase()}`)}
                   placeholder="Ketik jawaban lainnya…"
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-accent-400"
                   style={{ textTransform: 'uppercase' }}
@@ -1048,7 +1077,15 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                     autoCorrect="off"
                     spellCheck="false"
                     value={(otherEntry || '').replace('__other__:', '')}
+                    // Tanpa toUpperCase() saat mengetik (bug keyboard Samsung — lihat
+                    // input Lainnya single choice). Kapital saat blur + payload.
                     onChange={(e) => {
+                      const updated = currentArr.map((v) =>
+                        v.startsWith('__other__:') ? `__other__:${e.target.value}` : v
+                      );
+                      onChange(updated);
+                    }}
+                    onBlur={(e) => {
                       const updated = currentArr.map((v) =>
                         v.startsWith('__other__:') ? `__other__:${e.target.value.toUpperCase()}` : v
                       );
@@ -1075,7 +1112,11 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
           autoCorrect="off"
           spellCheck="false"
           value={answer || ''}
-          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          // Tanpa toUpperCase() saat mengetik (bug keyboard Samsung — huruf yang
+          // dihapus balik lagi). Tampilan tetap kapital via CSS; data dikapitalkan
+          // saat blur + buildAnswersPayload (jaminan UPPERCASE utk ekspor SPSS).
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={(e) => onChange(e.target.value.toUpperCase())}
           className={`${baseInputClass} ${errorBorder}`}
           placeholder="Ketik jawaban di sini…"
           style={{ textTransform: 'uppercase' }}
@@ -1089,7 +1130,8 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
           autoCorrect="off"
           spellCheck="false"
           value={answer || ''}
-          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={(e) => onChange(e.target.value.toUpperCase())}
           rows={4}
           className={`${baseInputClass} ${errorBorder} resize-y`}
           placeholder="Ketik jawaban di sini…"
