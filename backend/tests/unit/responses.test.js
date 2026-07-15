@@ -400,6 +400,47 @@ describe('Response Module - POST /responses/submit', () => {
     expect(res.body.duration_seconds).toBeGreaterThanOrEqual(0);
   });
 
+  test('client_start_time/client_end_time menimpa durasi (akurasi data offline)', async () => {
+    const token = createSurveyorToken();
+    const { sessionToken } = setupSuccessfulSubmit();
+
+    const res = await request(app)
+      .post('/responses/submit')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        session_token: sessionToken,
+        answers: [{ question_id: 'q-uuid-001', answer_value: 'Ya' }],
+        geo: { status: 'available', lat: -6.2, lng: 106.8 },
+        client_start_time: '2026-07-10T08:00:00.000Z',
+        client_end_time: '2026-07-10T08:05:00.000Z', // tepat 300 detik
+        ...defaultFieldToolsData,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.duration_seconds).toBe(300);
+  });
+
+  test('rentang client_time absurd (>24 jam) diabaikan → fallback ke durasi sesi', async () => {
+    const token = createSurveyorToken();
+    const { sessionToken } = setupSuccessfulSubmit();
+
+    const res = await request(app)
+      .post('/responses/submit')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        session_token: sessionToken,
+        answers: [{ question_id: 'q-uuid-001', answer_value: 'Ya' }],
+        geo: { status: 'available', lat: -6.2, lng: 106.8 },
+        client_start_time: '2020-01-01T00:00:00.000Z',
+        client_end_time: '2026-01-01T00:00:00.000Z', // bertahun → di luar 24 jam
+        ...defaultFieldToolsData,
+      });
+
+    expect(res.status).toBe(201);
+    // Durasi tidak boleh memakai rentang absurd; jatuh ke durasi sesi (~menit).
+    expect(res.body.duration_seconds).toBeLessThan(24 * 3600);
+  });
+
   test('audio_paths (banyak segmen) tersimpan; audio_path = segmen pertama', async () => {
     const token = createSurveyorToken();
     const { sessionToken, pendingResponse } = setupSuccessfulSubmit();

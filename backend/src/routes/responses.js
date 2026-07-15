@@ -210,6 +210,8 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
       start_latitude,
       start_longitude,
       start_geo_status,
+      client_start_time,
+      client_end_time,
     } = req.body;
 
     if (!session_token) {
@@ -440,7 +442,20 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
 
     const end_time = new Date();
     const startDate = new Date(start_time);
-    const duration_seconds = Math.floor((end_time - startDate) / 1000);
+    let duration_seconds = Math.floor((end_time - startDate) / 1000);
+    // Durasi wawancara AKURAT dari klien. Untuk data OFFLINE, sesi /start dibuat
+    // saat SINKRON (bisa berjam/hari setelah wawancara), sehingga durasi berbasis
+    // start_time sesi ≈ 0 atau salah. Bila klien mengirim rentang waktu wawancara
+    // yang WAJAR (0..24 jam), pakai itu. Guard mencegah jam perangkat yang kacau
+    // menghasilkan durasi absurd (negatif / berhari-hari).
+    if (client_start_time && client_end_time) {
+      const cs = new Date(client_start_time);
+      const ce = new Date(client_end_time);
+      if (!Number.isNaN(cs.getTime()) && !Number.isNaN(ce.getTime())) {
+        const span = Math.floor((ce - cs) / 1000);
+        if (span >= 0 && span <= 24 * 3600) duration_seconds = span;
+      }
+    }
 
     // Geo data
     // If geo_status is not 'available', lat and lng must be null

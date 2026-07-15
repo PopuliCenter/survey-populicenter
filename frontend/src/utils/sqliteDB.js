@@ -62,13 +62,25 @@ export async function initSQLiteDB() {
       start_geo TEXT,
       has_audio INTEGER DEFAULT 0,
       has_signature INTEGER DEFAULT 0,
-      photo_count INTEGER DEFAULT 0
+      photo_count INTEGER DEFAULT 0,
+      client_start_time TEXT,
+      client_end_time TEXT
     );
   `);
 
   await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_queue_status ON offline_queue(status);
   `);
+
+  // Migrasi: kolom waktu wawancara asli untuk instalasi lama yang tabelnya sudah
+  // ada. Tanpa ini durasi data offline yang disinkron belakangan ≈ 0.
+  for (const col of ['client_start_time', 'client_end_time']) {
+    try {
+      await db.execute(`ALTER TABLE offline_queue ADD COLUMN ${col} TEXT;`);
+    } catch {
+      // Kolom sudah ada (instalasi baru) — abaikan.
+    }
+  }
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS media_files (
@@ -173,8 +185,8 @@ export async function getCachedSurveyListSQLite() {
 export async function enqueueResponseSQLite(payload) {
   const conn = await initSQLiteDB();
   const res = await conn.run(
-    `INSERT INTO offline_queue (survey_id, answers, geo, status, timestamp, start_geo, has_audio, has_signature, photo_count)
-     VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
+    `INSERT INTO offline_queue (survey_id, answers, geo, status, timestamp, start_geo, has_audio, has_signature, photo_count, client_start_time, client_end_time)
+     VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`,
     [
       payload.survey_id,
       JSON.stringify(payload.answers),
@@ -184,6 +196,8 @@ export async function enqueueResponseSQLite(payload) {
       payload.has_audio ? 1 : 0,
       payload.has_signature ? 1 : 0,
       payload.photo_count || 0,
+      payload.client_start_time || null,
+      payload.client_end_time || null,
     ]
   );
   return res.changes?.lastId || 0;
@@ -207,6 +221,8 @@ export async function getQueueByStatusSQLite(status) {
     has_audio: !!row.has_audio,
     has_signature: !!row.has_signature,
     photo_count: row.photo_count,
+    client_start_time: row.client_start_time || null,
+    client_end_time: row.client_end_time || null,
   }));
 }
 

@@ -53,6 +53,9 @@ export function saveDraft(surveyId, number, data) {
       totalSteps: Number.isInteger(data.totalSteps) ? data.totalSteps : 0,
       // Tanda tangan (strokes) ikut agar tidak hilang saat di-pending.
       signatureStrokes: Array.isArray(data.signatureStrokes) ? data.signatureStrokes : undefined,
+      // Waktu mulai wawancara (epoch ms) — persist agar timer tidak reset saat
+      // di-pending/dilanjutkan atau saat WebView reload. Sumber durasi yang akurat.
+      startedAt: Number.isFinite(data.startedAt) ? data.startedAt : undefined,
       savedAt: Date.now(),
     };
     localStorage.setItem(draftKey(surveyId, number), JSON.stringify(payload));

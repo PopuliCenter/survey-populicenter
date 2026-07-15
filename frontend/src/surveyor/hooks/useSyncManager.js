@@ -108,6 +108,10 @@ function useSyncManager() {
             submitPayload.start_longitude = entry.start_geo.lng;
             submitPayload.start_geo_status = entry.start_geo.status;
           }
+          // Durasi wawancara ASLI: sesi /start di atas dibuat SAAT SINKRON, jadi
+          // tanpa ini durasi ≈ 0. Teruskan waktu wawancara yang direkam klien.
+          if (entry.client_start_time) submitPayload.client_start_time = entry.client_start_time;
+          if (entry.client_end_time) submitPayload.client_end_time = entry.client_end_time;
 
           await api.post('/responses/submit', submitPayload);
 

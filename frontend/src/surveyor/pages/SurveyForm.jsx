@@ -65,6 +65,36 @@ function otherTextMissing(val) {
   return emptyOther(val);
 }
 
+/**
+ * Badge live durasi wawancara (mm:ss / h:mm:ss). Berdetak tiap detik dari
+ * `startAt` (epoch ms). Dipakai di header form agar TPD & QC melihat berapa lama
+ * wawancara berlangsung.
+ */
+function InterviewTimerBadge({ startAt }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!startAt) return undefined;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [startAt]);
+  if (!startAt) return null;
+  const secs = Math.max(0, Math.floor((now - startAt) / 1000));
+  const pad = (n) => String(n).padStart(2, '0');
+  const h = Math.floor(secs / 3600);
+  const label = `${h > 0 ? `${h}:` : ''}${pad(Math.floor((secs % 3600) / 60))}:${pad(secs % 60)}`;
+  return (
+    <span
+      className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold tabular-nums text-gray-600 bg-gray-100 border border-gray-200 rounded-full px-2 py-1"
+      title="Durasi wawancara"
+      aria-label={`Durasi wawancara ${label}`}
+    >
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      {label}
+    </span>
+  );
+}
+
 // ─── Wilayah Indonesia ────────────────────────────────────────────────────────
 
 let cachedRegionData = null;
@@ -1268,6 +1298,18 @@ function SurveyForm() {
   const [submitError, setSubmitError] = useState(null);
   const [mediaUploadMessage, setMediaUploadMessage] = useState('');
 
+  // ─── Timer wawancara ────────────────────────────────────────────────────────
+  // Waktu mulai wawancara (epoch ms). Sumber kebenaran = ref (dibaca callback
+  // saveDraft tanpa memicu render); state dipakai untuk merender badge live.
+  // Persist di draft agar tidak reset saat pending/lanjut atau WebView reload.
+  const interviewStartRef = useRef(null);
+  const [interviewStartAt, setInterviewStartAt] = useState(null);
+  const startInterviewClock = useCallback((ts) => {
+    const val = Number.isFinite(ts) ? ts : Date.now();
+    interviewStartRef.current = val;
+    setInterviewStartAt(val);
+  }, []);
+
   // ─── Exit guard & draft state ───────────────────────────────────────────────
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
@@ -2017,6 +2059,11 @@ function SurveyForm() {
         has_audio: fieldToolsSettings.audio_mode !== 'disabled' && audioSegments.length > 0,
         has_signature: fieldToolsSettings.signature_mode !== 'disabled' && !signaturePad.isEmpty,
         photo_count: fieldToolsSettings.photo_mode !== 'disabled' ? photoCapture.photos.length : 0,
+        // Waktu wawancara ASLI (mulai → tekan simpan). WAJIB untuk data offline:
+        // sesi /responses/start baru dibuat saat SINKRON (bisa berjam/hari kemudian),
+        // sehingga tanpa ini durasi server ≈ 0. Dikirim ke server oleh sync manager.
+        client_start_time: interviewStartRef.current ? new Date(interviewStartRef.current).toISOString() : null,
+        client_end_time: new Date().toISOString(),
       });
 
       // Save media files to offline storage in parallel (with compression)
@@ -2186,6 +2233,11 @@ function SurveyForm() {
         submitPayload.start_longitude = startGeo.lng;
         submitPayload.start_geo_status = startGeo.status;
       }
+      // Durasi wawancara AKURAT dari klien (mulai wawancara → tekan simpan).
+      if (interviewStartRef.current) {
+        submitPayload.client_start_time = new Date(interviewStartRef.current).toISOString();
+        submitPayload.client_end_time = new Date().toISOString();
+      }
 
       const res = await api.post('/responses/submit', submitPayload);
 
@@ -2323,7 +2375,7 @@ function SurveyForm() {
     }
     // Tanda tangan: strokes → localStorage draft.
     const strokes = fieldToolsSettings.signature_mode !== 'disabled' ? signaturePad.getStrokes() : [];
-    saveDraft(id, num, { answers, currentStep, totalSteps: visibleQuestions.length, signatureStrokes: strokes });
+    saveDraft(id, num, { answers, currentStep, totalSteps: visibleQuestions.length, signatureStrokes: strokes, startedAt: interviewStartRef.current });
   }, [id, fieldToolsSettings, audioRecorder, photoCapture, signaturePad, answers, currentStep, visibleQuestions.length]);
 
   // Amankan draft SEBELUM membuka kamera native. Tidak menyentuh audio (rekaman
@@ -2332,7 +2384,7 @@ function SurveyForm() {
   const persistBeforeCamera = useCallback(async () => {
     const num = draftNumberRef.current;
     const strokes = fieldToolsSettings.signature_mode !== 'disabled' ? signaturePad.getStrokes() : [];
-    saveDraft(id, num, { answers, currentStep, totalSteps: visibleQuestions.length, signatureStrokes: strokes });
+    saveDraft(id, num, { answers, currentStep, totalSteps: visibleQuestions.length, signatureStrokes: strokes, startedAt: interviewStartRef.current });
     if (fieldToolsSettings.photo_mode !== 'disabled' && photoCapture.photos.length > 0) {
       try {
         await deleteDraftMedia(id, num, 'photo');
@@ -2391,7 +2443,8 @@ function SurveyForm() {
     signaturePad.clear();
     setAnswers(applyPreselectedNumber(questions, buildEmptyAnswers(questions)));
     setDraftRestored(false);
-  }, [id, questions, photoCapture, signaturePad]);
+    startInterviewClock(Date.now()); // wawancara baru → timer mulai ulang
+  }, [id, questions, photoCapture, signaturePad, startInterviewClock]);
 
   // Tombol back Android — daftarkan listener sekali, baca logic terkini via ref.
   const exitGuardRef = useRef(() => {});
@@ -2422,6 +2475,9 @@ function SurveyForm() {
     const entryNumber = preselectedNumberRef.current != null ? String(preselectedNumberRef.current) : '';
     prevDraftNumberRef.current = entryNumber;
     const draft = loadDraft(id, entryNumber);
+    // Mulai/lanjutkan jam wawancara: pakai startedAt draft bila ada (lanjutan),
+    // kalau tidak mulai sekarang (wawancara baru).
+    startInterviewClock(draft && Number.isFinite(draft.startedAt) ? draft.startedAt : Date.now());
     if (draft && answersHaveContent(draft.answers)) {
       setAnswers((prev) => ({ ...prev, ...draft.answers }));
       // Jangan timpa jenis kelamin yang mungkin sudah dikoreksi manual di draft:
@@ -2471,7 +2527,7 @@ function SurveyForm() {
         prevDraftNumberRef.current = num;
       }
       if (answersHaveContent(answers)) {
-        saveDraft(id, num, { answers, currentStep, totalSteps: visibleQuestions.length });
+        saveDraft(id, num, { answers, currentStep, totalSteps: visibleQuestions.length, startedAt: interviewStartRef.current });
       } else {
         clearDraft(id, num);
       }
@@ -2539,6 +2595,7 @@ function SurveyForm() {
               <p className="text-xs text-gray-500 truncate">{survey.description}</p>
             ) : null}
           </div>
+          <InterviewTimerBadge startAt={interviewStartAt} />
           <OfflineStatusBar isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
         </div>
 
