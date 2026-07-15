@@ -35,6 +35,9 @@ services:
       - -c
       - maintenance_work_mem=256MB
     mem_limit: 4096m
+    # Plafon CPU (host 8 vCPU dipakai 3 stack aplikasi) — cegah satu container
+    # menyandera seluruh core saat beban puncak. Ini ceiling, bukan reservasi.
+    cpus: 3
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U surveyapp -d web_survey_platform"]
       interval: 5s
@@ -49,6 +52,7 @@ services:
     volumes:
       - redisdata:/data
     mem_limit: 512m
+    cpus: 0.5
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -88,6 +92,7 @@ services:
     expose:
       - "3000"
     mem_limit: 2048m
+    cpus: 4
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 15s
@@ -118,6 +123,7 @@ services:
       - uploads:/app/uploads
     command: ["node", "src/workers/index.js"]
     mem_limit: 1024m
+    cpus: 1.5
     # Worker tak punya HTTP — pakai heartbeat file (ditulis tiap 30s oleh
     # workers/index.js). Sehat bila heartbeat < 3 menit (deteksi worker hang/mati).
     healthcheck:
@@ -146,6 +152,9 @@ services:
       - ./nginx-common.conf:/etc/nginx/nginx-common.conf:ro
       - ./certs:/etc/nginx/certs:ro
     mem_limit: 256m
+    # nginx melayani KETIGA aplikasi (pintu bersama 80/443) — beri jatah cukup
+    # agar app tetangga tetap terlayani saat stack ini sedang beban puncak.
+    cpus: 2
     # (mount uploads:ro dihapus — /uploads kini diproxy ke backend ber-JWT,
     #  nginx tak lagi menyajikan file dari disk)
     healthcheck:
