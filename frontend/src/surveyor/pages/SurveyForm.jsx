@@ -51,6 +51,20 @@ const DEFAULT_FIELD_TOOLS = {
   audio_indicator: 'shown',
 };
 
+/**
+ * Opsi "Lainnya" dipilih tapi teks bebasnya KOSONG?
+ * Jawaban "Lainnya" tersimpan sebagai "__other__:<teks>" (single choice) atau
+ * sebagai anggota array (multiple choice). Bila teks setelah ":" kosong, TPD
+ * belum benar-benar mengisi pilihan Lainnya → wajib diisi sebelum lanjut.
+ * @param {*} val
+ * @returns {boolean}
+ */
+function otherTextMissing(val) {
+  const emptyOther = (s) => typeof s === 'string' && s.startsWith('__other__:') && s.slice('__other__:'.length).trim() === '';
+  if (Array.isArray(val)) return val.some(emptyOther);
+  return emptyOther(val);
+}
+
 // ─── Wilayah Indonesia ────────────────────────────────────────────────────────
 
 let cachedRegionData = null;
@@ -1766,6 +1780,13 @@ function SurveyForm() {
       return false;
     }
 
+    // Opsi "Lainnya" dipilih tapi teks kosong → wajib diisi sebelum lanjut.
+    // Berlaku walau pertanyaan tidak wajib: kalau memilih Lainnya, teksnya harus ada.
+    if (otherTextMissing(answers[question.id])) {
+      setValidationErrors((prev) => ({ ...prev, [question.id]: 'Isi teks untuk pilihan "Lainnya" sebelum lanjut.' }));
+      return false;
+    }
+
     // Check answer validation errors
     if (validationErrors[question.id]) {
       return false;
@@ -1820,6 +1841,23 @@ function SurveyForm() {
     if (activeValidationErrors.length > 0) {
       const firstId = activeValidationErrors[0];
       const el = document.getElementById(`question-${firstId}`);
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    // 2a. Opsi "Lainnya" dipilih tapi teks kosong (di pertanyaan mana pun yang
+    // terlihat) → blokir. Menangkap kasus TPD melompati pertanyaan via grid
+    // ikhtisar tanpa lewat tombol "Lanjut".
+    const otherMissing = visibleQuestions.filter((q) => otherTextMissing(answers[q.id])).map((q) => q.id);
+    if (otherMissing.length > 0) {
+      setValidationErrors((prev) => {
+        const next = { ...prev };
+        otherMissing.forEach((qid) => { next[qid] = 'Isi teks untuk pilihan "Lainnya" sebelum menyimpan.'; });
+        return next;
+      });
+      const el = document.getElementById(`question-${otherMissing[0]}`);
       if (el && typeof el.scrollIntoView === 'function') {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
