@@ -72,6 +72,49 @@ export async function takePhoto() {
 }
 
 /**
+ * Minta izin MIKROFON & KAMERA di awal (priming), agar dialog izin muncul saat
+ * form dibuka — bukan di tengah wawancara (mengganggu, apalagi di web iPhone).
+ * GPS tidak perlu di sini: alur startGeo sudah memintanya saat form dibuka.
+ *
+ * Penolakan BUKAN error: alur masing-masing fitur tetap menangani izin yang
+ * ditolak saat benar-benar dipakai.
+ *
+ * @param {{ audio?: boolean, camera?: boolean }} opts
+ */
+export async function primeMediaPermissions({ audio = false, camera = false } = {}) {
+  // Native: izin kamera lewat plugin Capacitor (dialog OS sekali di awal;
+  // takePhoto berikutnya tidak bertanya lagi).
+  if (camera && isNativePlatform()) {
+    try {
+      const { Camera } = await import('@capacitor/camera');
+      await Camera.requestPermissions({ permissions: ['camera'] });
+    } catch { /* non-kritis */ }
+  }
+
+  // getUserMedia memicu dialog izin browser/OS; track langsung dihentikan.
+  // Web: audio+video digabung satu panggilan → satu dialog (lebih ramah iOS).
+  const wantVideo = camera && !isNativePlatform();
+  if (!audio && !wantVideo) return;
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      ...(audio ? { audio: true } : {}),
+      ...(wantVideo ? { video: true } : {}),
+    });
+    stream.getTracks().forEach((t) => t.stop());
+  } catch {
+    // Gabungan bisa gagal total bila salah satu perangkat tak ada (mis. laptop
+    // tanpa kamera) — coba audio saja agar izin rekaman tetap ter-prime.
+    if (audio && wantVideo) {
+      try {
+        const s2 = await navigator.mediaDevices.getUserMedia({ audio: true });
+        s2.getTracks().forEach((t) => t.stop());
+      } catch { /* ditolak/tak tersedia — abaikan */ }
+    }
+  }
+}
+
+/**
  * Get current geolocation using Capacitor Geolocation plugin.
  * Falls back to browser Geolocation API on web.
  *

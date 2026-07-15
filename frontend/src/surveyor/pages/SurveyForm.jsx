@@ -30,7 +30,7 @@ import ConfirmSheet from '../../components/ConfirmSheet';
 import AudioRecorderPanel from '../components/AudioRecorderPanel';
 import PhotoCapturePanel from '../components/PhotoCapturePanel';
 import SignaturePadCanvas from '../components/SignaturePadCanvas';
-import { addBackButtonListener, isNativePlatform, getNetworkStatus } from '../../utils/capacitorBridge';
+import { addBackButtonListener, isNativePlatform, getNetworkStatus, primeMediaPermissions } from '../../utils/capacitorBridge';
 import { toastError } from '../../utils/toastBus';
 
 // ─── Rekaman audio: batas & strategi "awal + akhir" ─────────────────────────────
@@ -1613,6 +1613,23 @@ function SurveyForm() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, visibleQuestions.length, audioRecorder.status, fieldToolsSettings.audio_mode]);
+
+  // ─── Izin di AWAL (priming) ──────────────────────────────────────────────────
+  // Dialog izin mik/kamera yang muncul di TENGAH wawancara mengganggu dan bisa
+  // membuyarkan responden (dilaporkan di web iPhone). Minta sekali saat form siap:
+  // - GPS: sudah diminta alur startGeo di atas.
+  // - Mik: audio 'required' otomatis minta saat mulai merekam → prime hanya 'optional'.
+  // - Kamera: selalu prime bila foto diaktifkan (native via plugin, web via getUserMedia).
+  const permsPrimedRef = useRef(false);
+  useEffect(() => {
+    if (permsPrimedRef.current) return;
+    if (loading || questions.length === 0) return;
+    permsPrimedRef.current = true;
+    primeMediaPermissions({
+      audio: fieldToolsSettings.audio_mode === 'optional',
+      camera: fieldToolsSettings.photo_mode !== 'disabled',
+    }).catch(() => { /* non-kritis */ });
+  }, [loading, questions.length, fieldToolsSettings]);
 
   // Ambil lokasi GPS secara manual (tombol "Coba Ambil Lokasi").
   const refreshStartGeo = useCallback(async () => {

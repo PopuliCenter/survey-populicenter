@@ -30,14 +30,21 @@ export function SurveyStatusBadge({ status }) {
 
 // ─── Temporal Badge ───────────────────────────────────────────────────────────
 /**
- * Badge status temporal survei berdasarkan start_date dan end_date.
+ * Badge status PERIODE survei berdasarkan start_date dan end_date.
  * - "Akan Datang" (biru): start_date di masa depan
- * - "Aktif" (hijau): dalam periode aktif atau tanpa batasan waktu
+ * - "Berjalan" (teal): dalam periode tanggal
  * - "Berakhir" (merah): end_date di masa lalu
+ * - null: survei tanpa start/end date — tak ada info periode, jangan render.
+ *
+ * Sengaja TIDAK memakai kata "Aktif" & warna hijau: itu milik SurveyStatusBadge
+ * (status yang disetel admin). Dua badge "Aktif" hijau berdampingan membingungkan,
+ * apalagi kombinasi "Nonaktif"+"Aktif" yang tampak kontradiktif.
  *
  * @param {{ startDate: string|null, endDate: string|null }} props
  */
 export function TemporalBadge({ startDate, endDate }) {
+  if (!startDate && !endDate) return null;
+
   const now = new Date();
 
   if (startDate && new Date(startDate) > now) {
@@ -57,8 +64,11 @@ export function TemporalBadge({ startDate, endDate }) {
   }
 
   return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-      Aktif
+    <span
+      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200"
+      title="Dalam periode tanggal survei"
+    >
+      Berjalan
     </span>
   );
 }
