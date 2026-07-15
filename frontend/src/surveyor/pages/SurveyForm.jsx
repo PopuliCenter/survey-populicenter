@@ -1837,6 +1837,28 @@ function SurveyForm() {
     }
     setSignatureError(false);
 
+    // 2b-2. Validate required FOTO & AUDIO di KLIEN — cermin persis aturan server
+    // (fieldToolsValidator: 'Foto wajib diisi' / 'Rekaman audio wajib diisi').
+    // Tanpa ini, jalur simpan OFFLINE membolehkan foto/audio kosong lalu GAGAL
+    // saat sinkron (422) dan data nyangkut di antrean "Gagal". Gate ini berlaku
+    // untuk online DAN offline (sebelum antre), jadi kegagalan muncul di depan.
+    if (fieldToolsSettings.photo_mode === 'required' && photoCapture.photos.length === 0) {
+      setSubmitError('Foto wajib diisi. Tekan "Ambil Foto" dan ambil minimal satu foto sebelum menyimpan.');
+      return;
+    }
+    // Audio dianggap ada bila: sedang/pernah direkam sesi ini, atau ada segmen
+    // dari pending sebelumnya (draft_media). audio_mode='required' otomatis mulai
+    // merekam, jadi ini menangkap kasus izin mikrofon ditolak (rekaman kosong).
+    const audioAvailable =
+      audioRecorder.status === 'recording' ||
+      audioRecorder.status === 'paused' ||
+      !!audioRecorder.audioBlob ||
+      priorAudioCount > 0;
+    if (fieldToolsSettings.audio_mode === 'required' && !audioAvailable) {
+      setSubmitError('Rekaman audio wajib diisi, tetapi belum ada rekaman. Pastikan izin mikrofon diberikan lalu ulangi wawancara.');
+      return;
+    }
+
     // 2c. Validate required GPS — pastikan lokasi awal sudah didapat sebelum submit.
     // Hard-block HANYA di platform native (Android APK) yang bisa fix satelit
     // murni tanpa internet. Di WEB (mis. iPhone/Safari) geolokasi sering tak
