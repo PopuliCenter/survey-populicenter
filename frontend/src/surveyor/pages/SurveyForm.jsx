@@ -2266,6 +2266,26 @@ function SurveyForm() {
     saveDraft(id, num, { answers, currentStep, totalSteps: visibleQuestions.length, signatureStrokes: strokes });
   }, [id, fieldToolsSettings, audioRecorder, photoCapture, signaturePad, answers, currentStep, visibleQuestions.length]);
 
+  // Amankan draft SEBELUM membuka kamera native. Tidak menyentuh audio (rekaman
+  // tetap berjalan); hanya menyimpan jawaban + tanda tangan + foto yang sudah ada
+  // agar cold-reload akibat activity-kill (HP RAM kecil) tidak menghilangkan data.
+  const persistBeforeCamera = useCallback(async () => {
+    const num = draftNumberRef.current;
+    const strokes = fieldToolsSettings.signature_mode !== 'disabled' ? signaturePad.getStrokes() : [];
+    saveDraft(id, num, { answers, currentStep, totalSteps: visibleQuestions.length, signatureStrokes: strokes });
+    if (fieldToolsSettings.photo_mode !== 'disabled' && photoCapture.photos.length > 0) {
+      try {
+        await deleteDraftMedia(id, num, 'photo');
+        let i = 0;
+        for (const photo of photoCapture.photos) {
+          const compressed = await compressIfNeeded(photo.blob);
+          await saveDraftMedia({ surveyId: id, number: num, type: 'photo', blob: compressed, filename: photo.blob.name || `photo-${i}.jpg`, seq: i });
+          i += 1;
+        }
+      } catch { /* non-kritis */ }
+    }
+  }, [id, fieldToolsSettings, photoCapture, signaturePad, answers, currentStep, visibleQuestions.length]);
+
   // ─── Exit guard: cegah kehilangan data saat keluar form ─────────────────────
   const hasUnsavedContent = useCallback(() => {
     const anyMedia =
@@ -2652,7 +2672,7 @@ function SurveyForm() {
                   <span className="text-xs font-medium text-gray-600">Pengambilan Foto</span>
                   <FieldToolModeLabel mode={fieldToolsSettings.photo_mode} />
                 </div>
-                <PhotoCapturePanel photoCapture={photoCapture} />
+                <PhotoCapturePanel photoCapture={photoCapture} onBeforeCapture={persistBeforeCamera} />
               </div>
             )}
 
@@ -2872,7 +2892,7 @@ function SurveyForm() {
                       <span className="text-xs font-medium text-gray-600">Pengambilan Foto</span>
                       <FieldToolModeLabel mode={fieldToolsSettings.photo_mode} />
                     </div>
-                    <PhotoCapturePanel photoCapture={photoCapture} />
+                    <PhotoCapturePanel photoCapture={photoCapture} onBeforeCapture={persistBeforeCamera} />
                   </div>
                 )}
 

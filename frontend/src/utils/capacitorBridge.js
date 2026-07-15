@@ -46,17 +46,23 @@ export async function takePhoto() {
     const image = await Camera.getPhoto({
       quality: 80,
       allowEditing: false,
-      resultType: CameraResultType.DataUrl,
+      // PENTING: Uri, BUKAN DataUrl. DataUrl menahan seluruh foto sebagai string
+      // base64 raksasa di heap JS WebView → di HP RAM kecil (Realme Narzo 50,
+      // IQOO) Android membunuh activity saat kamera di depan → app reload dingin
+      // → tertendang ke login & jawaban hilang. Uri hanya mengembalikan path
+      // file; blob dibaca dari disk saat dibutuhkan (jejak memori kecil).
+      resultType: CameraResultType.Uri,
       source: CameraSource.Camera,
       width: 1280,
       height: 1280,
     });
 
-    if (image.dataUrl) {
-      // Convert data URL to Blob
-      const response = await fetch(image.dataUrl);
+    // webPath: URL lokal yang bisa di-fetch (mis. capacitor://... / file://...)
+    const path = image?.webPath || image?.path;
+    if (path) {
+      const response = await fetch(path);
       const blob = await response.blob();
-      return { dataUrl: image.dataUrl, blob };
+      return { path, blob };
     }
     return null;
   } catch (err) {

@@ -13,9 +13,10 @@ import { isNativePlatform, takePhoto } from '../../utils/capacitorBridge';
 /**
  * @param {{
  *   photoCapture: import('../hooks/usePhotoCapture').default,
+ *   onBeforeCapture?: () => (void | Promise<void>),
  * }} props
  */
-function PhotoCapturePanel({ photoCapture }) {
+function PhotoCapturePanel({ photoCapture, onBeforeCapture }) {
   const { photos, addPhoto, removePhoto } = photoCapture;
   const fileInputRef = useRef(null);
   const [error, setError] = useState(null);
@@ -42,6 +43,13 @@ function PhotoCapturePanel({ photoCapture }) {
 
   const handleAddClick = async () => {
     setError(null);
+
+    // Amankan draft (jawaban + foto + tanda tangan) SEBELUM membuka kamera.
+    // Di HP RAM kecil, membuka kamera dapat membunuh activity WebView; dengan
+    // draft sudah tersimpan, cold-reload tidak menghilangkan apa pun.
+    if (onBeforeCapture) {
+      try { await onBeforeCapture(); } catch { /* non-kritis — tetap lanjut */ }
+    }
 
     // Android/iOS native: buka kamera native (Capacitor) yang langsung
     // mengompres foto (quality 80, maks 1280px) saat pengambilan.
