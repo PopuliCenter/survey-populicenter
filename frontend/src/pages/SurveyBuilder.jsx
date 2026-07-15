@@ -983,8 +983,12 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
       ...(type === 'date' ? { options: { ...dateConfig, ...validationPayload } } : {}),
       ...(type === 'matrix' ? { options: { ...matrixConfig, ...validationPayload } } : {}),
       ...(type === 'indonesia_region' ? { options: { ...regionConfig } } : {}),
-      ...(!isChoiceType && type !== 'rating_scale' && type !== 'phone_number' && type !== 'unique_id' && type !== 'date' && type !== 'matrix' && type !== 'indonesia_region' && validationConfig
-        ? { options: validationPayload }
+      // Tipe lain (teks, foto, dst.): KIRIM options secara eksplisit — berisi
+      // validasi bila ada, atau null bila tidak. Tanpa ini, mengganti tipe dari
+      // pilihan → teks meninggalkan array opsi LAMA di server (update parsial),
+      // yang lalu tampil membingungkan sebagai "N pilihan jawaban" di builder.
+      ...(!isChoiceType && type !== 'rating_scale' && type !== 'phone_number' && type !== 'unique_id' && type !== 'date' && type !== 'matrix' && type !== 'indonesia_region'
+        ? { options: validationConfig ? validationPayload : null }
         : {}),
       skip_logic: skipLogic,
       auto_fill:
@@ -1853,8 +1857,12 @@ function SurveyBuilder() {
                             <p className="text-sm text-gray-800 leading-snug">
                               {question.text}
                             </p>
-                            {/* Options preview */}
-                            {question.options &&
+                            {/* Options preview — HANYA untuk tipe pilihan. Pertanyaan
+                                yang diubah tipenya (mis. pilihan → teks) bisa masih
+                                menyimpan array opsi sisa; jangan tampilkan "N pilihan
+                                jawaban" pada tipe yang tidak memakai opsi (membingungkan). */}
+                            {(question.type === 'single_choice' || question.type === 'multiple_choice') &&
+                              Array.isArray(question.options) &&
                               question.options.length > 0 && (
                                 <p className="text-xs text-gray-400 mt-1">
                                   {question.options.length} pilihan jawaban
