@@ -24,6 +24,8 @@ function PublicationPanel({ surveyId, surveyTitle }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState('');
+  // Urutan tampilan hasil di embed: 'urutan' (asli) | 'terbanyak' (peringkat).
+  const [embedOrder, setEmbedOrder] = useState('urutan');
 
   const loadStatus = useCallback(async () => {
     if (!surveyId) return;
@@ -67,8 +69,12 @@ function PublicationPanel({ surveyId, surveyTitle }) {
   const embedUrl = pub?.slug
     ? `${window.location.origin}/embed/results/${pub.slug}`
     : '';
-  const iframeSnippet = embedUrl
-    ? `<iframe src="${embedUrl}" width="100%" height="800" style="border:0;width:100%" loading="lazy" title="Hasil ${surveyTitle}"></iframe>`
+  // Tambahkan ?urut=terbanyak hanya bila admin memilih urut peringkat (frekuensi).
+  const embedUrlWithOrder = embedUrl
+    ? (embedOrder === 'terbanyak' ? `${embedUrl}?urut=terbanyak` : embedUrl)
+    : '';
+  const iframeSnippet = embedUrlWithOrder
+    ? `<iframe src="${embedUrlWithOrder}" width="100%" height="800" style="border:0;width:100%" loading="lazy" title="Hasil ${surveyTitle}"></iframe>`
     : '';
 
   async function handlePublish() {
@@ -245,18 +251,36 @@ function PublicationPanel({ surveyId, surveyTitle }) {
             <div className="flex gap-2">
               <input
                 readOnly
-                value={embedUrl}
+                value={embedUrlWithOrder}
                 className="flex-1 border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-xs font-mono text-gray-700"
                 onFocus={(e) => e.target.select()}
               />
               <button
                 type="button"
-                onClick={() => copy(embedUrl, 'url')}
+                onClick={() => copy(embedUrlWithOrder, 'url')}
                 className="px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg whitespace-nowrap"
               >
                 {copied === 'url' ? 'Tersalin ✓' : 'Salin'}
               </button>
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="embed-order" className="block text-xs font-medium text-gray-600 mb-1">
+              Urutan tampilan jawaban di embed
+            </label>
+            <select
+              id="embed-order"
+              value={embedOrder}
+              onChange={(e) => setEmbedOrder(e.target.value)}
+              className="w-full sm:w-auto border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-700 mb-2"
+            >
+              <option value="urutan">Urutan asli (sesuai susunan pertanyaan/matriks)</option>
+              <option value="terbanyak">Peringkat (dari jawaban terbanyak)</option>
+            </select>
+            <p className="text-[11px] text-gray-400 mb-2">
+              "Urutan asli" cocok untuk skala & matriks; "Peringkat" mengurutkan dari yang paling banyak dipilih.
+            </p>
           </div>
 
           <div>
@@ -282,7 +306,7 @@ function PublicationPanel({ surveyId, surveyTitle }) {
           </div>
 
           <a
-            href={embedUrl}
+            href={embedUrlWithOrder}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block text-xs text-primary-600 hover:underline"

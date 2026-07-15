@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from 'recharts';
@@ -56,7 +56,27 @@ function orderByValueIfNumeric(distribution) {
   return [...distribution].sort((a, b) => Number(a.value) - Number(b.value));
 }
 
-function QuestionBlock({ q, index }) {
+// Urut menurut frekuensi (terbanyak → paling sedikit). Dipakai saat embed
+// disematkan dengan ?urut=terbanyak.
+function orderByCountDesc(distribution) {
+  if (!Array.isArray(distribution) || distribution.length === 0) return distribution;
+  return [...distribution].sort((a, b) => (Number(b.count) || 0) - (Number(a.count) || 0));
+}
+
+/**
+ * Terapkan urutan sesuai mode embed.
+ * @param {Array} distribution
+ * @param {{ mode: 'terbanyak'|'urutan', isScale: boolean }} opts
+ * - 'terbanyak' → selalu urut frekuensi (peringkat), semua tipe.
+ * - 'urutan' (default) → urutan asli: skala/angka & matriks menurut nilai/kolom;
+ *   pilihan mengikuti urutan snapshot.
+ */
+function applyOrder(distribution, { mode, isScale }) {
+  if (mode === 'terbanyak') return orderByCountDesc(distribution);
+  return isScale ? orderByValueIfNumeric(distribution) : distribution;
+}
+
+function QuestionBlock({ q, index, orderMode }) {
   const isScale = q.type === 'rating_scale' || q.type === 'numeric_scale';
   return (
     <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
@@ -77,7 +97,7 @@ function QuestionBlock({ q, index }) {
             <div key={i}>
               <p className="text-xs font-medium text-gray-600 mb-1">{row.row}</p>
               {row.distribution?.length > 0 ? (
-                <DistributionChart data={orderByValueIfNumeric(row.distribution)} />
+                <DistributionChart data={applyOrder(row.distribution, { mode: orderMode, isScale: true })} />
               ) : (
                 <p className="text-xs text-gray-400">Belum ada data</p>
               )}
@@ -85,7 +105,7 @@ function QuestionBlock({ q, index }) {
           ))}
         </div>
       ) : q.distribution?.length > 0 ? (
-        <DistributionChart data={isScale ? orderByValueIfNumeric(q.distribution) : q.distribution} />
+        <DistributionChart data={applyOrder(q.distribution, { mode: orderMode, isScale })} />
       ) : (
         <p className="text-xs text-gray-400">Belum ada data</p>
       )}
@@ -100,6 +120,9 @@ function QuestionBlock({ q, index }) {
  */
 function PublicResults() {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
+  // ?urut=terbanyak → urut frekuensi (peringkat); default 'urutan' (urutan asli).
+  const orderMode = searchParams.get('urut') === 'terbanyak' ? 'terbanyak' : 'urutan';
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ok | notfound | error
 
@@ -203,7 +226,7 @@ function PublicResults() {
 
       {/* Pertanyaan */}
       {questions.length > 0 ? (
-        questions.map((q, i) => <QuestionBlock key={q.id} q={q} index={i + 1} />)
+        questions.map((q, i) => <QuestionBlock key={q.id} q={q} index={i + 1} orderMode={orderMode} />)
       ) : (
         <p className="text-sm text-gray-400">Belum ada pertanyaan yang bisa ditampilkan.</p>
       )}
