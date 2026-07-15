@@ -17,24 +17,54 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 attempts per window
-  standardHeaders: true,
-  legacyHeaders: false,
-  // Key per IP asli klien (dari Cloudflare), bukan IP nginx internal — agar
-  // satu pengguna tidak memblokir semua pengguna lain yang berbagi proxy.
-  keyGenerator: (req) => req.headers['cf-connecting-ip'] || req.ip,
-  // Di lingkungan test, JANGAN konstruksi RedisStore (konstruktornya memanggil
-  // redis.call yang di-mock → error saat import). Pakai memory store default;
-  // limiter juga di-skip via `skip` di bawah.
-  ...(process.env.NODE_ENV === 'test' ? {} : {
+// IP asli klien (dari Cloudflare), bukan IP nginx internal.
+const clientIp = (req) => req.headers['cf-connecting-ip'] || req.ip;
+
+// ── Limiter login dua lapis ───────────────────────────────────────────────────
+// Operator seluler Indonesia memakai CGNAT: puluhan TPD di satu wilayah bisa
+// tampil sebagai SATU IP. Limiter lama (per-IP, 10/15mnt) membuat gelombang
+// login pagi hari survei saling memblokir (30 TPD login serentak → TPD ke-11
+// tertolak). Solusi:
+//   Lapis 1 (per IP+email): tiap akun punya jatahnya sendiri per jaringan —
+//     brute-force SATU akun tetap tercekik, TPD sebelahan tidak kena imbas.
+//   Lapis 2 (per IP, plafon kasar): pagar terhadap tebakan terdistribusi
+//     banyak-akun dari satu IP. Default 100/15mnt ≈ aman utk ±50 TPD se-CGNAT.
+// Keduanya bisa disetel via env saat survei sangat besar:
+//   LOGIN_RATE_LIMIT_MAX (default 10) · LOGIN_IP_RATE_LIMIT_MAX (default 100)
+const LOGIN_MAX = parseInt(process.env.LOGIN_RATE_LIMIT_MAX, 10) || 10;
+const LOGIN_IP_MAX = parseInt(process.env.LOGIN_IP_RATE_LIMIT_MAX, 10) || 100;
+
+// Di lingkungan test, JANGAN konstruksi RedisStore (konstruktornya memanggil
+// redis.call yang di-mock → error saat import). Pakai memory store default;
+// limiter juga di-skip via `skip` di bawah.
+const redisStore = (prefix) =>
+  process.env.NODE_ENV === 'test' ? {} : {
     store: new RedisStore({
       sendCommand: (...args) => redis.call(...args),
-      prefix: 'rl:login:', // prefix unik agar tidak bentrok dengan limiter global (ERR_ERL_DOUBLE_COUNT)
+      prefix, // prefix unik antar limiter agar tidak bentrok (ERR_ERL_DOUBLE_COUNT)
     }),
-  }),
+  };
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: LOGIN_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) =>
+    `${clientIp(req)}|${String(req.body?.email || '').trim().toLowerCase()}`,
+  ...redisStore('rl:login:'),
   message: { error: 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.' },
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
+const loginIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: LOGIN_IP_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: clientIp,
+  ...redisStore('rl:loginip:'),
+  message: { error: 'Terlalu banyak percobaan login dari jaringan ini. Coba lagi dalam 15 menit.' },
   skip: () => process.env.NODE_ENV === 'test',
 });
 
@@ -42,7 +72,7 @@ const loginLimiter = rateLimit({
  * POST /auth/login
  * Authenticate user and issue JWT
  */
-router.post('/login', loginLimiter, async (req, res, next) => {
+router.post('/login', loginIpLimiter, loginLimiter, async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
