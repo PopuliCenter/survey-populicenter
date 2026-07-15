@@ -1616,17 +1616,22 @@ function SurveyForm() {
 
   // ─── Izin di AWAL (priming) ──────────────────────────────────────────────────
   // Dialog izin mik/kamera yang muncul di TENGAH wawancara mengganggu dan bisa
-  // membuyarkan responden (dilaporkan di web iPhone). Minta sekali saat form siap:
+  // membuyarkan responden (dilaporkan di web iPhone & APK Realme). Minta sekali
+  // saat form siap:
   // - GPS: sudah diminta alur startGeo di atas.
-  // - Mik: audio 'required' otomatis minta saat mulai merekam → prime hanya 'optional'.
-  // - Kamera: selalu prime bila foto diaktifkan (native via plugin, web via getUserMedia).
+  // - Mik: prime untuk SEMUA mode aktif (required & optional) — auto-rekam pada
+  //   mode required TIDAK bisa diandalkan memunculkan dialog di awal (uji Realme:
+  //   banner "izin mikrofon diperlukan" muncul di tengah pertanyaan).
+  // - Kamera: prime bila foto diaktifkan (native via plugin, web via getUserMedia).
+  // Catatan: bila izin sudah DITOLAK PERMANEN di HP, Android tidak menampilkan
+  // dialog lagi — banner error tiap fitur yang memandu ke Pengaturan HP.
   const permsPrimedRef = useRef(false);
   useEffect(() => {
     if (permsPrimedRef.current) return;
     if (loading || questions.length === 0) return;
     permsPrimedRef.current = true;
     primeMediaPermissions({
-      audio: fieldToolsSettings.audio_mode === 'optional',
+      audio: fieldToolsSettings.audio_mode !== 'disabled',
       camera: fieldToolsSettings.photo_mode !== 'disabled',
     }).catch(() => { /* non-kritis */ });
   }, [loading, questions.length, fieldToolsSettings]);
