@@ -3,14 +3,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import QuotaProgress from '../../components/QuotaProgress';
 import useSyncManager from '../hooks/useSyncManager';
-import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey, getDraftMedia } from '../../utils/storage';
+import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey, getDraftMedia, deleteDraftMedia } from '../../utils/storage';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import ConfirmSheet from '../../components/ConfirmSheet';
 import { addBackButtonListener, addResumeListener } from '../../utils/capacitorBridge';
 import { diffSurveyAvailability, toSurveyStubs } from '../../utils/surveyNotify';
 import { toastInfo, toastWarning } from '../../utils/toastBus';
 import { clearSentryUser } from '../../config/sentry';
-import { loadAllDraftsBySurvey } from '../utils/surveyDraft';
+import { loadAllDraftsBySurvey, clearDraft } from '../utils/surveyDraft';
 
 const LAST_SEEN_SURVEYS_KEY = 'tpd:lastSeenSurveys';
 
@@ -127,6 +127,21 @@ function SurveyList() {
     setDrafts(loadAllDraftsBySurvey(surveys.map((s) => s.id)));
   }, [surveys]);
   useEffect(() => { refreshDrafts(); }, [refreshDrafts]);
+
+  // Target reset draft "sedang dikerjakan" → { surveyId, number, title } | null.
+  // TPD bisa mengosongkan draft agar tidak salah lanjut ("baru mulai" tapi ada
+  // riwayat). Selalu lewat konfirmasi karena menghapus jawaban/media yang belum
+  // dikirim untuk nomor tersebut.
+  const [resetDraftTarget, setResetDraftTarget] = useState(null);
+  const handleResetDraft = useCallback(async () => {
+    const t = resetDraftTarget;
+    if (!t) return;
+    const num = t.number || '';
+    try { clearDraft(t.surveyId, num); } catch { /* abaikan */ }
+    try { await deleteDraftMedia(t.surveyId, num); } catch { /* abaikan */ }
+    setResetDraftTarget(null);
+    refreshDrafts();
+  }, [resetDraftTarget, refreshDrafts]);
 
   // Media tersimpan per draft (segmen rekaman & foto yang di-pending) —
   // { `${surveyId}__${number}`: { audio: n, photo: n } }. Untuk ikon kecil 🎙️📷.
@@ -884,35 +899,47 @@ function SurveyList() {
                         Ketuk = lanjutkan yang TERAKHIR dikerjakan; nomor lain
                         bisa dipilih dari daftar nomor (badge "Lanjut"). */}
                     {hasDraft && !targetMet && temporal.canStart && (
-                      <button
-                        type="button"
-                        onClick={() => handleStartSurvey(survey.id, latestDraft?.number || null)}
-                        className="mt-4 w-full flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 px-4 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300"
-                        aria-label={`Lanjutkan kuesioner yang sedang dikerjakan pada survei ${survey.title}`}
-                      >
-                        <span className="text-amber-600 shrink-0" aria-hidden="true">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4h10M7 20h10M8 4v2.5a4 4 0 004 4 4 4 0 004-4V4M8 20v-2.5a4 4 0 014-4 4 4 0 014 4V20" /></svg>
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block text-sm font-semibold text-amber-900">
-                            {parkedDrafts.length > 1
-                              ? `${parkedDrafts.length} kuesioner sedang dikerjakan`
-                              : `Sedang dikerjakan${latestDraft?.number ? ` · Kuesioner No. ${latestDraft.number}` : ''}`}
+                      <div className="mt-4 flex items-stretch gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleStartSurvey(survey.id, latestDraft?.number || null)}
+                          className="flex-1 min-w-0 flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 px-4 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300"
+                          aria-label={`Lanjutkan kuesioner yang sedang dikerjakan pada survei ${survey.title}`}
+                        >
+                          <span className="text-amber-600 shrink-0" aria-hidden="true">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4h10M7 20h10M8 4v2.5a4 4 0 004 4 4 4 0 004-4V4M8 20v-2.5a4 4 0 014-4 4 4 0 014 4V20" /></svg>
                           </span>
-                          <span className="block text-xs text-amber-700">
-                            {latestDraft?.totalSteps > 0
-                              ? `${parkedDrafts.length > 1 ? `Terakhir: No. ${latestDraft.number} · ` : ''}Pertanyaan ${Math.min((latestDraft.currentStep || 0) + 1, latestDraft.totalSteps)} dari ${latestDraft.totalSteps} · ketuk untuk lanjut`
-                              : 'ketuk untuk lanjut'}
-                            {parkedDrafts.length > 1 ? ' · nomor lain di daftar' : ''}
-                            {draftMediaHint(survey.id, latestDraft) && (
-                              <span className="ml-1.5" title="Rekaman/foto/tanda tangan tersimpan">
-                                {draftMediaHint(survey.id, latestDraft)}
-                              </span>
-                            )}
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm font-semibold text-amber-900">
+                              {parkedDrafts.length > 1
+                                ? `${parkedDrafts.length} kuesioner sedang dikerjakan`
+                                : `Sedang dikerjakan${latestDraft?.number ? ` · Kuesioner No. ${latestDraft.number}` : ''}`}
+                            </span>
+                            <span className="block text-xs text-amber-700">
+                              {latestDraft?.totalSteps > 0
+                                ? `${parkedDrafts.length > 1 ? `Terakhir: No. ${latestDraft.number} · ` : ''}Pertanyaan ${Math.min((latestDraft.currentStep || 0) + 1, latestDraft.totalSteps)} dari ${latestDraft.totalSteps} · ketuk untuk lanjut`
+                                : 'ketuk untuk lanjut'}
+                              {parkedDrafts.length > 1 ? ' · nomor lain di daftar' : ''}
+                              {draftMediaHint(survey.id, latestDraft) && (
+                                <span className="ml-1.5" title="Rekaman/foto/tanda tangan tersimpan">
+                                  {draftMediaHint(survey.id, latestDraft)}
+                                </span>
+                              )}
+                            </span>
                           </span>
-                        </span>
-                        <span className="shrink-0 text-xs font-bold text-amber-800 bg-amber-100 rounded-full px-3 py-1">Lanjut</span>
-                      </button>
+                          <span className="shrink-0 text-xs font-bold text-amber-800 bg-amber-100 rounded-full px-3 py-1">Lanjut</span>
+                        </button>
+                        {/* Kosongkan draft terakhir (mulai baru) — selalu konfirmasi dulu. */}
+                        <button
+                          type="button"
+                          onClick={() => setResetDraftTarget({ surveyId: survey.id, number: latestDraft?.number || '', title: survey.title })}
+                          className="shrink-0 flex items-center justify-center w-12 rounded-xl border border-amber-300 bg-white hover:bg-red-50 hover:border-red-300 text-amber-700 hover:text-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                          aria-label={`Kosongkan draft ${latestDraft?.number ? `No. ${latestDraft.number}` : 'tanpa nomor'} pada survei ${survey.title} dan mulai baru`}
+                          title="Kosongkan draft (mulai baru)"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        </button>
+                      </div>
                     )}
 
                     {/* Tombol aksi utama — Requirements 6.2, 9.6, 14.6 */}
@@ -1025,6 +1052,26 @@ function SurveyList() {
             <span>Ada <strong>{failedItems.length} data gagal</strong> yang perlu ditinjau sebelum keluar.</span>
           </p>
         )}
+      </ConfirmSheet>
+
+      {/* ── Konfirmasi Kosongkan Draft (mulai baru) ─────────────────────────── */}
+      <ConfirmSheet
+        open={!!resetDraftTarget}
+        iconType="warning"
+        title="Kosongkan draft ini?"
+        confirmLabel="Kosongkan"
+        cancelLabel="Batal"
+        onCancel={() => setResetDraftTarget(null)}
+        onConfirm={handleResetDraft}
+      >
+        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-start gap-2">
+          <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" /></svg>
+          <span>
+            Jawaban dan rekaman/foto/tanda tangan yang <strong>belum dikirim</strong> untuk{' '}
+            <strong>{resetDraftTarget?.number ? `Kuesioner No. ${resetDraftTarget.number}` : 'draft tanpa nomor'}</strong>{' '}
+            akan dihapus dari perangkat. Nomor kuesioner tetap bisa diisi ulang dari awal.
+          </span>
+        </p>
       </ConfirmSheet>
     </div>
   );
