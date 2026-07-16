@@ -72,6 +72,10 @@ services:
     environment:
       PORT: 3000
       NODE_ENV: production
+      # Auto-migrate saat container start (entrypoint) — HANYA backend, agar
+      # tidak berlomba dengan worker yang memakai image sama. Menghapus kelas
+      # outage "deploy tanpa migrate → login 500" (insiden 2026-07-13).
+      RUN_MIGRATIONS: "1"
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: web_survey_platform
