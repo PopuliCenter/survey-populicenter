@@ -3,8 +3,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { authMiddleware, requireRole } = require('../middleware/auth');
+const mediaStorage = require('../utils/mediaStorage');
 
 const router = express.Router();
+
+// Mode s3 (MEDIA_STORAGE=s3): file ditampung di memori lalu ditulis ke MinIO —
+// tidak menyentuh disk. Mode disk: perilaku lama (multer diskStorage) utuh.
+const USE_S3 = mediaStorage.isS3();
 
 // --- Photo upload config ---
 const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads', 'photos');
@@ -21,12 +26,14 @@ const SIGNATURE_UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads', 'signat
 const SIGNATURE_MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
 const SIGNATURE_ALLOWED_MIME_TYPES = ['image/png'];
 
-// Ensure upload directories exist
-[UPLOAD_DIR, AUDIO_UPLOAD_DIR, SIGNATURE_UPLOAD_DIR].forEach((dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
+// Ensure upload directories exist (hanya relevan mode disk)
+if (!USE_S3) {
+  [UPLOAD_DIR, AUDIO_UPLOAD_DIR, SIGNATURE_UPLOAD_DIR].forEach((dir) => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  });
+}
 
 const PROJECT_ROOT = path.join(__dirname, '..', '..');
 
@@ -46,6 +53,26 @@ function relUploadPath(file) {
   return path.relative(PROJECT_ROOT, file.path).split(path.sep).join('/');
 }
 
+// Nama file unik (pola sama dgn diskStorage lama — kompatibel penuh).
+function uniqueName(prefix, ext) {
+  return `${prefix}-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+}
+
+/**
+ * Tangani hasil multer untuk satu jenis media:
+ * - s3  : buffer → MinIO dgn kunci uploads/<jenis>/<tanggal>/<file>
+ * - disk: file sudah ditulis diskStorage → cukup kembalikan path relatifnya
+ * Respons sama persis di kedua mode: { path } — frontend tak perlu tahu.
+ */
+async function finishUpload(req, res, { kind, prefix, ext }) {
+  if (USE_S3 && req.file.buffer) {
+    const relPath = `uploads/${kind}/${dateSubdir()}/${uniqueName(prefix, ext)}`;
+    await mediaStorage.saveBuffer(relPath, req.file.buffer, req.file.mimetype);
+    return res.status(201).json({ path: relPath });
+  }
+  return res.status(201).json({ path: relUploadPath(req.file) });
+}
+
 // Limiter upload per-user (bug M4): cegah satu akun membanjiri penyimpanan.
 const rateLimit = require('express-rate-limit');
 const uploadLimiter = rateLimit({
@@ -57,7 +84,7 @@ const uploadLimiter = rateLimit({
   message: { error: 'Terlalu banyak unggahan. Coba lagi sebentar.' },
 });
 
-const storage = multer.diskStorage({
+const storage = USE_S3 ? multer.memoryStorage() : multer.diskStorage({
   destination: shardedDestination(UPLOAD_DIR),
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
@@ -102,14 +129,13 @@ router.post('/photo', authMiddleware, requireRole(['admin', 'supervisor', 'surve
       return res.status(422).json({ error: 'File tidak ditemukan dalam request' });
     }
 
-    // Return relative path
-    const relativePath = relUploadPath(req.file);
-    res.status(201).json({ path: relativePath });
+    const ext = path.extname(req.file.originalname || '').toLowerCase() || '.jpg';
+    finishUpload(req, res, { kind: 'photos', prefix: 'photo', ext }).catch(next);
   });
 });
 
 // --- Audio multer config ---
-const audioStorage = multer.diskStorage({
+const audioStorage = USE_S3 ? multer.memoryStorage() : multer.diskStorage({
   destination: shardedDestination(AUDIO_UPLOAD_DIR),
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
@@ -154,13 +180,13 @@ router.post('/audio', authMiddleware, requireRole(['admin', 'supervisor', 'surve
       return res.status(422).json({ error: 'File tidak ditemukan dalam request' });
     }
 
-    const relativePath = relUploadPath(req.file);
-    res.status(201).json({ path: relativePath });
+    const audioExt = path.extname(req.file.originalname || '').toLowerCase() || '.webm';
+    finishUpload(req, res, { kind: 'audio', prefix: 'audio', ext: audioExt }).catch(next);
   });
 });
 
 // --- Signature multer config ---
-const signatureStorage = multer.diskStorage({
+const signatureStorage = USE_S3 ? multer.memoryStorage() : multer.diskStorage({
   destination: shardedDestination(SIGNATURE_UPLOAD_DIR),
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
@@ -204,8 +230,7 @@ router.post('/signature', authMiddleware, requireRole(['admin', 'supervisor', 's
       return res.status(422).json({ error: 'File tidak ditemukan dalam request' });
     }
 
-    const relativePath = relUploadPath(req.file);
-    res.status(201).json({ path: relativePath });
+    finishUpload(req, res, { kind: 'signatures', prefix: 'sig', ext: '.png' }).catch(next);
   });
 });
 

@@ -6,7 +6,6 @@
  * terjadwal). Path yang dihapus wajib berada di dalam folder uploads/.
  */
 
-const fsp = require('fs').promises;
 const path = require('path');
 const { chunk } = require('./chunk');
 
@@ -68,20 +67,16 @@ async function deleteMediaFiles(relPaths, concurrency = 16) {
   const list = (relPaths || []).filter((r) => r && typeof r === 'string');
   if (list.length === 0) return 0;
 
+  // mediaStorage.remove menghapus di SEMUA sumber terkonfigurasi (disk + MinIO)
+  // dengan guard traversal yang sama — media tak tertinggal di driver mana pun
+  // saat purge, apa pun mode MEDIA_STORAGE saat file itu dulu diunggah.
+  const { remove } = require('./mediaStorage');
   let deleted = 0;
   let idx = 0;
   async function worker() {
     while (idx < list.length) {
       const rel = list[idx++];
-      const full = path.resolve(PROJECT_ROOT, rel);
-      // Wajib berada di dalam uploads/ — cegah path traversal.
-      if (full !== UPLOADS_ROOT && !full.startsWith(UPLOADS_ROOT + path.sep)) continue;
-      try {
-        await fsp.unlink(full);
-        deleted += 1;
-      } catch {
-        // File mungkin sudah tak ada / gagal — abaikan (non-kritis).
-      }
+      if (await remove(rel)) deleted += 1;
     }
   }
   const n = Math.min(concurrency, list.length);

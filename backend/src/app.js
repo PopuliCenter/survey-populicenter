@@ -168,7 +168,6 @@ if (process.env.NODE_ENV !== 'test' && process.env.RATE_LIMIT_DISABLED !== 'true
 // Catatan keamanan: token di query bisa masuk log akses nginx; peningkatan
 // lanjutan = media-token berumur-pendek terpisah dari JWT sesi.
 const { authMiddleware, requireRole } = require('./middleware/auth');
-const { UPLOADS_ROOT } = require('./utils/mediaFiles');
 const { signMediaToken, verifyMediaToken, MEDIA_TTL_SEC } = require('./utils/mediaToken');
 const MEDIA_ROLES = ['admin', 'supervisor', 'viewer'];
 
@@ -198,16 +197,29 @@ async function mediaAuth(req, res, next) {
   return authMiddleware(req, res, () => requireRole(MEDIA_ROLES)(req, res, next));
 }
 
-app.get('/uploads/*', mediaAuth, (req, res) => {
-  const filePath = path.join(__dirname, '..', req.path);
-  // Guard: wajib di dalam uploads/ (cegah path traversal).
-  if (filePath !== UPLOADS_ROOT && !filePath.startsWith(UPLOADS_ROOT + path.sep)) {
-    return res.status(400).json({ error: 'Path tidak valid' });
+// Penyajian via mediaStorage (driver disk/s3 sesuai MEDIA_STORAGE) — dengan
+// fallback dua arah: mode s3 tetap membaca file lama dari disk; mode disk
+// tetap membaca objek yang terlanjur ada di MinIO (rollback aman).
+const mediaStorage = require('./utils/mediaStorage');
+app.get('/uploads/*', mediaAuth, async (req, res) => {
+  const relPath = decodeURIComponent(req.path.replace(/^\//, ''));
+  try {
+    const { stream, contentType, size } = await mediaStorage.getStream(relPath);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (contentType) res.type(contentType);
+    else res.type(path.extname(relPath) || 'application/octet-stream');
+    if (size != null) res.setHeader('Content-Length', size);
+    stream.on('error', () => {
+      if (!res.headersSent) res.status(404).json({ error: 'File tidak ditemukan' });
+      else res.destroy();
+    });
+    stream.pipe(res);
+  } catch (err) {
+    if (err.code === 'MEDIA_BAD_PATH') {
+      return res.status(400).json({ error: 'Path tidak valid' });
+    }
+    return res.status(404).json({ error: 'File tidak ditemukan' });
   }
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.sendFile(filePath, (err) => {
-    if (err && !res.headersSent) res.status(404).json({ error: 'File tidak ditemukan' });
-  });
 });
 
 // ─── Health Check ─────────────────────────────────────────────────────────────

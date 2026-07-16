@@ -130,6 +130,13 @@ function walkFiles(dir) {
 }
 
 async function reapOrphanMedia() {
+  // Catatan MinIO: reaper ini menyapu DISK. Bila MEDIA_STORAGE=s3, media baru
+  // ada di MinIO (bukan disk) → walkFiles kosong → no-op AMAN (tak salah hapus).
+  // Orphan di MinIO perlu reaper berbasis listObjects terpisah (pekerjaan lanjut);
+  // sementara itu media yatim di MinIO hanya menumpuk, tidak berisiko data loss.
+  if ((process.env.MEDIA_STORAGE || 'disk').toLowerCase() === 's3') {
+    return { orphans: 0, deleted: 0, enabled: false, skipped: 's3' };
+  }
   const enabled = process.env.MEDIA_REAPER_ENABLED === 'true';
   // M7: default 168 jam (7 hari) — media yang diunggah tapi respons-nya belum
   // ter-submit (draft lapangan tertunda: sinyal buruk / kuesioner panjang) TIDAK

@@ -11,10 +11,9 @@
  */
 
 const fs = require('fs');
-const path = require('path');
 const archiver = require('archiver');
 const { sequelize, Survey } = require('../models');
-const { UPLOADS_ROOT, PROJECT_ROOT } = require('./mediaFiles');
+const mediaStorage = require('./mediaStorage');
 
 /**
  * @param {string} surveyId
@@ -90,11 +89,16 @@ async function buildSurveyArchive(surveyId, outPath) {
     JSON.stringify({ survey: { id: survey.id, title: survey.title }, count: data.length, responses: data }, null, 2),
     { name: 'responses.json' }
   );
+  // Ambil tiap media via mediaStorage (driver disk/s3 + fallback dua arah).
+  // getStream sudah menegakkan guard "uploads/..." tanpa "..". File yang tak
+  // ditemukan di sumber mana pun dilewati (perilaku sama seperti fs.existsSync).
   for (const rel of mediaSet) {
-    const full = path.resolve(PROJECT_ROOT, rel);
-    // hanya file di dalam uploads/ (cegah path traversal)
-    if (full !== UPLOADS_ROOT && !full.startsWith(UPLOADS_ROOT + path.sep)) continue;
-    if (fs.existsSync(full)) archive.file(full, { name: `media/${rel.replace(/^uploads\//, '')}` });
+    try {
+      const { stream } = await mediaStorage.getStream(rel);
+      archive.append(stream, { name: `media/${rel.replace(/^uploads\//, '')}` });
+    } catch {
+      // media hilang / path tak valid → lewati, jangan gagalkan seluruh arsip
+    }
   }
   archive.finalize();
   await done;

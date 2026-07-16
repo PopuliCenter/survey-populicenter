@@ -59,6 +59,32 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── MinIO (object storage media — 12-factor faktor 4) ──────
+  # Milik STACK INI (bukan menyandar ke MinIO tetangga) agar isolasi tetap utuh:
+  # stack online down TIDAK mematikan media survei lapangan. Hanya di-bind ke
+  # 127.0.0.1 (tak pernah ke internet); backend mengaksesnya lewat network
+  # internal Docker (`minio:9000`). Idle ~70 MB — dipakai hanya bila
+  # MEDIA_STORAGE=s3; sampai saat itu ia siaga tanpa efek.
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    logging: *default-logging
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER wajib di-set di file .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD wajib di-set di file .env}
+    volumes:
+      - miniodata:/data
+    # Bind localhost saja — konsol (9001) & API (9000) tak terekspos ke internet.
+    ports:
+      - "127.0.0.1:9100:9000"
+      - "127.0.0.1:9101:9001"
+    mem_limit: 1024m
+    cpus: 1
+    # (Tanpa healthcheck: image server MinIO tak menyertakan `mc`/curl untuk
+    #  probe yang andal. restart:unless-stopped + koneksi app yang eksplisit
+    #  sudah cukup; backend TIDAK depends_on minio, jadi tak ada restart-loop.)
+
   # ── Backend API ────────────────────────────────────────────
   backend:
     build: ./backend
@@ -88,6 +114,16 @@ services:
       UPLOAD_DIR: uploads/photos
       MAX_FILE_SIZE_MB: 5
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Penyimpanan media: 'disk' (default, aman) atau 's3' (MinIO). Flip ke s3
+      # HANYA setelah migrasi selesai — lihat docs/ops/media-minio.md. Pembacaan
+      # punya fallback dua arah, jadi rollback ke disk aman.
+      MEDIA_STORAGE: ${MEDIA_STORAGE:-disk}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER wajib di-set di file .env}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD wajib di-set di file .env}
+      MINIO_BUCKET: ${MINIO_BUCKET:-survey-media}
     volumes:
       - uploads:/app/uploads
     # TIDAK memetakan port ke host — backend hanya diakses via nginx (internal
@@ -123,6 +159,14 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib di-set di file .env}
       REDIS_URL: redis://redis:6379
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Worker membangun arsip ZIP media (archiveBuilder) → butuh akses storage sama.
+      MEDIA_STORAGE: ${MEDIA_STORAGE:-disk}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER wajib di-set di file .env}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD wajib di-set di file .env}
+      MINIO_BUCKET: ${MINIO_BUCKET:-survey-media}
     volumes:
       - uploads:/app/uploads
     command: ["node", "src/workers/index.js"]
@@ -171,3 +215,4 @@ volumes:
   pgdata:
   redisdata:
   uploads:
+  miniodata:
