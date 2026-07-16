@@ -58,12 +58,18 @@ fi
 MINIO_CID="$($DC ps -q "$MINIO_SERVICE")"
 if [ -z "$MINIO_CID" ]; then echo "✗ Container minio tak ditemukan." >&2; exit 1; fi
 
-# Kredensial dari .env (ambil DUA baris ini saja — jangan `source` seluruh file).
-ENV_FILE="$REPO_ROOT/.env"
-MINIO_USER="$(grep -E '^MINIO_ROOT_USER=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r')"
-MINIO_PASS="$(grep -E '^MINIO_ROOT_PASSWORD=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r')"
+# Kredensial dari CONTAINER MinIO yang BERJALAN — sumber kebenaran. Membaca .env
+# rapuh: bila .env punya key ganda, compose (dan MinIO) memakai kemunculan
+# TERAKHIR, sedangkan `grep|head -1` mengambil yang pertama → signature mismatch
+# (bug 2026-07-16). docker inspect memberi nilai yang benar-benar dipakai MinIO.
+minio_env() {
+  docker inspect "$MINIO_CID" --format '{{range .Config.Env}}{{println .}}{{end}}' \
+    | grep "^$1=" | head -1 | cut -d= -f2-
+}
+MINIO_USER="$(minio_env MINIO_ROOT_USER)"
+MINIO_PASS="$(minio_env MINIO_ROOT_PASSWORD)"
 if [ -z "$MINIO_USER" ] || [ -z "$MINIO_PASS" ]; then
-  echo "✗ MINIO_ROOT_USER/MINIO_ROOT_PASSWORD tak ada di $ENV_FILE." >&2
+  echo "✗ MINIO_ROOT_USER/PASSWORD tak terbaca dari container '$MINIO_SERVICE'." >&2
   exit 1
 fi
 

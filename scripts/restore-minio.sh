@@ -54,11 +54,16 @@ if ! $DC ps --status running --services 2>/dev/null | grep -qx "$MINIO_SERVICE";
 fi
 MINIO_CID="$($DC ps -q "$MINIO_SERVICE")"
 
-ENV_FILE="$REPO_ROOT/.env"
-MINIO_USER="$(grep -E '^MINIO_ROOT_USER=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r')"
-MINIO_PASS="$(grep -E '^MINIO_ROOT_PASSWORD=' "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r')"
+# Kredensial dari container MinIO yang berjalan (kebal duplikat/parsing .env —
+# lihat catatan di backup-minio.sh).
+minio_env() {
+  docker inspect "$MINIO_CID" --format '{{range .Config.Env}}{{println .}}{{end}}' \
+    | grep "^$1=" | head -1 | cut -d= -f2-
+}
+MINIO_USER="$(minio_env MINIO_ROOT_USER)"
+MINIO_PASS="$(minio_env MINIO_ROOT_PASSWORD)"
 if [ -z "$MINIO_USER" ] || [ -z "$MINIO_PASS" ]; then
-  echo "✗ Kredensial MinIO tak ada di $ENV_FILE." >&2; exit 1
+  echo "✗ Kredensial MinIO tak terbaca dari container '$MINIO_SERVICE'." >&2; exit 1
 fi
 
 echo
