@@ -87,6 +87,10 @@ services:
 
   # ── Backend API ────────────────────────────────────────────
   backend:
+    # Produksi: `docker compose pull` mengambil image dari GHCR (dibangun CI).
+    # Dev: `docker compose up -d --build` membangun dari ./backend (build tetap
+    # ada). IMAGE_TAG=sha-<commit> untuk rollback presisi (default: latest).
+    image: ghcr.io/populicenter/survey-backend:${IMAGE_TAG:-latest}
     build: ./backend
     restart: unless-stopped
     logging: *default-logging
@@ -142,6 +146,8 @@ services:
 
   # ── Export Worker ──────────────────────────────────────────
   worker:
+    # Image SAMA dengan backend (satu build, dua peran via command berbeda).
+    image: ghcr.io/populicenter/survey-backend:${IMAGE_TAG:-latest}
     build: ./backend
     restart: unless-stopped
     logging: *default-logging
@@ -183,6 +189,10 @@ services:
 
   # ── Nginx (reverse proxy + frontend) ──────────────────────
   nginx:
+    # Image dibangun CI (SPA + Sentry DSN dipanggang). Config proxy & certs TETAP
+    # host-mount (lihat volumes di bawah) → tak ikut di image, jadi image aman
+    # dibagikan & config bisa diubah tanpa rebuild.
+    image: ghcr.io/populicenter/survey-nginx:${IMAGE_TAG:-latest}
     build:
       context: ./frontend
       args:
