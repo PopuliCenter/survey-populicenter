@@ -74,12 +74,26 @@ Set `MEDIA_STORAGE=disk` lagi → `docker compose up -d backend worker`. File ya
 sudah terunggah ke MinIO tetap terbaca (fallback), file lama di disk juga. Nol
 kehilangan data. Selidiki, lalu ulangi flip saat siap.
 
-## ⚠️ Backup: sekarang ada DUA sumber
+## ⚠️ Backup: sekarang ada DUA sumber → WAJIB `backup-minio.sh`
 Setelah flip, media baru hidup di **volume `miniodata`**, bukan lagi `uploads`.
-`backup-media.sh` masih menge-tar volume `uploads` (media lama + fallback).
-**Tugas lanjutan** (belum dikerjakan): tambah backup `miniodata` (atau `mc mirror`
-bucket) ke rotasi + tarikan QNAP. Sampai itu ada, JANGAN pangkas disk (langkah 5)
-— disk masih jadi satu-satunya yang ter-backup untuk media pra-migrasi.
+`backup-media.sh` (tar `uploads`) TIDAK mencakupnya. Penutupnya sudah ada:
+**`scripts/backup-minio.sh`** — `mc mirror` bucket → `backups/minio_*.tar.gz`.
+
+Aktifkan SEBELUM survei masal:
+```bash
+# uji manual sekali
+bash scripts/backup-minio.sh
+# lalu tambah ke crontab (mis. 02:40, setelah backup-media 02:30):
+40 2 * * *  cd /var/www/survey-populicenter && bash scripts/backup-minio.sh >> /var/log/populi-backup.log 2>&1
+```
+- QNAP menarik SELURUH `backups/`, jadi `minio_*.tar.gz` ikut ter-off-site **otomatis** (tanpa ubah cron QNAP).
+- `ops-check.sh` kini memantau kesegaran `minio_*` **hanya bila** `MEDIA_STORAGE=s3`.
+- Restore: `scripts/restore-minio.sh <arsip>` (atau `restore-media.sh` bila kembali
+  ke mode disk — arsipnya kompatibel).
+
+⚠️ **Baru setelah `backup-minio.sh` berjalan rutin**, langkah 5 (pangkas disk)
+boleh dipertimbangkan. Sebelum itu, disk = satu-satunya salinan ter-backup untuk
+media pra-migrasi.
 
 ## Batasan yang diketahui (jujur)
 - **Reaper media yatim** (`maintenance.js`) menyapu disk; di mode s3 ia no-op aman

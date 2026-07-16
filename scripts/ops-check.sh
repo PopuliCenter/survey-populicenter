@@ -90,6 +90,12 @@ check_fresh() {
 }
 check_fresh "Dump DB    " "$BACKUP_DIR/web_survey_platform_*.dump"
 check_fresh "Arsip media" "$BACKUP_DIR/uploads_*.tar.gz"
+# Backup MinIO hanya relevan bila media dilayani dari s3. Bila MEDIA_STORAGE=s3
+# tapi arsip minio_* basi/tak ada → media BARU tak ter-backup: bahaya senyap.
+MEDIA_STORAGE_MODE="$(grep -E '^MEDIA_STORAGE=' "$REPO_ROOT/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r')"
+if [ "${MEDIA_STORAGE_MODE:-disk}" = "s3" ]; then
+  check_fresh "Arsip MinIO" "$BACKUP_DIR/minio_*.tar.gz"
+fi
 
 # ── 3. Off-site ─────────────────────────────────────────────────────────────
 echo

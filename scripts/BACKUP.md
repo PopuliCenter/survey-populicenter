@@ -14,8 +14,10 @@ Semua skrip berjalan di **VPS produksi**, dari root repo (`/var/www/survey-popul
 |-------|--------|-------|
 | `backup-db.sh` | Dump Postgres (`.dump`) + rotasi | Aman |
 | `backup-media.sh` | Arsip volume `uploads` (`.tar.gz`) + rotasi | Aman |
+| `backup-minio.sh` | Arsip objek MinIO (`minio_*.tar.gz`) — **wajib bila `MEDIA_STORAGE=s3`** | Aman |
 | `verify-restore.sh` | **Uji** dump DB ke DB sementara, lalu hapus | Aman |
 | `restore-media.sh --dry-run` | **Uji** arsip media tanpa menyentuh produksi | Aman |
+| `restore-minio.sh --dry-run` | **Uji** arsip MinIO tanpa menyentuh produksi | Aman |
 | `ops-check.sh` | Cek disk, kesegaran backup, container | Aman |
 | `restore-db.sh` | Pemulihan bencana → DB produksi | ⚠ Destruktif |
 | `restore-media.sh` | Pemulihan bencana → volume media | ⚠ Destruktif |
@@ -50,6 +52,7 @@ HC_PING_URL=https://hc-ping.com/GANTI-DENGAN-UUID-ANDA
 
 15 2 * * *  cd /var/www/survey-populicenter && bash scripts/backup-db.sh      >> /var/log/populi-backup.log 2>&1
 30 2 * * *  cd /var/www/survey-populicenter && bash scripts/backup-media.sh   >> /var/log/populi-backup.log 2>&1
+40 2 * * *  cd /var/www/survey-populicenter && bash scripts/backup-minio.sh   >> /var/log/populi-backup.log 2>&1
 0  4 * * *  cd /var/www/survey-populicenter && bash scripts/sync-offsite.sh   >> /var/log/populi-backup.log 2>&1
 0  7 * * *  cd /var/www/survey-populicenter && bash scripts/ops-check.sh      >> /var/log/populi-ops.log 2>&1
 0  3 * * 0  cd /var/www/survey-populicenter && bash scripts/verify-restore.sh >> /var/log/populi-backup.log 2>&1
