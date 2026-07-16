@@ -169,4 +169,30 @@ async function remove(relPath) {
   return removed;
 }
 
-module.exports = { isS3, s3Configured, saveBuffer, getStream, remove, BUCKET };
+/**
+ * Total ukuran media pada driver AKTIF (byte).
+ * - s3  : jumlah size seluruh objek di bucket (listObjects rekursif).
+ * - disk: ukuran folder uploads/ (dirSizeBytes).
+ * Dipakai halaman Penyimpanan admin agar angka mencerminkan storage sebenarnya.
+ */
+async function usageBytes() {
+  if (isS3()) {
+    await ensureBucket();
+    return await new Promise((resolve, reject) => {
+      let total = 0;
+      const stream = client().listObjects(BUCKET, '', true);
+      stream.on('data', (obj) => { total += obj.size || 0; });
+      stream.on('error', reject);
+      stream.on('end', () => resolve(total));
+    });
+  }
+  const { dirSizeBytes } = require('./diskUsage');
+  return dirSizeBytes(UPLOADS_ROOT);
+}
+
+/** Nama driver aktif untuk ditampilkan di UI ('minio' | 'disk'). */
+function driverLabel() {
+  return isS3() ? 'minio' : 'disk';
+}
+
+module.exports = { isS3, s3Configured, saveBuffer, getStream, remove, usageBytes, driverLabel, BUCKET };

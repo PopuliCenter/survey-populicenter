@@ -17,7 +17,7 @@ const { authMiddleware, requireRole } = require('../middleware/auth');
 const { recomputeSurveyStats } = require('../utils/statisticsUpdater');
 const { collectMediaPaths, deleteMediaFiles, UPLOADS_ROOT, PROJECT_ROOT } = require('../utils/mediaFiles');
 const { cacheGet, cacheSet, cacheDel, cacheDelPattern } = require('../utils/cache');
-const { dirSizeBytes } = require('../utils/diskUsage');
+const mediaStorage = require('../utils/mediaStorage');
 const { chunk } = require('../utils/chunk');
 const { buildSurveyArchive } = require('../utils/archiveBuilder');
 const { queue: exportQueue } = require('../config/queue');
@@ -76,12 +76,13 @@ router.get('/overview', async (req, res, next) => {
       };
     }).sort((a, b) => b.media_count - a.media_count);
 
-    // Ukuran disk: pakai cache bila ada (hitung ulang async saat miss agar tidak
-    // memblokir event loop / mengulang walk mahal saat banyak akses).
+    // Ukuran media pada driver AKTIF (disk ATAU MinIO) — pakai cache singkat
+    // (list objek / walk disk sama-sama mahal saat banyak akses). Di-invalidasi
+    // saat purge agar perubahan langsung tercermin.
     let uploadsBytes = await cacheGet(UPLOADS_SIZE_KEY);
     const uploadsCached = uploadsBytes != null;
     if (!uploadsCached) {
-      uploadsBytes = await dirSizeBytes(UPLOADS_ROOT);
+      uploadsBytes = await mediaStorage.usageBytes();
       await cacheSet(UPLOADS_SIZE_KEY, uploadsBytes, UPLOADS_SIZE_TTL);
     }
 
@@ -89,6 +90,7 @@ router.get('/overview', async (req, res, next) => {
       surveys: items,
       uploads_bytes: uploadsBytes,
       uploads_cached: uploadsCached,
+      storage_driver: mediaStorage.driverLabel(), // 'minio' | 'disk'
       generated_at: new Date().toISOString(),
     });
   } catch (error) {

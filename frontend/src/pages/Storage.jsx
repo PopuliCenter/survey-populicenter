@@ -162,7 +162,9 @@ function Storage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Penyimpanan</h1>
             <p className="text-sm text-gray-500">
-              {data ? `Total media di server: ${formatBytes(data.uploads_bytes)}` : 'Kelola data & media per survei (arsip / hapus).'}
+              {data
+                ? `Total media di ${data.storage_driver === 'minio' ? 'MinIO (object storage)' : 'server (disk)'}: ${formatBytes(data.uploads_bytes)}`
+                : 'Kelola data & media per survei (arsip / hapus).'}
             </p>
           </div>
           <button type="button" onClick={load} disabled={loading}
