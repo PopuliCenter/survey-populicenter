@@ -813,6 +813,34 @@ function FieldToolsSettingsSection({ settings, onChange }) {
             Nonaktifkan saat uji coba.
           </span>
         </div>
+
+        {/* Kualitas Data — tandai durasi pengisian mencurigakan (terlalu singkat).
+            Nilai disimpan dalam DETIK; 0 = penanda nonaktif. */}
+        <div className="flex items-start gap-6 flex-wrap pt-3 border-t border-gray-100">
+          <span className="text-sm text-gray-700 w-36 shrink-0">Kualitas Data</span>
+          <div className="flex flex-col gap-2 flex-1 min-w-[240px]">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <span className="shrink-0">Tandai bila durasi di bawah</span>
+              <input
+                type="number"
+                min="0"
+                max="3600"
+                step="5"
+                value={settings.min_duration_sec ?? 30}
+                onChange={(e) => {
+                  const sec = parseInt(e.target.value, 10);
+                  onChange('min_duration_sec', Math.min(3600, Math.max(0, Number.isFinite(sec) ? sec : 30)));
+                }}
+                className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+              />
+              <span className="text-gray-500">detik</span>
+            </label>
+            <span className="text-xs text-gray-400">
+              Respons yang durasinya di bawah ambang ini ditandai di dashboard (indikasi TPD terburu-buru /
+              mengarang), mirip penanda gender-tak-sesuai-paritas. Isi <b>0</b> untuk menonaktifkan. Default: 30 detik.
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

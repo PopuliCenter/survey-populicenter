@@ -155,6 +155,20 @@ describe('fieldToolsValidator', () => {
       expect(str.valid).toBe(false);
       expect(str.error).toContain('audio_total_max_sec');
     });
+
+    it('menerima min_duration_sec (ambang QC durasi) dalam rentang; 0 = nonaktif', () => {
+      expect(validateFieldToolsSettings({ ...baseModes, min_duration_sec: 0 })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({ ...baseModes, min_duration_sec: 30 })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({ ...baseModes, min_duration_sec: 3600 })).toEqual({ valid: true });
+    });
+
+    it('menolak min_duration_sec di luar rentang / non-integer', () => {
+      expect(validateFieldToolsSettings({ ...baseModes, min_duration_sec: -5 }).valid).toBe(false);
+      expect(validateFieldToolsSettings({ ...baseModes, min_duration_sec: 4000 }).valid).toBe(false);
+      const frac = validateFieldToolsSettings({ ...baseModes, min_duration_sec: 30.5 });
+      expect(frac.valid).toBe(false);
+      expect(frac.error).toContain('min_duration_sec');
+    });
   });
 
   describe('validateFieldToolsSubmission', () => {

@@ -468,6 +468,24 @@ function ResponseDetail() {
               );
             })()}
 
+            {/* QC: durasi pengisian mencurigakan (di bawah ambang survei) */}
+            {response.short_duration === true && (
+              <div
+                className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+                role="alert"
+              >
+                <svg className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>
+                  <strong>Perlu verifikasi:</strong> durasi pengisian{' '}
+                  <strong>{formatDurationMmSs(response.duration_seconds || 0)}</strong> terlalu
+                  singkat (di bawah ambang survei) — indikasi wawancara terburu-buru atau tidak
+                  benar-benar dilakukan.
+                </span>
+              </div>
+            )}
+
             {/* Metadata card */}
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-base font-semibold text-gray-700 mb-4">
@@ -496,11 +514,16 @@ function ResponseDetail() {
                   label="Durasi Pengisian"
                   value={
                     response.duration_seconds != null ? (
-                      <span>
+                      <span className={response.short_duration === true ? 'text-amber-700 font-semibold' : undefined}>
                         {response.duration_seconds} detik{' '}
-                        <span className="text-gray-400">
+                        <span className={response.short_duration === true ? 'text-amber-500' : 'text-gray-400'}>
                           ({formatDurationMmSs(response.duration_seconds)})
                         </span>
+                        {response.short_duration === true && (
+                          <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-semibold align-middle">
+                            ⚠ terlalu singkat
+                          </span>
+                        )}
                       </span>
                     ) : (
                       '—'

@@ -210,6 +210,10 @@ function Responses() {
   // nomor kuesioner (dihitung server-side sebagai gender_parity_mismatch).
   const parityFlaggedCount = sortedResponses.filter((r) => r.gender_parity_mismatch === true).length;
 
+  // QC: jumlah baris dengan durasi pengisian mencurigakan (di bawah ambang survei,
+  // dihitung server-side sebagai short_duration) — indikasi TPD terburu-buru.
+  const shortDurationCount = sortedResponses.filter((r) => r.short_duration === true).length;
+
   // Inline SVG sort indicator (ascending/descending chevron).
   function SortIcon({ active, dir }) {
     if (!active) {
@@ -490,6 +494,23 @@ function Responses() {
           </div>
         )}
 
+        {/* QC banner: durasi pengisian mencurigakan (terlalu singkat) */}
+        {!loading && !fetchError && shortDurationCount > 0 && (
+          <div
+            className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+            role="alert"
+          >
+            <svg className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>
+              <strong>{shortDurationCount}</strong> baris pada halaman ini ditandai:
+              <strong> durasi pengisian terlalu singkat</strong> (di bawah ambang survei) —
+              indikasi wawancara terburu-buru. Periksa &amp; verifikasi lewat "Lihat Detail".
+            </span>
+          </div>
+        )}
+
         {/* Table card */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
           {appliedFilters === null ? (
@@ -565,7 +586,11 @@ function Responses() {
                     <tr
                       key={response.id}
                       className={`transition-colors ${
-                        response.gender_parity_mismatch === true ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'
+                        response.gender_parity_mismatch === true
+                          ? 'bg-red-50 hover:bg-red-100'
+                          : response.short_duration === true
+                            ? 'bg-amber-50 hover:bg-amber-100'
+                            : 'hover:bg-gray-50'
                       }`}
                     >
                       {/* Questionnaire Number */}
@@ -581,6 +606,17 @@ function Responses() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" />
                               </svg>
                               JK
+                            </span>
+                          )}
+                          {response.short_duration === true && (
+                            <span
+                              title="Durasi pengisian terlalu singkat (di bawah ambang survei) — indikasi wawancara terburu-buru"
+                              className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-semibold"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Durasi
                             </span>
                           )}
                         </span>

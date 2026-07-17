@@ -66,6 +66,7 @@ module.exports = (sequelize) => {
           const optionalNumerics = {
             audio_start_delay_sec: { min: 0, max: 1800 },
             audio_total_max_sec: { min: 30, max: 900 },
+            min_duration_sec: { min: 0, max: 3600 },
           };
           const allowedProperties = [
             ...requiredProperties,

@@ -20,6 +20,10 @@ const OPTIONAL_ENUMS = {
 const OPTIONAL_NUMERICS = {
   audio_start_delay_sec: { min: 0, max: 1800 }, // 0–30 menit
   audio_total_max_sec: { min: 30, max: 900 },   // 0,5–15 menit
+  // QC: ambang durasi pengisian "mencurigakan" (detik). Respons dengan durasi di
+  // bawah ini ditandai di dashboard (indikasi TPD terburu-buru/mengarang).
+  // 0 = penanda nonaktif. Absen → default 30 detik (lihat isShortDuration).
+  min_duration_sec: { min: 0, max: 3600 },      // 0 (off) – 60 menit
 };
 const ALLOWED_PROPERTIES = [
   ...REQUIRED_PROPERTIES,

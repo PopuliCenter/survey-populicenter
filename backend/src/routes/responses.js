@@ -21,6 +21,17 @@ const router = express.Router();
 // string statis — fallback publik di source = celah pemalsuan token.
 const SESSION_SECRET = process.env.SESSION_SECRET;
 
+// QC: durasi pengisian "mencurigakan" = di bawah ambang survei
+// (field_tools_settings.min_duration_sec, detik). Absen → default 30 detik;
+// 0 = penanda nonaktif. Menandai indikasi TPD terburu-buru/mengarang, mirip
+// penanda paritas gender. duration_seconds null (tak dinilai) → tidak ditandai.
+const DEFAULT_MIN_DURATION_SEC = 30;
+function isShortDuration(durationSeconds, fieldToolsSettings) {
+  const raw = fieldToolsSettings ? fieldToolsSettings.min_duration_sec : undefined;
+  const minDur = raw == null ? DEFAULT_MIN_DURATION_SEC : Number(raw);
+  return minDur > 0 && durationSeconds != null && Number(durationSeconds) < minDur;
+}
+
 /**
  * Kunci perangkat (1 user = 1 device) — berlaku bila survei menyetel
  * field_tools_settings.device_lock === 'enforced'. Perangkat pertama yang
@@ -793,7 +804,7 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
       {
         model: Survey,
         as: 'survey',
-        attributes: ['id', 'title'],
+        attributes: ['id', 'title', 'field_tools_settings'],
       },
       {
         model: User,
@@ -896,6 +907,9 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
           )
         : null;
 
+      // QC: durasi pengisian mencurigakan (di bawah ambang survei).
+      item.short_duration = isShortDuration(r.duration_seconds, r.survey && r.survey.field_tools_settings);
+
       if (!isSurveyor) {
         item.review_status = r.review_status;
         item.review_note = r.review_note;
@@ -963,7 +977,7 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
       {
         model: Survey,
         as: 'survey',
-        attributes: ['id', 'title'],
+        attributes: ['id', 'title', 'field_tools_settings'],
       },
       {
         model: User,
@@ -1026,6 +1040,8 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
       start_longitude: response.start_longitude,
       start_geo_status: response.start_geo_status,
       created_at: response.created_at,
+      // QC: durasi pengisian mencurigakan (di bawah ambang survei).
+      short_duration: isShortDuration(response.duration_seconds, response.survey && response.survey.field_tools_settings),
       answers: (response.answers || []).map((a) => ({
         id: a.id,
         question_id: a.question_id,
