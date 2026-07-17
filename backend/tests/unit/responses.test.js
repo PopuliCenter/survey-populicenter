@@ -40,7 +40,10 @@ jest.mock('../../src/models', () => {
       notLike: Symbol('notLike'),
       gte: Symbol('gte'),
       lte: Symbol('lte'),
+      and: Symbol('and'),
+      iLike: Symbol('iLike'),
     },
+    literal: jest.fn((sql) => ({ __literal: sql })),
   };
 
   return {
@@ -84,7 +87,7 @@ jest.mock('../../src/config/redis', () => ({
 }));
 
 const app = require('../../src/app');
-const { Response, Answer, Question, Survey, User, SurveyorQuota, sequelize } = require('../../src/models');
+const { Response, Answer, Question, Survey, User, SurveyorQuota, sequelize, Sequelize } = require('../../src/models');
 const redis = require('../../src/config/redis');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -1251,6 +1254,74 @@ describe('Response Module - GET /responses', () => {
     opSymbols.forEach((sym) => {
       expect(startTimeClause[sym]).toBeInstanceOf(Date);
     });
+  });
+
+  test('filter quality=short_duration menambahkan kondisi durasi (Sequelize.literal)', async () => {
+    const token = createAdminToken();
+    Sequelize.literal.mockClear();
+    Response.findAll.mockResolvedValue(mockResponseList());
+
+    const res = await request(app)
+      .get('/responses')
+      .query({ quality: 'short_duration' })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    // Literal durasi harus dibangun & memuat ambang per-survei + kolom durasi.
+    expect(Sequelize.literal).toHaveBeenCalled();
+    const sql = Sequelize.literal.mock.calls[0][0];
+    expect(sql).toContain('duration_seconds');
+    expect(sql).toContain('min_duration_sec');
+  });
+
+  test('surveyor tidak bisa memakai filter quality (diabaikan)', async () => {
+    const token = createSurveyorToken();
+    Sequelize.literal.mockClear();
+    Response.findAll.mockResolvedValue(mockResponseList());
+
+    const res = await request(app)
+      .get('/responses')
+      .query({ quality: 'short_duration' })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(Sequelize.literal).not.toHaveBeenCalled();
+  });
+});
+
+// ─── GET /responses/quality-summary ─────────────────────────────────────────────
+describe('Response Module - GET /responses/quality-summary', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    redis.get.mockResolvedValue(null);
+  });
+
+  test('admin memperoleh ringkasan kualitas (agregasi SQL)', async () => {
+    const token = createAdminToken();
+    sequelize.query.mockResolvedValue([
+      { total: 10, unreviewed: 4, verified: 5, flagged: 1, gps_with: 8, short_duration: 3 },
+    ]);
+
+    const res = await request(app)
+      .get('/responses/quality-summary')
+      .query({ survey_id: 'survey-uuid-001' })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ total: 10, short_duration: 3, verified: 5 });
+    // WHERE menyertakan filter survey_id via replacements bernama.
+    const [sql, opts] = sequelize.query.mock.calls[0];
+    expect(sql).toContain('short_duration');
+    expect(opts.replacements).toMatchObject({ surveyId: 'survey-uuid-001' });
+  });
+
+  test('surveyor ditolak (403) akses ringkasan kualitas', async () => {
+    const token = createSurveyorToken();
+    const res = await request(app)
+      .get('/responses/quality-summary')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
   });
 });
 

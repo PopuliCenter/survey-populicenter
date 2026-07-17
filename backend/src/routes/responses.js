@@ -775,6 +775,20 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
       // Invalid filter values are silently ignored (return all)
     }
 
+    // Filter QC "durasi singkat" (server-side, akurat lintas halaman): respons dengan
+    // durasi di bawah ambang survei (field_tools_settings.min_duration_sec; default 30,
+    // 0 = nonaktif). Subquery terkorelasi ke surveys → tak bergantung alias join, aman
+    // saat Sequelize membungkus query untuk pagination.
+    if (role !== 'surveyor' && req.query.quality === 'short_duration') {
+      // Subquery mandiri (alias r2/s2) — hanya mereferensikan "Response"."id" dari
+      // luar, jadi kebal terhadap pembungkusan join/pagination Sequelize.
+      const thr = `COALESCE(NULLIF((s2.field_tools_settings->>'min_duration_sec'), '')::int, ${DEFAULT_MIN_DURATION_SEC})`;
+      whereClause[Op.and] = [
+        ...(whereClause[Op.and] ? [].concat(whereClause[Op.and]) : []),
+        Sequelize.literal(`"Response"."id" IN (SELECT r2.id FROM responses r2 JOIN surveys s2 ON s2.id = r2.survey_id WHERE r2.duration_seconds IS NOT NULL AND ${thr} > 0 AND r2.duration_seconds < ${thr})`),
+      ];
+    }
+
     const isSurveyor = role === 'surveyor';
 
     // ── Pagination (server-side) ──────────────────────────────────────────────
@@ -922,6 +936,40 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
     });
 
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /responses/quality-summary
+ * Ringkasan kualitas data untuk filter aktif (survey/surveyor/tanggal) — menyuplai
+ * kartu ringkasan + chip filter di halaman Data Responden. Hitungan AKURAT lintas
+ * halaman (agregasi SQL). Ambang durasi-singkat per survei (min_duration_sec).
+ */
+router.get('/quality-summary', authMiddleware, requireRole(['admin', 'supervisor', 'viewer']), async (req, res, next) => {
+  try {
+    const clauses = ["r.questionnaire_number NOT LIKE 'PENDING-%'"];
+    const replacements = {};
+    if (req.query.survey_id) { clauses.push('r.survey_id = :surveyId'); replacements.surveyId = req.query.survey_id; }
+    if (req.query.surveyor_id) { clauses.push('r.surveyor_id = :surveyorId'); replacements.surveyorId = req.query.surveyor_id; }
+    if (req.query.start_date) { clauses.push('r.start_time >= :startDate'); replacements.startDate = new Date(`${req.query.start_date}T00:00:00.000`); }
+    if (req.query.end_date) { clauses.push('r.start_time <= :endDate'); replacements.endDate = new Date(`${req.query.end_date}T23:59:59.999`); }
+    const whereSql = clauses.join(' AND ');
+    const thr = `COALESCE(NULLIF((s.field_tools_settings->>'min_duration_sec'), '')::int, ${DEFAULT_MIN_DURATION_SEC})`;
+    const rows = await sequelize.query(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE r.review_status = 'unreviewed')::int AS unreviewed,
+         COUNT(*) FILTER (WHERE r.review_status = 'verified')::int AS verified,
+         COUNT(*) FILTER (WHERE r.review_status = 'flagged')::int AS flagged,
+         COUNT(*) FILTER (WHERE r.latitude IS NOT NULL)::int AS gps_with,
+         COUNT(*) FILTER (WHERE r.duration_seconds IS NOT NULL AND ${thr} > 0 AND r.duration_seconds < ${thr})::int AS short_duration
+       FROM responses r LEFT JOIN surveys s ON s.id = r.survey_id
+       WHERE ${whereSql}`,
+      { replacements, type: sequelize.QueryTypes.SELECT }
+    );
+    res.json(rows[0] || { total: 0, unreviewed: 0, verified: 0, flagged: 0, gps_with: 0, short_duration: 0 });
   } catch (error) {
     next(error);
   }

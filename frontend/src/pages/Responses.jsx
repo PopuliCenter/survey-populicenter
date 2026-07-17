@@ -69,12 +69,14 @@ function Responses() {
   const [endDate, setEndDate] = useState('');
   const [geoStatusFilter, setGeoStatusFilter] = useState('');
   const [reviewStatusFilter, setReviewStatusFilter] = useState('');
+  const [qualityFilter, setQualityFilter] = useState(''); // '' | 'short_duration' — chip QC
   const [searchQuery, setSearchQuery] = useState('');
 
   // ── Table data ──────────────────────────────────────────────────────────────
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+  const [summary, setSummary] = useState(null); // ringkasan kualitas data (agregasi server)
 
   // ── Pagination ────────────────────────────────────────────────────────────
   const PAGE_SIZE = 25;
@@ -133,6 +135,7 @@ function Responses() {
       if (filters.geo_status) params.geo_status = filters.geo_status; // server-side
       if (filters.q && filters.q.trim()) params.q = filters.q.trim();
       if (filters.review_status && !isSurveyor) params.review_status = filters.review_status;
+      if (filters.quality && !isSurveyor) params.quality = filters.quality; // chip QC (server-side)
 
       const res = await api.get('/responses', { params });
       setResponses(res.data || []);
@@ -151,6 +154,24 @@ function Responses() {
     }
   }, [isSurveyor]);
 
+  // Ringkasan kualitas data (agregasi server, AKURAT lintas halaman). Hanya
+  // memakai filter DASAR (survei/TPD/tanggal) — bukan chip quality/review — agar
+  // angka breakdown tetap stabil saat chip berpindah. Khusus non-surveyor.
+  const fetchSummary = useCallback(async (filters) => {
+    if (isSurveyor) return;
+    try {
+      const params = {};
+      if (filters.survey_id) params.survey_id = filters.survey_id;
+      if (filters.surveyor_id) params.surveyor_id = filters.surveyor_id;
+      if (filters.start_date) params.start_date = filters.start_date;
+      if (filters.end_date) params.end_date = filters.end_date;
+      const res = await api.get('/responses/quality-summary', { params });
+      setSummary(res.data || null);
+    } catch {
+      setSummary(null); // kartu ringkasan tersembunyi bila gagal
+    }
+  }, [isSurveyor]);
+
   // Bug #5: jangan fetch otomatis saat mount, tunggu user klik filter.
   // Fetch juga saat halaman (page) berubah.
   useEffect(() => {
@@ -158,6 +179,13 @@ function Responses() {
       fetchResponses(appliedFilters, page);
     }
   }, [appliedFilters, page, fetchResponses]);
+
+  // Ringkasan disegarkan saat filter dasar berubah (bukan saat ganti halaman).
+  useEffect(() => {
+    if (appliedFilters !== null) {
+      fetchSummary(appliedFilters);
+    }
+  }, [appliedFilters, fetchSummary]);
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   function formatTimestamp(isoStr) {
@@ -210,9 +238,6 @@ function Responses() {
   // nomor kuesioner (dihitung server-side sebagai gender_parity_mismatch).
   const parityFlaggedCount = sortedResponses.filter((r) => r.gender_parity_mismatch === true).length;
 
-  // QC: jumlah baris dengan durasi pengisian mencurigakan (di bawah ambang survei,
-  // dihitung server-side sebagai short_duration) — indikasi TPD terburu-buru.
-  const shortDurationCount = sortedResponses.filter((r) => r.short_duration === true).length;
 
   // Inline SVG sort indicator (ascending/descending chevron).
   function SortIcon({ active, dir }) {
@@ -282,6 +307,7 @@ function Responses() {
       end_date: endDate,
       geo_status: geoStatusFilter,
       review_status: reviewStatusFilter,
+      quality: qualityFilter,
       q: searchQuery,
     });
   }
@@ -293,11 +319,48 @@ function Responses() {
     setEndDate('');
     setGeoStatusFilter('');
     setReviewStatusFilter('');
+    setQualityFilter('');
     setSearchQuery('');
     setPage(1);
     setAppliedFilters(null);
     setResponses([]);
     setTotal(0);
+    setSummary(null);
+  }
+
+  // Chip kualitas: filter cepat lintas halaman (server-side). Mempertahankan
+  // filter dasar (survei/TPD/tanggal) yang sedang aktif.
+  function applyChip(chip) {
+    if (!appliedFilters) return; // chip hanya aktif setelah filter dijalankan
+    const review = chip === 'unreviewed' || chip === 'verified' || chip === 'flagged' ? chip : '';
+    const quality = chip === 'short_duration' ? 'short_duration' : '';
+    setReviewStatusFilter(review);
+    setQualityFilter(quality);
+    setPage(1);
+    setAppliedFilters({ ...appliedFilters, review_status: review, quality });
+  }
+
+  // Chip aktif diturunkan dari state filter — tak perlu state terpisah.
+  const activeChip = qualityFilter === 'short_duration'
+    ? 'short_duration'
+    : ['unreviewed', 'verified', 'flagged'].includes(reviewStatusFilter)
+      ? reviewStatusFilter
+      : 'all';
+
+  // Verifikasi/tandai cepat dari baris (tanpa buka detail). Pakai endpoint review
+  // yang sudah ada; perbarui baris & segarkan ringkasan setelah sukses.
+  const [reviewingId, setReviewingId] = useState(null);
+  async function quickReview(id, status) {
+    setReviewingId(id);
+    try {
+      const res = await api.patch(`/responses/${id}/review`, { review_status: status });
+      setResponses((prev) => prev.map((r) => (r.id === id ? { ...r, review_status: res.data.review_status } : r)));
+      if (appliedFilters) fetchSummary(appliedFilters);
+    } catch (err) {
+      setFetchError(err.response?.data?.error || err.message || 'Gagal memperbarui status review.');
+    } finally {
+      setReviewingId(null);
+    }
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -494,20 +557,52 @@ function Responses() {
           </div>
         )}
 
-        {/* QC banner: durasi pengisian mencurigakan (terlalu singkat) */}
-        {!loading && !fetchError && shortDurationCount > 0 && (
-          <div
-            className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-            role="alert"
-          >
-            <svg className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>
-              <strong>{shortDurationCount}</strong> baris pada halaman ini ditandai:
-              <strong> durasi pengisian terlalu singkat</strong> (di bawah ambang survei) —
-              indikasi wawancara terburu-buru. Periksa &amp; verifikasi lewat "Lihat Detail".
-            </span>
+        {/* Ringkasan kualitas data — agregasi server, AKURAT lintas halaman */}
+        {!isSurveyor && !fetchError && appliedFilters && summary && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {[
+              { label: 'Total responden', value: summary.total, cls: 'text-gray-800' },
+              { label: 'Durasi singkat', value: summary.short_duration, cls: 'text-amber-600' },
+              { label: 'Belum direview', value: summary.unreviewed, cls: 'text-gray-800' },
+              { label: 'Terverifikasi', value: summary.verified, cls: 'text-green-600' },
+              { label: 'Cakupan GPS', value: `${summary.total ? Math.round((summary.gps_with / summary.total) * 100) : 0}%`, cls: 'text-blue-600' },
+            ].map((t) => (
+              <div key={t.label} className="rounded-xl border border-gray-100 bg-white px-4 py-3">
+                <p className="text-xs text-gray-500">{t.label}</p>
+                <p className={`text-2xl font-semibold mt-0.5 ${t.cls}`}>{t.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Chip filter kualitas — filter cepat lintas halaman (server-side) */}
+        {!isSurveyor && !fetchError && appliedFilters && summary && (
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter kualitas data">
+            {[
+              { key: 'all', label: 'Semua', count: summary.total, dot: 'bg-gray-400' },
+              { key: 'short_duration', label: 'Durasi singkat', count: summary.short_duration, dot: 'bg-amber-500' },
+              { key: 'unreviewed', label: 'Belum direview', count: summary.unreviewed, dot: 'bg-gray-400' },
+              { key: 'verified', label: 'Terverifikasi', count: summary.verified, dot: 'bg-green-500' },
+            ].map((c) => {
+              const active = activeChip === c.key;
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => applyChip(c.key)}
+                  aria-pressed={active}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                    active
+                      ? 'border-primary-300 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${c.dot}`} aria-hidden="true"></span>
+                  {c.label}
+                  <span className="font-semibold tabular-nums">{c.count}</span>
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -585,7 +680,7 @@ function Responses() {
                   {sortedResponses.map((response) => (
                     <tr
                       key={response.id}
-                      className={`transition-colors ${
+                      className={`group transition-colors ${
                         response.gender_parity_mismatch === true
                           ? 'bg-red-50 hover:bg-red-100'
                           : response.short_duration === true
@@ -664,9 +759,43 @@ function Responses() {
                         </td>
                       )}
 
-                      {/* Actions */}
+                      {/* Actions — verifikasi/tandai cepat muncul saat hover baris */}
                       <td className="px-5 py-3">
-                        <div className="flex items-center justify-end">
+                        <div className="flex items-center justify-end gap-1">
+                          {!isSurveyor && (
+                            <div className="hidden group-hover:flex items-center gap-1">
+                              {response.review_status !== 'verified' && (
+                                <button
+                                  type="button"
+                                  onClick={() => quickReview(response.id, 'verified')}
+                                  disabled={reviewingId === response.id}
+                                  title="Verifikasi responden ini"
+                                  aria-label={`Verifikasi responden ${response.questionnaire_number}`}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 px-2 py-1 text-xs font-medium transition-colors"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Verifikasi
+                                </button>
+                              )}
+                              {response.review_status !== 'flagged' && (
+                                <button
+                                  type="button"
+                                  onClick={() => quickReview(response.id, 'flagged')}
+                                  disabled={reviewingId === response.id}
+                                  title="Tandai responden ini untuk ditinjau"
+                                  aria-label={`Tandai responden ${response.questionnaire_number}`}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-50 px-2 py-1 text-xs font-medium transition-colors"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 2H21l-3 6 3 6h-8.5l-1-2H5a2 2 0 00-2 2z" />
+                                  </svg>
+                                  Tandai
+                                </button>
+                              )}
+                            </div>
+                          )}
                           <IconButton
                             icon="view"
                             variant="primary"
