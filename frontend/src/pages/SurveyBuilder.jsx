@@ -735,6 +735,55 @@ function FieldToolsSettingsSection({ settings, onChange }) {
           </div>
         )}
 
+        {/* Aturan waktu rekaman audio — fleksibel, disetel admin/SPV per survei.
+            Nilai disimpan dalam DETIK; UI memakai MENIT agar mudah dibaca. */}
+        {settings.audio_mode !== 'disabled' && (
+          <div className="flex items-start gap-6 flex-wrap pt-3 border-t border-gray-100">
+            <span className="text-sm text-gray-700 w-36 shrink-0">Aturan Rekaman</span>
+            <div className="flex flex-col gap-3 flex-1 min-w-[240px]">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <span className="w-40 shrink-0">Mulai rekam setelah</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="30"
+                  step="0.5"
+                  value={(settings.audio_start_delay_sec ?? 0) / 60}
+                  onChange={(e) => {
+                    const mins = parseFloat(e.target.value);
+                    const sec = Math.round((Number.isFinite(mins) ? mins : 0) * 60);
+                    onChange('audio_start_delay_sec', Math.min(1800, Math.max(0, sec)));
+                  }}
+                  className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+                />
+                <span className="text-gray-500">menit</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <span className="w-40 shrink-0">Total durasi rekaman</span>
+                <input
+                  type="number"
+                  min="0.5"
+                  max="15"
+                  step="0.5"
+                  value={(settings.audio_total_max_sec ?? 180) / 60}
+                  onChange={(e) => {
+                    const mins = parseFloat(e.target.value);
+                    const sec = Math.round((Number.isFinite(mins) ? mins : 3) * 60);
+                    onChange('audio_total_max_sec', Math.min(900, Math.max(30, sec)));
+                  }}
+                  className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+                />
+                <span className="text-gray-500">menit</span>
+              </label>
+              <span className="text-xs text-gray-400">
+                Untuk audio <b>Wajib</b>, rekaman mulai otomatis setelah jeda ini — berguna melewati obrolan
+                pembuka sebelum wawancara inti. Total durasi dibagi rata: separuh pembukaan, separuh penutupan.
+                Default: mulai langsung (0), total 3 menit.
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Kunci Perangkat — 1 akun TPD = 1 perangkat (cegah double user / salah akun) */}
         <div className="flex items-center gap-6 flex-wrap pt-3 border-t border-gray-100">
           <span className="text-sm text-gray-700 w-36 shrink-0">Kunci Perangkat</span>

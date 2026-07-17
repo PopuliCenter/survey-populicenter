@@ -126,6 +126,35 @@ describe('fieldToolsValidator', () => {
       expect(bad.valid).toBe(false);
       expect(bad.error).toContain('device_lock');
     });
+
+    it('menerima aturan waktu rekaman audio dalam rentang valid', () => {
+      expect(validateFieldToolsSettings({ ...baseModes, audio_start_delay_sec: 0 })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({ ...baseModes, audio_start_delay_sec: 120 })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({ ...baseModes, audio_total_max_sec: 300 })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({
+        ...baseModes, audio_start_delay_sec: 90, audio_total_max_sec: 240,
+      })).toEqual({ valid: true });
+    });
+
+    it('kompatibel mundur: valid tanpa aturan waktu rekaman', () => {
+      expect(validateFieldToolsSettings({ ...baseModes })).toEqual({ valid: true });
+    });
+
+    it('menolak audio_start_delay_sec di luar rentang / non-integer', () => {
+      expect(validateFieldToolsSettings({ ...baseModes, audio_start_delay_sec: -1 }).valid).toBe(false);
+      expect(validateFieldToolsSettings({ ...baseModes, audio_start_delay_sec: 5000 }).valid).toBe(false);
+      const frac = validateFieldToolsSettings({ ...baseModes, audio_start_delay_sec: 45.5 });
+      expect(frac.valid).toBe(false);
+      expect(frac.error).toContain('audio_start_delay_sec');
+    });
+
+    it('menolak audio_total_max_sec di luar rentang / tipe salah', () => {
+      expect(validateFieldToolsSettings({ ...baseModes, audio_total_max_sec: 10 }).valid).toBe(false); // < 30
+      expect(validateFieldToolsSettings({ ...baseModes, audio_total_max_sec: 1000 }).valid).toBe(false); // > 900
+      const str = validateFieldToolsSettings({ ...baseModes, audio_total_max_sec: '180' });
+      expect(str.valid).toBe(false);
+      expect(str.error).toContain('audio_total_max_sec');
+    });
   });
 
   describe('validateFieldToolsSubmission', () => {

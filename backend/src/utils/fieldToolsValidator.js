@@ -11,7 +11,21 @@ const OPTIONAL_ENUMS = {
   audio_indicator: ['shown', 'hidden'],
   device_lock: ['enforced', 'off'],
 };
-const ALLOWED_PROPERTIES = [...REQUIRED_PROPERTIES, ...Object.keys(OPTIONAL_ENUMS)];
+
+// Properti OPSIONAL numerik (detik) — ATURAN WAKTU REKAMAN AUDIO yang bisa
+// disetel admin/supervisor per survei di builder (kompatibel mundur — absen = default).
+//   audio_start_delay_sec : jeda sebelum rekaman pembukaan auto-mulai (0 = langsung).
+//     Dipakai melewati obrolan pembuka ("small talk") sebelum wawancara inti.
+//   audio_total_max_sec   : total durasi terekam (segmen pembukaan + penutup).
+const OPTIONAL_NUMERICS = {
+  audio_start_delay_sec: { min: 0, max: 1800 }, // 0–30 menit
+  audio_total_max_sec: { min: 30, max: 900 },   // 0,5–15 menit
+};
+const ALLOWED_PROPERTIES = [
+  ...REQUIRED_PROPERTIES,
+  ...Object.keys(OPTIONAL_ENUMS),
+  ...Object.keys(OPTIONAL_NUMERICS),
+];
 
 /**
  * Mengembalikan default field_tools_settings.
@@ -61,13 +75,26 @@ function validateFieldToolsSettings(settings) {
     }
   }
 
-  // Validasi properti opsional bila ada.
+  // Validasi properti opsional enum bila ada.
   for (const [prop, allowed] of Object.entries(OPTIONAL_ENUMS)) {
     if (settings[prop] !== undefined && !allowed.includes(settings[prop])) {
       return {
         valid: false,
         error: `Nilai ${prop} tidak valid. Gunakan: ${allowed.join(', ')}`,
       };
+    }
+  }
+
+  // Validasi properti opsional numerik (detik) bila ada.
+  for (const [prop, range] of Object.entries(OPTIONAL_NUMERICS)) {
+    const v = settings[prop];
+    if (v !== undefined) {
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < range.min || v > range.max) {
+        return {
+          valid: false,
+          error: `Nilai ${prop} harus bilangan bulat ${range.min}–${range.max} (detik)`,
+        };
+      }
     }
   }
 

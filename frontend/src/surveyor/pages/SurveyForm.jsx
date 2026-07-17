@@ -34,8 +34,9 @@ import { addBackButtonListener, isNativePlatform, getNetworkStatus, primeMediaPe
 import { toastError } from '../../utils/toastBus';
 
 // ─── Rekaman audio: batas & strategi "awal + akhir" ─────────────────────────────
-const AUDIO_TOTAL_MAX_SEC = 180;      // maksimal 3 menit total (terekam)
-const AUDIO_FIRST_SEGMENT_SEC = 90;   // ~1,5 menit pembukaan sebelum jeda otomatis
+// Default total 3 menit (bila survei tak menyetel audio_total_max_sec). Segmen
+// pembukaan = separuh total, dihitung per survei (lihat audioFirstSegmentSec).
+const AUDIO_TOTAL_MAX_SEC = 180;      // maksimal 3 menit total (terekam) — default
 
 // ─── Field Tools Settings ─────────────────────────────────────────────────────
 
@@ -1291,10 +1292,19 @@ function SurveyForm() {
   const { isOnline, isSyncing, pendingCount } = useSyncManager();
 
   // ─── Field tools hooks ──────────────────────────────────────────────────────
-  // Rekaman audio maks 3 menit total (sadar-jeda). Strategi "awal + akhir":
-  // rekam ~1,5 mnt pembukaan, jeda otomatis, lalu lanjut ~1,5 mnt saat sampai
-  // pertanyaan terakhir (lihat efek orkestrasi di bawah).
-  const audioRecorder = useAudioRecorder({ maxDurationSec: AUDIO_TOTAL_MAX_SEC });
+  // Aturan rekaman audio bisa disetel admin/SPV per survei (dalam DETIK):
+  //   audio_start_delay_sec : jeda sebelum rekaman pembukaan auto-mulai (0 = langsung)
+  //                           → melewati obrolan pembuka sebelum wawancara inti.
+  //   audio_total_max_sec   : total durasi terekam; dibagi rata pembukaan/penutup.
+  // Absen → pakai default lama (langsung mulai, 3 mnt, segmen awal 1,5 mnt).
+  const _audioCfg = survey?.field_tools_settings || DEFAULT_FIELD_TOOLS;
+  const audioTotalMaxSec = Number(_audioCfg.audio_total_max_sec) > 0
+    ? Number(_audioCfg.audio_total_max_sec) : AUDIO_TOTAL_MAX_SEC;
+  const audioStartDelaySec = Number(_audioCfg.audio_start_delay_sec) > 0
+    ? Number(_audioCfg.audio_start_delay_sec) : 0;
+  // Segmen pembukaan = separuh total (default 90s saat total 180s → perilaku lama).
+  const audioFirstSegmentSec = Math.round(audioTotalMaxSec / 2);
+  const audioRecorder = useAudioRecorder({ maxDurationSec: audioTotalMaxSec });
   const photoCapture = usePhotoCapture();
   const signaturePad = useSignaturePad();
 
@@ -1625,7 +1635,14 @@ function SurveyForm() {
     if (!audioRecorder.isSupported) return;
     if (autoRecordAttemptedRef.current) return;
     autoRecordAttemptedRef.current = true;
+    // Aturan jeda mulai (audio_start_delay_sec): tunda rekaman agar obrolan
+    // pembuka tidak ikut terekam. Bila 0 → mulai langsung seperti sebelumnya.
+    if (audioStartDelaySec > 0) {
+      const delayId = setTimeout(() => { audioRecorder.startRecording(); }, audioStartDelaySec * 1000);
+      return () => clearTimeout(delayId);
+    }
     audioRecorder.startRecording();
+    return undefined;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, survey, fieldToolsSettings.audio_mode, audioRecorder.isSupported]);
 
@@ -1638,7 +1655,7 @@ function SurveyForm() {
     const lastIndex = visibleQuestions.length - 1;
     if (
       audioRecorder.status === 'recording' &&
-      audioRecorder.duration >= AUDIO_FIRST_SEGMENT_SEC &&
+      audioRecorder.duration >= audioFirstSegmentSec &&
       currentStep < lastIndex
     ) {
       audioRecorder.pauseRecording();
@@ -1650,11 +1667,22 @@ function SurveyForm() {
   useEffect(() => {
     if (fieldToolsSettings.audio_mode === 'disabled') return;
     const lastIndex = visibleQuestions.length - 1;
-    if (lastIndex >= 0 && currentStep === lastIndex && audioRecorder.status === 'paused') {
+    if (lastIndex < 0 || currentStep !== lastIndex) return;
+    if (audioRecorder.status === 'paused') {
       audioRecorder.resumeRecording();
+    } else if (
+      audioRecorder.status === 'idle' &&
+      audioRecorder.isSupported &&
+      fieldToolsSettings.audio_mode === 'required'
+    ) {
+      // Wawancara mencapai akhir SEBELUM jeda-mulai berlalu (wawancara singkat +
+      // jeda besar) → mulai rekam sekarang agar penutupan tetap terekam & audio
+      // wajib tidak kosong. Batalkan jeda tertunda bila masih ada.
+      autoRecordAttemptedRef.current = true;
+      audioRecorder.startRecording();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep, visibleQuestions.length, audioRecorder.status, fieldToolsSettings.audio_mode]);
+  }, [currentStep, visibleQuestions.length, audioRecorder.status, audioRecorder.isSupported, fieldToolsSettings.audio_mode]);
 
   // ─── Izin di AWAL (priming) ──────────────────────────────────────────────────
   // Dialog izin mik/kamera yang muncul di TENGAH wawancara mengganggu dan bisa

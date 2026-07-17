@@ -62,7 +62,16 @@ module.exports = (sequelize) => {
             audio_indicator: ['shown', 'hidden'],
             device_lock: ['enforced', 'off'],
           };
-          const allowedProperties = [...requiredProperties, ...Object.keys(optionalEnums)];
+          // Aturan waktu rekaman audio (detik) — disetel admin/SPV per survei.
+          const optionalNumerics = {
+            audio_start_delay_sec: { min: 0, max: 1800 },
+            audio_total_max_sec: { min: 30, max: 900 },
+          };
+          const allowedProperties = [
+            ...requiredProperties,
+            ...Object.keys(optionalEnums),
+            ...Object.keys(optionalNumerics),
+          ];
 
           if (!value || typeof value !== 'object') {
             throw new Error('Field tools settings harus memiliki properti: signature_mode, audio_mode, photo_mode, gps_mode');
@@ -85,6 +94,13 @@ module.exports = (sequelize) => {
           for (const [prop, allowed] of Object.entries(optionalEnums)) {
             if (value[prop] !== undefined && !allowed.includes(value[prop])) {
               throw new Error(`Nilai ${prop} tidak valid. Gunakan: ${allowed.join(', ')}`);
+            }
+          }
+
+          for (const [prop, range] of Object.entries(optionalNumerics)) {
+            const v = value[prop];
+            if (v !== undefined && (typeof v !== 'number' || !Number.isInteger(v) || v < range.min || v > range.max)) {
+              throw new Error(`Nilai ${prop} harus bilangan bulat ${range.min}–${range.max} (detik)`);
             }
           }
         },
