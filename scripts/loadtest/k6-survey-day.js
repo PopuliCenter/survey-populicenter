@@ -14,9 +14,21 @@
  *
  * Knob (env -e):
  *   BASE_URL   (wajib)  mis. http://localhost / http://10.0.0.5
- *   TPD        (300)    jumlah VU = jumlah akun TPD hasil seeder
- *   RAMP       (2m)     durasi gelombang login (0 → TPD VU)
- *   STEADY     (10m)    durasi beban puncak
+ *   MODE       (load)   load | spike | stress — preset skenario (lihat di bawah)
+ *   TPD        (300)    jumlah VU dasar = jumlah akun TPD hasil seeder
+ *   RAMP       (2m)     [load] durasi gelombang login (0 → TPD VU)
+ *   STEADY     (10m)    [load] durasi beban puncak
+ *   SPIKE_VUS  (2×TPD)  [spike] tinggi lonjakan mendadak
+ *   STRESS_STEP(TPD)    [stress] kenaikan VU tiap tangga
+ *   STRESS_STEPS (5)    [stress] jumlah tangga (mis. 5×300 → puncak 1500 VU)
+ *
+ * MODE:
+ *   load   : ramp landai → tahan. Ambang KETAT (lolos/gagal). Uji utama.
+ *   spike  : baseline → LONJAKAN seketika → pulih. Meniru login pagi/sinkron.
+ *   stress : naik bertangga sampai jebol. Cari batas & cara gagal.
+ *   ⚠ spike/stress mencapai VU > jumlah akun → set di .env target:
+ *       LOGIN_IP_RATE_LIMIT_MAX=100000   (semua VU 1 IP, kalau tidak → 429 login)
+ *     dan seed kuota besar: LT_QUOTA=100000 (kalau tidak → 403 kuota habis).
  *   MEDIA      (1)      1 = ikut upload foto+audio; 0 = submit data saja
  *   PHOTO_KB   (400)    ukuran foto sintetis
  *   AUDIO_KB   (900)    ukuran audio sintetis
@@ -46,6 +58,7 @@ const MEDIA = (__ENV.MEDIA || '1') === '1';
 const THINK_MIN = parseFloat(__ENV.THINK_MIN || '3');
 const THINK_MAX = parseFloat(__ENV.THINK_MAX || '8');
 const PASSWORD = __ENV.PASSWORD || 'LoadTest#2026';
+const MODE = (__ENV.MODE || 'load').toLowerCase(); // load | spike | stress
 
 // Media sintetis — dibuat sekali per VU, dipakai ulang tiap iterasi.
 const PHOTO = crypto.randomBytes(parseInt(__ENV.PHOTO_KB || '400', 10) * 1024);
@@ -56,25 +69,64 @@ const submitOk = new Counter('submit_ok');
 const tSubmit = new Trend('submit_duration', true);
 const tUpload = new Trend('upload_duration', true);
 
-export const options = {
-  scenarios: {
-    survey_day: {
-      executor: 'ramping-vus',
-      startVUs: 0,
+// ── Preset skenario per MODE ────────────────────────────────────────────────
+// load   : beban puncak NORMAL — ramp landai lalu tahan. Uji lolos/gagal.
+// spike  : LONJAKAN mendadak (baseline → seketika tinggi). Meniru gelombang
+//          login pagi / sinkron serempak saat sinyal balik. Cari: apakah server
+//          tersedak & pulih, atau tumbang.
+// stress : naik BERTANGGA melewati normal sampai jebol. Cari: batas atas & cara
+//          gagalnya (429/antre = aman; korup/OOM = temuan).
+const BASE = Math.max(5, Math.round(TPD * 0.1)); // baseline kecil utk spike
+function scenarioFor(mode) {
+  if (mode === 'spike') {
+    const spikeVus = parseInt(__ENV.SPIKE_VUS, 10) || TPD * 2;
+    return {
+      executor: 'ramping-vus', startVUs: BASE,
       stages: [
-        { duration: __ENV.RAMP || '2m', target: TPD },   // gelombang login pagi
-        { duration: __ENV.STEADY || '10m', target: TPD }, // puncak sinkron
-        { duration: '1m', target: 0 },
+        { duration: '30s', target: BASE },      // baseline tenang
+        { duration: '10s', target: spikeVus },  // ⚡ LONJAKAN mendadak
+        { duration: '1m',  target: spikeVus },  // tahan puncak
+        { duration: '10s', target: BASE },       // turun cepat
+        { duration: '1m',  target: BASE },       // pulih? (recovery)
+        { duration: '10s', target: 0 },
       ],
-      gracefulRampDown: '30s',
-    },
-  },
-  thresholds: {
-    // Gagal (non-2xx/3xx) < 1% — 429 login lapis-2 dihitung terpisah.
-    http_req_failed: ['rate<0.01'],
-    submit_duration: ['p(95)<800'],  // submit p95 < 800 ms
-    upload_duration: ['p(95)<3000'], // upload media p95 < 3 dtk
-  },
+      gracefulRampDown: '20s',
+    };
+  }
+  if (mode === 'stress') {
+    const step = parseInt(__ENV.STRESS_STEP, 10) || TPD;    // besar tiap tangga
+    const steps = parseInt(__ENV.STRESS_STEPS, 10) || 5;    // jumlah tangga
+    const stages = [];
+    for (let i = 1; i <= steps; i++) {
+      stages.push({ duration: '30s', target: step * i }); // naik ke tangga i
+      stages.push({ duration: '1m',  target: step * i }); // tahan & amati
+    }
+    stages.push({ duration: '30s', target: 0 });
+    return { executor: 'ramping-vus', startVUs: 0, stages, gracefulRampDown: '30s' };
+  }
+  // load (default)
+  return {
+    executor: 'ramping-vus', startVUs: 0,
+    stages: [
+      { duration: __ENV.RAMP || '2m', target: TPD },     // gelombang login pagi
+      { duration: __ENV.STEADY || '10m', target: TPD },  // puncak sinkron
+      { duration: '1m', target: 0 },
+    ],
+    gracefulRampDown: '30s',
+  };
+}
+
+// Ambang KETAT hanya di mode 'load' (uji lolos/gagal). Di spike/stress tujuannya
+// MENGAMATI batas — ambang ketat akan "gagal" secara wajar & menyesatkan, jadi
+// dilonggarkan (hanya jaga agar bukan ~total error). Baca metrik di ringkasan.
+const STRICT = {
+  http_req_failed: ['rate<0.01'],
+  submit_duration: ['p(95)<800'],
+  upload_duration: ['p(95)<3000'],
+};
+export const options = {
+  scenarios: { survey_day: scenarioFor(MODE) },
+  thresholds: MODE === 'load' ? STRICT : { http_req_failed: ['rate<0.95'] },
 };
 
 // State per-VU (login sekali, dipakai semua iterasi)

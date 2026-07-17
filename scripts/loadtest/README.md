@@ -76,6 +76,23 @@ k6 run -e BASE_URL=http://IP-STAGING -e TPD=300 -e STEADY=15m -e MEDIA=1 \
   -e PHOTO_KB=400 -e AUDIO_KB=900 scripts/loadtest/k6-survey-day.js
 ```
 
+### Preset MODE — Load / Spike / Stress (skrip sama)
+
+| Uji | Perintah | Yang diamati |
+|---|---|---|
+| **Load** (default) | `k6 run -e BASE_URL=http://localhost k6-survey-day.js` | Lolos ambang ketat (p95 submit<800ms, upload<3s, gagal<1%) |
+| **Spike** | `k6 run -e MODE=spike -e BASE_URL=http://localhost k6-survey-day.js` | Baseline → lonjakan seketika (2×TPD) → **pulih?** Meniru login pagi / sinkron serempak |
+| **Stress** | `k6 run -e MODE=stress -e BASE_URL=http://localhost k6-survey-day.js` | Naik bertangga (300→600→…→1500) sampai jebol. **Cara gagalnya** (429/antre = aman; korup/OOM = temuan) |
+
+> 🔑 **Prasyarat spike & stress** (VU melampaui jumlah akun seed): di `.env`
+> target set **`LOGIN_IP_RATE_LIMIT_MAX=100000`** (semua VU 1 IP → tanpa ini
+> login 429), lalu seed kuota besar **`LT_QUOTA=100000`** (tanpa ini 403 kuota
+> habis) — `docker compose up -d backend` setelah ubah `.env`. Di spike/stress
+> ambang ketat sengaja **dilonggarkan**: tujuannya MENGAMATI batas, bukan lolos.
+> Baca angka p95/error di ringkasan + **pantau `docker stats` (RAM backend, MinIO)**.
+>
+> Knob tambahan: `-e SPIKE_VUS=900` · `-e STRESS_STEP=200 -e STRESS_STEPS=8`.
+
 Alur tiap VU = persis app TPD: `login → GET /surveys → GET /surveys/:id →
 /responses/start → (wawancara 3–8 dtk) → /responses/check-unique →
 /upload/photo + /upload/audio → /responses/submit`.
