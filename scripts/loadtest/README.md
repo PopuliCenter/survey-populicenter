@@ -33,9 +33,15 @@ LOGIN_IP_RATE_LIMIT_MAX=100000
 ## 1 · Seed data uji
 
 ```bash
-docker compose exec backend node scripts/loadtest-seed.cjs
+docker compose exec -e LOADTEST_CONFIRM=1 backend node scripts/loadtest-seed.cjs
 # knob: LT_SURVEYS=10 LT_TPD=300 LT_QUOTA=30
 ```
+
+> 🛡️ **Gerbang anti-produksi.** Seeder MENOLAK jalan tanpa `LOADTEST_CONFIRM=1`,
+> dan **menolak lagi** bila DB berisi data nyata (survei non-`[LOADTEST]` atau
+> respons) kecuali `LOADTEST_ALLOW_NONEMPTY=1` juga diset. Ia mencetak
+> **DB_NAME@DB_HOST** sebelum jalan — **pastikan itu staging, bukan produksi.**
+> `--cleanup` tak butuh gerbang (hanya menghapus data ber-marker).
 
 Hasil: 10 survei `[LOADTEST] Wilayah 01–10` (3 pertanyaan: nomor kues +
 pilihan + teks; semua field tools **opsional**, kunci perangkat **off**),

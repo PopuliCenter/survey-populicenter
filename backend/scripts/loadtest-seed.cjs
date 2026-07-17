@@ -7,8 +7,13 @@
  *    membuat ratusan akun surveyor dengan password seragam.
  *
  * Jalankan DI DALAM container backend (punya sequelize + koneksi DB):
- *   docker compose exec backend node scripts/loadtest-seed.cjs
+ *   docker compose exec -e LOADTEST_CONFIRM=1 backend node scripts/loadtest-seed.cjs
  *   docker compose exec backend node scripts/loadtest-seed.cjs --cleanup
+ *
+ * GERBANG ANTI-PRODUKSI (seed saja; --cleanup selalu boleh):
+ *   1. WAJIB LOADTEST_CONFIRM=1.
+ *   2. Bila DB berisi data nyata → juga WAJIB LOADTEST_ALLOW_NONEMPTY=1.
+ *   Target DB (DB_NAME@DB_HOST) dicetak sebelum jalan — PERIKSA sebelum lanjut.
  *
  * Knob (env):
  *   LT_SURVEYS=10      jumlah survei (wilayah)
@@ -30,6 +35,46 @@ const CLEANUP = process.argv.includes('--cleanup');
 
 const MARK_TITLE = '[LOADTEST]';
 const MARK_EMAIL = '@loadtest.local';
+
+/**
+ * Gerbang anti-PRODUKSI. Seeder menulis 300+ akun + 10 survei sintetis —
+ * malapetaka bila tak sengaja kena DB produksi. Dua lapis:
+ *   1. WAJIB env LOADTEST_CONFIRM=1 (cegah jalan tak sengaja).
+ *   2. Bila DB berisi DATA NYATA (survei non-[LOADTEST] atau respons committed),
+ *      TOLAK kecuali LOADTEST_ALLOW_NONEMPTY=1 juga diset (cegah kena prod/
+ *      staging berisi data asli). Untuk menembus keduanya perlu tindakan SADAR.
+ * Hanya berlaku untuk SEED; --cleanup selalu boleh (hanya hapus data ber-marker).
+ */
+async function guardProduction() {
+  console.log(`▶ Target DB: ${process.env.DB_NAME || '?'} @ ${process.env.DB_HOST || '?'} (NODE_ENV=${process.env.NODE_ENV || '?'})`);
+
+  if (process.env.LOADTEST_CONFIRM !== '1') {
+    console.error('✗ DIBATALKAN — gerbang 1: LOADTEST_CONFIRM belum diset.');
+    console.error('  Seeder ini menulis 300+ akun & 10 survei sintetis. STAGING/LOKAL SAJA.');
+    console.error('  Bila yakin ini BUKAN produksi, jalankan dengan sadar:');
+    console.error('    LOADTEST_CONFIRM=1 node scripts/loadtest-seed.cjs');
+    process.exit(2);
+  }
+
+  const [surveyRows] = await sequelize.query(
+    'SELECT COUNT(*)::int AS n FROM surveys WHERE title NOT LIKE :pfx',
+    { replacements: { pfx: `${MARK_TITLE}%` } }
+  );
+  const [respRows] = await sequelize.query(
+    `SELECT COUNT(*)::int AS n FROM responses
+     WHERE questionnaire_number NOT LIKE 'PENDING-%' AND questionnaire_number NOT LIKE 'LT%'`
+  );
+  const realSurveys = surveyRows[0].n;
+  const realResp = respRows[0].n;
+
+  if ((realSurveys > 0 || realResp > 0) && process.env.LOADTEST_ALLOW_NONEMPTY !== '1') {
+    console.error(`✗ DIBATALKAN — gerbang 2: DB ini berisi DATA NYATA (${realSurveys} survei non-loadtest, ${realResp} respons).`);
+    console.error('  Ini tampak seperti PRODUKSI atau staging berisi data asli — seeder ditolak.');
+    console.error('  Bila Anda BENAR-BENAR yakin ini bukan produksi & tetap ingin lanjut:');
+    console.error('    LOADTEST_CONFIRM=1 LOADTEST_ALLOW_NONEMPTY=1 node scripts/loadtest-seed.cjs');
+    process.exit(3);
+  }
+}
 
 async function cleanup() {
   const { Op } = require('sequelize');
@@ -136,8 +181,12 @@ async function seed() {
 (async () => {
   try {
     await sequelize.authenticate();
-    if (CLEANUP) await cleanup();
-    else await seed();
+    if (CLEANUP) {
+      await cleanup();          // selalu boleh — hanya hapus data ber-marker
+    } else {
+      await guardProduction();  // dua gerbang anti-produksi sebelum menulis
+      await seed();
+    }
     process.exit(0);
   } catch (err) {
     console.error('✗ Gagal:', err.message);
