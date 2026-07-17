@@ -19,6 +19,21 @@ Dua pilihan target:
 - **VPS staging:** clone repo di VPS terpisah (JANGAN produksi), salin `.env`
   dengan DB kosong, `docker compose up -d && docker compose exec backend npm run migrate`.
 
+> ⚠️ **Lokal ≠ hardware KVM 8.** Menjalankan compose di PC mensimulasikan STACK
+> (software), **bukan** CPU/RAM VPS. Hasil mencerminkan hardware PC Anda:
+> - PC ≥ 8 core & ≥ 8 GB bebas → `mem_limit`/`cpus` di compose (plafon sama
+>   dengan VPS) membuat hasilnya **proksi yang wajar** untuk KVM 8.
+> - PC lebih lemah → hasil **pesimistis** (lebih buruk dari produksi) — kalau
+>   lolos di PC lemah, di VPS pasti lebih lega. Aman sebagai batas bawah.
+> Untuk angka yang benar-benar setara VPS, jalankan di VPS **staging** (bukan prod).
+
+> 🛡️ **Media kini ke MinIO** (MEDIA_STORAGE=s3). Upload memakai `memoryStorage` →
+> tiap upload menahan file penuh di RAM sesaat sebelum di-PUT ke MinIO. Saat load
+> test, **pantau RAM backend** (`docker stats`): 300 upload serentak ≈ ~390 MB
+> buffer transient (plafon 2 GB). Bila RAM backend mendekati plafon atau ada
+> restart (OOM), itu temuan penting — kabari. Uji juga jalur BACA (dashboard buka
+> media) setelahnya; k6 hanya menulis.
+
 Karena semua VU k6 berasal dari **satu IP generator**, pagar login lapis-2
 (per-IP, default 100/15 mnt) akan menolak login ke-101 — di lapangan nyata tiap
 TPD punya IP sendiri. Untuk uji kapasitas dari satu generator, longgarkan di
