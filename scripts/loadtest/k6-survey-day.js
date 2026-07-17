@@ -76,18 +76,18 @@ const tUpload = new Trend('upload_duration', true);
 //          tersedak & pulih, atau tumbang.
 // stress : naik BERTANGGA melewati normal sampai jebol. Cari: batas atas & cara
 //          gagalnya (429/antre = aman; korup/OOM = temuan).
-const BASE = Math.max(5, Math.round(TPD * 0.1)); // baseline kecil utk spike
+const BASELINE = Math.max(5, Math.round(TPD * 0.1)); // baseline kecil utk spike
 function scenarioFor(mode) {
   if (mode === 'spike') {
     const spikeVus = parseInt(__ENV.SPIKE_VUS, 10) || TPD * 2;
     return {
-      executor: 'ramping-vus', startVUs: BASE,
+      executor: 'ramping-vus', startVUs: BASELINE,
       stages: [
-        { duration: '30s', target: BASE },      // baseline tenang
+        { duration: '30s', target: BASELINE },  // baseline tenang
         { duration: '10s', target: spikeVus },  // ⚡ LONJAKAN mendadak
         { duration: '1m',  target: spikeVus },  // tahan puncak
-        { duration: '10s', target: BASE },       // turun cepat
-        { duration: '1m',  target: BASE },       // pulih? (recovery)
+        { duration: '10s', target: BASELINE },  // turun cepat
+        { duration: '1m',  target: BASELINE },  // pulih? (recovery)
         { duration: '10s', target: 0 },
       ],
       gracefulRampDown: '20s',
@@ -155,8 +155,14 @@ function loginOnce() {
   const list = http.get(`${BASE}/surveys`, { ...authHeaders(), tags: { name: 'surveys-list' } });
   if (!check(list, { 'daftar survei 200': (r) => r.status === 200 })) { token = null; return false; }
   const arr = list.json('surveys') || list.json(); // dukung {surveys:[...]} atau [...]
-  survey = (Array.isArray(arr) ? arr : []).find((s) => (s.title || '').startsWith('[LOADTEST]'));
-  if (!survey) fail('Survei [LOADTEST] tidak ditemukan — sudah jalankan seeder?');
+  // Seeder menugaskan tiap TPD ke SATU survei round-robin: tpd(i) → survei[(i-1)%N].
+  // Cocokkan di sisi VU (urut judul → Wilayah 01..N) agar VU memakai survei yang
+  // BENAR-BENAR ditugaskan — kalau tidak, /start balas 403 & VU idle.
+  const lt = (Array.isArray(arr) ? arr : [])
+    .filter((s) => (s.title || '').startsWith('[LOADTEST]'))
+    .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+  if (lt.length === 0) fail('Survei [LOADTEST] tidak ditemukan — sudah jalankan seeder?');
+  survey = lt[(__VU - 1) % lt.length];
 
   const detail = http.get(`${BASE}/surveys/${survey.id}`, { ...authHeaders(), tags: { name: 'survey-detail' } });
   if (!check(detail, { 'detail survei 200': (r) => r.status === 200 })) { token = null; return false; }
@@ -182,9 +188,10 @@ export default function surveyDay() {
   // "Wawancara" berlangsung…
   sleep(THINK_MIN + Math.random() * (THINK_MAX - THINK_MIN));
 
-  // Nomor kuesioner unik antar-VU dan antar-iterasi
+  // Nomor kuesioner unik antar-VU & antar-iterasi. WAJIB ANGKA SAJA (validasi
+  // unique_id menolak huruf/strip). VU×10jt + seq → integer unik.
   localSeq += 1;
-  const uniqueNumber = `LT${__VU}-${localSeq}`;
+  const uniqueNumber = String(__VU * 10000000 + localSeq);
 
   // Cek ketersediaan nomor (alur nyata: gerbang anti-double di depan)
   const uniqueQ = questions.find((q) => q.type === 'unique_id');

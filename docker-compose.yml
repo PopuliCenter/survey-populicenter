@@ -118,6 +118,14 @@ services:
       UPLOAD_DIR: uploads/photos
       MAX_FILE_SIZE_MB: 5
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Knob rate-limit — DIPLUMBING dari .env (default = nilai di kode). Tanpa
+      # baris ini, menyetelnya di .env TAK berefek (compose tak meneruskan env
+      # yang tak terdaftar). Ditemukan saat load test 2026-07-17.
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-600}
+      RATE_LIMIT_DISABLED: ${RATE_LIMIT_DISABLED:-}
+      UPLOAD_RATE_LIMIT_MAX: ${UPLOAD_RATE_LIMIT_MAX:-120}
+      LOGIN_RATE_LIMIT_MAX: ${LOGIN_RATE_LIMIT_MAX:-10}
+      LOGIN_IP_RATE_LIMIT_MAX: ${LOGIN_IP_RATE_LIMIT_MAX:-100}
       # Penyimpanan media: 'disk' (default, aman) atau 's3' (MinIO). Flip ke s3
       # HANYA setelah migrasi selesai — lihat docs/ops/media-minio.md. Pembacaan
       # punya fallback dua arah, jadi rollback ke disk aman.

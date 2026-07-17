@@ -132,6 +132,13 @@ async function seed() {
         device_lock: 'off',
       },
     });
+    // Sequence penomoran kuesioner — normalnya dibuat route POST /surveys
+    // (surveys.js: CREATE SEQUENCE IF NOT EXISTS). Survey.create() langsung
+    // MELEWATINYA → submit gagal 500 "relation questionnaire_seq_... does not
+    // exist". Replikasi di sini agar seed sepenuhnya menyerupai survei nyata.
+    await sequelize.query(
+      `CREATE SEQUENCE IF NOT EXISTS questionnaire_seq_${survey.id.replace(/-/g, '_')}`
+    );
     // Susunan meniru survei nyata: nomor kues (unique_id) + pilihan + teks.
     await Question.create({
       survey_id: survey.id, order_index: 0, type: 'unique_id', is_required: true,
