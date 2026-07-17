@@ -31,6 +31,11 @@ export default defineConfig({
         // Skip waiting — langsung aktifkan SW baru tanpa tunggu tab ditutup
         skipWaiting: true,
         clientsClaim: true,
+        // Navigasi LANGSUNG ke media responden (buka foto/audio/ttd di tab baru)
+        // JANGAN dibelokkan ke index.html oleh SPA-fallback SW — teruskan ke
+        // jaringan (nginx → backend berautentikasi). Tanpa ini, klik foto di
+        // Data Responden menampilkan halaman 404 SPA walau berkasnya ada.
+        navigateFallbackDenylist: [/^\/uploads\//],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/'),
