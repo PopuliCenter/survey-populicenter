@@ -31,10 +31,14 @@ function isNative() {
   }
 }
 
-async function prefs() {
-  const { Preferences } = await import('@capacitor/preferences');
-  return Preferences;
-}
+// PENTING — JEBAKAN THENABLE (insiden layar putih #3, ditemukan via DevTools
+// protocol di perangkat): JANGAN PERNAH me-return / me-resolve objek plugin
+// Capacitor (Preferences dkk.) dari fungsi async. Objek plugin adalah PROXY
+// yang memperlakukan SEMUA akses properti sebagai panggilan method native —
+// termasuk `.then` yang diperiksa JS saat resolusi promise → di Android
+// menghasilkan "Preferences.then() is not implemented" dan promise-nya
+// MENGGANTUNG SELAMANYA (render tak pernah jalan). Selalu destrukturisasi
+// langsung dari namespace modul: `const { Preferences } = await import(...)`.
 
 /** Simpan sesi (dipanggil saat login sukses). localStorage + natif. */
 export async function persistAuth(token, user) {
@@ -42,9 +46,9 @@ export async function persistAuth(token, user) {
   localStore.setItem('user', JSON.stringify(user));
   if (!isNative()) return;
   try {
-    const P = await prefs();
-    await P.set({ key: 'token', value: token });
-    await P.set({ key: 'user', value: JSON.stringify(user) });
+    const { Preferences } = await import('@capacitor/preferences');
+    await Preferences.set({ key: 'token', value: token });
+    await Preferences.set({ key: 'user', value: JSON.stringify(user) });
   } catch { /* non-kritis — localStorage tetap terisi */ }
 }
 
@@ -54,8 +58,8 @@ export function clearAuth() {
   localStore.removeItem('user');
   if (!isNative()) return;
   // Fire-and-forget: pemanggil sinkron (interceptor/route guard) tak perlu menunggu.
-  prefs()
-    .then((P) => Promise.all(KEYS.map((key) => P.remove({ key }))))
+  import('@capacitor/preferences')
+    .then(({ Preferences }) => Promise.all(KEYS.map((key) => Preferences.remove({ key }))))
     .catch(() => { /* non-kritis */ });
 }
 
@@ -68,11 +72,11 @@ export async function restoreAuthIfMissing() {
   try {
     if (!isNative()) return;
     if (localStore.getItem('token')) return; // sesi masih ada — tak perlu apa-apa
-    const P = await prefs();
-    const { value: token } = await P.get({ key: 'token' });
+    const { Preferences } = await import('@capacitor/preferences');
+    const { value: token } = await Preferences.get({ key: 'token' });
     if (!token) return;
     localStore.setItem('token', token);
-    const { value: user } = await P.get({ key: 'user' });
+    const { value: user } = await Preferences.get({ key: 'user' });
     if (user) localStore.setItem('user', user);
   } catch { /* non-kritis — pengguna login ulang seperti biasa */ }
 }

@@ -85,6 +85,10 @@ try {
 } catch {
   bootRestore = null; // lempar sinkron → langsung render
 }
-Promise.resolve(bootRestore)
-  .catch(() => {})
-  .finally(renderApp);
+// WATCHDOG 2 detik: promise yang MENGGANTUNG (mis. jebakan thenable proxy
+// plugin — insiden layar putih #3) tak boleh menyandera render. Siapa pun
+// yang menang (restore selesai ATAU timeout), render jalan sekali.
+let rendered = false;
+const renderOnce = () => { if (!rendered) { rendered = true; renderApp(); } };
+Promise.resolve(bootRestore).catch(() => {}).then(renderOnce);
+setTimeout(renderOnce, 2000);
