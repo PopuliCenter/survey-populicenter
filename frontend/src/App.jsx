@@ -5,6 +5,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import { clearAuth } from './utils/authStorage';
 import { localStore } from './utils/safeStorage';
+import { isTokenExpired, getValidSession, homePathForUser } from './utils/session';
 
 // ─── Lazy-loaded pages (code-splitting per rute) ──────────────────────────────
 // Tiap halaman jadi chunk terpisah → bundle awal kecil. Importer dipakai ulang
@@ -71,16 +72,18 @@ function PageLoader() {
  *
  * @param {{ children: React.ReactNode, role?: string | string[] }} props
  */
-/** True bila JWT sudah kedaluwarsa (atau rusak). Cegah "login palsu" saat token
- *  expired masih tersimpan — pengguna diarahkan ke login sebelum request gagal. */
-function isTokenExpired(token) {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    if (!payload || !payload.exp) return false; // tanpa exp → biarkan server yang putuskan
-    return Date.now() >= payload.exp * 1000;
-  } catch {
-    return true; // token rusak → anggap tak valid
+/**
+ * Rute "/" — titik masuk aplikasi (APK selalu mulai di sini). SADAR-SESI:
+ * masih login (token valid) → langsung ke beranda sesuai role; belum → /login.
+ * Sebelumnya membabi-buta ke /login → TPD merasa "logout" tiap buka aplikasi
+ * padahal sesinya tersimpan & valid.
+ */
+function RootRedirect() {
+  const session = getValidSession();
+  if (session) {
+    return <Navigate to={homePathForUser(session.user)} replace />;
   }
+  return <Navigate to="/login" replace />;
 }
 
 function ProtectedRoute({ children, role }) {
@@ -151,7 +154,7 @@ function App() {
         <Route path="/embed/monitor/:token" element={<PublicMonitor />} />
 
         {/* Redirect root ke login */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<RootRedirect />} />
 
         {/* Protected admin/supervisor routes */}
         <Route

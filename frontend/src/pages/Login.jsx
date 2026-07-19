@@ -8,6 +8,7 @@ import AppVersionLabel from '../components/AppVersionLabel';
 import AppFooterLinks from '../components/AppFooterLinks';
 import { setSentryUser } from '../config/sentry';
 import { persistAuth } from '../utils/authStorage';
+import { getValidSession, homePathForUser } from '../utils/session';
 
 /**
  * Login page with email + password form.
@@ -22,6 +23,17 @@ function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // ─── Sudah login? Lewati form — langsung ke beranda sesuai role ─────────────
+  // Sesi tersimpan (token 30 hari TPD) tetap dipakai walau aplikasi ditutup
+  // paksa/dibersihkan; tanpa ini TPD selalu disuguhi form login lagi.
+  useEffect(() => {
+    const session = getValidSession();
+    if (session) {
+      navigate(homePathForUser(session.user), { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── Android back button: exit app dari halaman login ───────────────────────
   useEffect(() => {
