@@ -1291,23 +1291,6 @@ function SurveyForm() {
   // ─── Offline support ────────────────────────────────────────────────────────
   const { isOnline, isSyncing, pendingCount } = useSyncManager();
 
-  // ─── Field tools hooks ──────────────────────────────────────────────────────
-  // Aturan rekaman audio bisa disetel admin/SPV per survei (dalam DETIK):
-  //   audio_start_delay_sec : jeda sebelum rekaman pembukaan auto-mulai (0 = langsung)
-  //                           → melewati obrolan pembuka sebelum wawancara inti.
-  //   audio_total_max_sec   : total durasi terekam; dibagi rata pembukaan/penutup.
-  // Absen → pakai default lama (langsung mulai, 3 mnt, segmen awal 1,5 mnt).
-  const _audioCfg = survey?.field_tools_settings || DEFAULT_FIELD_TOOLS;
-  const audioTotalMaxSec = Number(_audioCfg.audio_total_max_sec) > 0
-    ? Number(_audioCfg.audio_total_max_sec) : AUDIO_TOTAL_MAX_SEC;
-  const audioStartDelaySec = Number(_audioCfg.audio_start_delay_sec) > 0
-    ? Number(_audioCfg.audio_start_delay_sec) : 0;
-  // Segmen pembukaan = separuh total (default 90s saat total 180s → perilaku lama).
-  const audioFirstSegmentSec = Math.round(audioTotalMaxSec / 2);
-  const audioRecorder = useAudioRecorder({ maxDurationSec: audioTotalMaxSec });
-  const photoCapture = usePhotoCapture();
-  const signaturePad = useSignaturePad();
-
   // ─── Start geolocation ──────────────────────────────────────────────────────
   const [startGeo, setStartGeo] = useState(null);
   const [gpsSearching, setGpsSearching] = useState(false);
@@ -1323,6 +1306,23 @@ function SurveyForm() {
 
   // ─── Field tools settings (derived from survey, with backward-compat fallback) ─
   const fieldToolsSettings = survey?.field_tools_settings || DEFAULT_FIELD_TOOLS;
+
+  // ─── Field tools hooks ──────────────────────────────────────────────────────
+  // Aturan rekaman audio bisa disetel admin/SPV per survei (dalam DETIK):
+  //   audio_start_delay_sec : jeda sebelum rekaman pembukaan auto-mulai (0 = langsung)
+  //                           → melewati obrolan pembuka sebelum wawancara inti.
+  //   audio_total_max_sec   : total durasi terekam; dibagi rata pembukaan/penutup.
+  // Absen → pakai default lama (langsung mulai, 3 mnt, segmen awal 1,5 mnt).
+  // PENTING: blok ini harus SETELAH deklarasi state `survey` (TDZ).
+  const audioTotalMaxSec = Number(fieldToolsSettings.audio_total_max_sec) > 0
+    ? Number(fieldToolsSettings.audio_total_max_sec) : AUDIO_TOTAL_MAX_SEC;
+  const audioStartDelaySec = Number(fieldToolsSettings.audio_start_delay_sec) > 0
+    ? Number(fieldToolsSettings.audio_start_delay_sec) : 0;
+  // Segmen pembukaan = separuh total (default 90s saat total 180s → perilaku lama).
+  const audioFirstSegmentSec = Math.round(audioTotalMaxSec / 2);
+  const audioRecorder = useAudioRecorder({ maxDurationSec: audioTotalMaxSec });
+  const photoCapture = usePhotoCapture();
+  const signaturePad = useSignaturePad();
 
   // ─── Form mode (wizard or scroll) ──────────────────────────────────────────
   const formMode = survey?.form_mode || 'wizard';

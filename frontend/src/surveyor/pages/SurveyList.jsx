@@ -6,10 +6,12 @@ import useSyncManager from '../hooks/useSyncManager';
 import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey, getDraftMedia, deleteDraftMedia } from '../../utils/storage';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import ConfirmSheet from '../../components/ConfirmSheet';
+import PermissionOnboarding, { permissionOnboardingDone } from '../components/PermissionOnboarding';
 import { addBackButtonListener, addResumeListener } from '../../utils/capacitorBridge';
 import { diffSurveyAvailability, toSurveyStubs } from '../../utils/surveyNotify';
 import { toastInfo, toastWarning } from '../../utils/toastBus';
 import { clearSentryUser } from '../../config/sentry';
+import { clearAuth } from '../../utils/authStorage';
 import { loadAllDraftsBySurvey, clearDraft } from '../utils/surveyDraft';
 
 const LAST_SEEN_SURVEYS_KEY = 'tpd:lastSeenSurveys';
@@ -100,6 +102,11 @@ function SurveyList() {
 
   // ─── TPD identity ──────────────────────────────────────────────────────────
   const [user, setUser] = useState(null);
+
+  // ─── Layar izin pertama kali ────────────────────────────────────────────────
+  // Minta SEMUA izin (mik/kamera/GPS) sekali di awal — dialog OS tak lagi
+  // muncul di tengah wawancara. Flag per perangkat (perm_onboard_v1).
+  const [showPermOnboard, setShowPermOnboard] = useState(() => !permissionOnboardingDone());
 
   // ─── Session counter (persisted in sessionStorage) ──────────────────────────
   const [sessionCount, setSessionCount] = useState(() => {
@@ -478,8 +485,7 @@ function SurveyList() {
     } catch {
       // Proceed with logout even if the API call fails
     } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      clearAuth(); // hapus di localStorage + penyimpanan natif
       sessionStorage.removeItem('session_response_count');
       clearSentryUser();
       navigate('/login', { replace: true });
@@ -523,6 +529,11 @@ function SurveyList() {
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-cream">
+      {/* Izin pertama kali — sebelum TPD mulai mengisi survei */}
+      {showPermOnboard && (
+        <PermissionOnboarding onDone={() => setShowPermOnboard(false)} />
+      )}
+
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
         <div className="max-w-3xl mx-auto px-screen py-3">

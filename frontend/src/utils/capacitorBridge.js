@@ -115,6 +115,31 @@ export async function primeMediaPermissions({ audio = false, camera = false } = 
 }
 
 /**
+ * Minta izin LOKASI di awal (priming) — dipakai layar izin pertama-kali agar
+ * dialog GPS tidak muncul di tengah wawancara. Penolakan bukan error.
+ */
+export async function primeLocationPermission() {
+  if (isNativePlatform()) {
+    try {
+      const { Geolocation } = await import('@capacitor/geolocation');
+      await Geolocation.requestPermissions();
+    } catch { /* ditolak/tak tersedia — abaikan */ }
+    return;
+  }
+  // Web: prompt hanya muncul lewat panggilan getCurrentPosition (butuh gesture
+  // pengguna — tombol layar izin memenuhinya). Hasil posisinya dibuang.
+  if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+  await new Promise((resolve) => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    try {
+      navigator.geolocation.getCurrentPosition(finish, finish, { timeout: 8000, maximumAge: 60000 });
+      setTimeout(finish, 9000); // jaring pengaman bila callback tak terpanggil
+    } catch { finish(); }
+  });
+}
+
+/**
  * Get current geolocation using Capacitor Geolocation plugin.
  * Falls back to browser Geolocation API on web.
  *

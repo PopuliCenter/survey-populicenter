@@ -4,6 +4,7 @@ import App from './App.jsx';
 import GlobalNotifications from './components/GlobalNotifications.jsx';
 import './index.css';
 import { initSentry, setSentryUser } from './config/sentry.js';
+import { restoreAuthIfMissing } from './utils/authStorage.js';
 
 // Initialize Sentry error tracking (before anything else)
 initSentry();
@@ -44,9 +45,16 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-    <GlobalNotifications />
-  </React.StrictMode>
-);
+// Pulihkan sesi dari penyimpanan natif DULU (bila localStorage terhapus oleh
+// pembersih HP / tutup paksa), baru render — agar route guard melihat token.
+// Gagal/timeout → render tetap jalan (pengguna login ulang seperti biasa).
+restoreAuthIfMissing()
+  .catch(() => {})
+  .finally(() => {
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      <React.StrictMode>
+        <App />
+        <GlobalNotifications />
+      </React.StrictMode>
+    );
+  });

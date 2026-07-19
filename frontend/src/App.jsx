@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
+import { clearAuth } from './utils/authStorage';
 
 // ─── Lazy-loaded pages (code-splitting per rute) ──────────────────────────────
 // Tiap halaman jadi chunk terpisah → bundle awal kecil. Importer dipakai ulang
@@ -86,8 +87,7 @@ function ProtectedRoute({ children, role }) {
 
   if (!token || isTokenExpired(token)) {
     if (token) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      clearAuth(); // hapus di localStorage + penyimpanan natif
     }
     return <Navigate to="/login" replace />;
   }

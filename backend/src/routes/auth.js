@@ -125,9 +125,13 @@ router.post('/login', loginIpLimiter, loginLimiter, async (req, res, next) => {
     // Clear rate limit on successful login
     await clearRateLimit(req.ip);
 
-    // Issue JWT with different expiry based on role
-    // admin, supervisor, viewer: 8 hours; surveyor: 12 hours
-    const expiresIn = user.role === 'surveyor' ? '12h' : '8h';
+    // Issue JWT with different expiry based on role.
+    // TPD (surveyor): 30 HARI — kerja lapangan berhari-hari; token 12 jam membuat
+    // TPD "keluar sendiri" tiap pagi & sinkron offline gagal. Aman karena sesi
+    // tetap bisa dicabut kapan pun: blacklist saat logout + cek akun nonaktif
+    // (isUserRevoked, M1) di setiap request + kunci perangkat per survei.
+    // Role dashboard (admin/supervisor/viewer): tetap 8 jam (lebih sensitif).
+    const expiresIn = user.role === 'surveyor' ? '30d' : '8h';
     const token = jwt.sign(
       { id: user.id, role: user.role, email: user.email },
       JWT_SECRET,

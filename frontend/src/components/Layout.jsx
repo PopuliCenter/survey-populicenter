@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import { clearSentryUser } from '../config/sentry';
+import { clearAuth } from '../utils/authStorage';
 
 const NAV_ITEMS_BY_ROLE = {
   admin: [
@@ -206,8 +207,7 @@ function Layout({ children }) {
     } catch {
       // Proceed with logout even if the API call fails
     } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      clearAuth(); // hapus di localStorage + penyimpanan natif
       clearSentryUser();
       navigate('/login');
     }

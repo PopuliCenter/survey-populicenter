@@ -7,6 +7,7 @@ import ConfirmSheet from '../components/ConfirmSheet';
 import AppVersionLabel from '../components/AppVersionLabel';
 import AppFooterLinks from '../components/AppFooterLinks';
 import { setSentryUser } from '../config/sentry';
+import { persistAuth } from '../utils/authStorage';
 
 /**
  * Login page with email + password form.
@@ -46,9 +47,9 @@ function Login() {
       const response = await api.post('/auth/login', { email, password });
       const { token, user } = response.data;
 
-      // Persist credentials
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
+      // Persist credentials — localStorage + penyimpanan natif (tahan
+      // pembersih HP / tutup paksa; lihat utils/authStorage.js).
+      await persistAuth(token, user);
       setSentryUser(user); // tandai error berikutnya dengan identitas pengguna
 
       // Redirect based on role

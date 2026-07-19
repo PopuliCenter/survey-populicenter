@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { PRODUCTION_SERVER } from '../config/server';
 import { getDeviceUid, getDeviceLabel } from '../utils/deviceId';
+import { clearAuth } from '../utils/authStorage';
 
 function getBaseURL() {
   if (import.meta.env.VITE_API_URL) {
@@ -43,8 +44,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (!window.location.pathname.includes('/login')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        clearAuth(); // hapus di localStorage + penyimpanan natif
         window.location.href = '/login';
       }
     }

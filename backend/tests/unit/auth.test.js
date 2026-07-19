@@ -94,7 +94,7 @@ describe('Auth Module - POST /auth/login', () => {
     expect(decoded.exp).toBeLessThanOrEqual(expectedExp + 10);
   });
 
-  test('login sukses surveyor - mengembalikan JWT dengan expiry 12 jam', async () => {
+  test('login sukses surveyor - mengembalikan JWT dengan expiry 30 hari (sesi lapangan)', async () => {
     const passwordHash = await hashPassword('SurveyorPass1');
     User.findOne.mockResolvedValue({
       id: 'surveyor-uuid-456',
@@ -113,9 +113,10 @@ describe('Auth Module - POST /auth/login', () => {
     expect(res.body).toHaveProperty('token');
     expect(res.body.user.role).toBe('surveyor');
 
-    // Verify token expiry is 12 hours
+    // Verify token expiry is 30 hari — sesi lapangan TPD tahan lama (aman:
+    // blacklist logout + cek akun nonaktif per request tetap bisa mencabut).
     const decoded = jwt.verify(res.body.token, JWT_SECRET);
-    const expectedExp = Math.floor(Date.now() / 1000) + 43200; // 12 hours
+    const expectedExp = Math.floor(Date.now() / 1000) + 30 * 24 * 3600; // 30 hari
     expect(decoded.exp).toBeGreaterThan(expectedExp - 10);
     expect(decoded.exp).toBeLessThanOrEqual(expectedExp + 10);
   });
