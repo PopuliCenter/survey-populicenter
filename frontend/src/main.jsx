@@ -14,8 +14,17 @@ try {
   if (storedUser) setSentryUser(JSON.parse(storedUser));
 } catch { /* abaikan */ }
 
-// Register PWA Service Worker
-if ('serviceWorker' in navigator) {
+// Register PWA Service Worker — HANYA di web/PWA, JANGAN di APK native.
+// Insiden layar putih 2026-07-18: SW ikut aktif di WebView APK dan bertahan
+// lintas-update APK → SW lama menyajikan bundle JS lama (yang crash) dari
+// cache-nya → aplikasi putih permanen walau APK sudah diganti. Di native,
+// aset sudah lokal — SW tak memberi manfaat apa pun, hanya risiko basi.
+let isNativeApp = false;
+try {
+  isNativeApp = !!window.Capacitor?.isNativePlatform?.();
+} catch { /* anggap web */ }
+
+if ('serviceWorker' in navigator && !isNativeApp) {
   window.addEventListener('load', () => {
     import('virtual:pwa-register').then(({ registerSW }) => {
       const updateSW = registerSW({
@@ -42,6 +51,19 @@ if ('serviceWorker' in navigator) {
     }).catch(() => {
       // virtual:pwa-register only available in production build
     });
+  });
+} else if ('serviceWorker' in navigator && isNativeApp) {
+  // Jaring pengaman lapisan JS (pembersih utama ada di MainActivity.java):
+  // cabut registrasi SW peninggalan versi lama + kosongkan Cache Storage.
+  window.addEventListener('load', () => {
+    try {
+      navigator.serviceWorker.getRegistrations?.()
+        .then((regs) => regs.forEach((r) => r.unregister()))
+        .catch(() => {});
+      if (window.caches?.keys) {
+        caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
+      }
+    } catch { /* non-kritis */ }
   });
 }
 
