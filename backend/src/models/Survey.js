@@ -61,6 +61,7 @@ module.exports = (sequelize) => {
           const optionalEnums = {
             audio_indicator: ['shown', 'hidden'],
             device_lock: ['enforced', 'off'],
+            gender_parity_lock: ['locked', 'off'],
           };
           // Aturan waktu rekaman audio (detik) — disetel admin/SPV per survei.
           const optionalNumerics = {

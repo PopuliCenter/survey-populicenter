@@ -162,6 +162,14 @@ describe('fieldToolsValidator', () => {
       expect(validateFieldToolsSettings({ ...baseModes, min_duration_sec: 3600 })).toEqual({ valid: true });
     });
 
+    it('menerima gender_parity_lock "locked" / "off"; menolak nilai lain', () => {
+      expect(validateFieldToolsSettings({ ...baseModes, gender_parity_lock: 'locked' })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({ ...baseModes, gender_parity_lock: 'off' })).toEqual({ valid: true });
+      const bad = validateFieldToolsSettings({ ...baseModes, gender_parity_lock: 'yes' });
+      expect(bad.valid).toBe(false);
+      expect(bad.error).toContain('gender_parity_lock');
+    });
+
     it('menolak min_duration_sec di luar rentang / non-integer', () => {
       expect(validateFieldToolsSettings({ ...baseModes, min_duration_sec: -5 }).valid).toBe(false);
       expect(validateFieldToolsSettings({ ...baseModes, min_duration_sec: 4000 }).valid).toBe(false);

@@ -814,6 +814,38 @@ function FieldToolsSettingsSection({ settings, onChange }) {
           </span>
         </div>
 
+        {/* Kunci Gender-Paritas — jenis kelamin TERKUNCI mengikuti nomor ganjil/genap.
+            Berlaku pada pertanyaan ber-"isi otomatis jenis kelamin" (paritas). */}
+        <div className="flex items-center gap-6 flex-wrap pt-3 border-t border-gray-100">
+          <span className="text-sm text-gray-700 w-36 shrink-0">Kunci Gender</span>
+          <div className="flex items-center gap-4 flex-wrap">
+            {[{ value: 'locked', label: 'Terkunci' }, { value: 'off', label: 'Bebas (isi-otomatis saja)' }].map(({ value, label: optLabel }) => (
+              <label
+                key={value}
+                htmlFor={`gender_parity_lock_${value}`}
+                className="inline-flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer"
+              >
+                <input
+                  type="radio"
+                  id={`gender_parity_lock_${value}`}
+                  name="gender_parity_lock"
+                  value={value}
+                  checked={(settings.gender_parity_lock || 'off') === value}
+                  onChange={() => onChange('gender_parity_lock', value)}
+                  className="accent-primary-600 focus:ring-2 focus:ring-primary-400"
+                />
+                {optLabel}
+              </label>
+            ))}
+          </div>
+          <span className="text-xs text-gray-400 basis-full">
+            <b>Terkunci</b>: jawaban jenis kelamin dipaksa mengikuti paritas Nomor Kuesioner
+            (ganjil = Laki-laki, genap = Perempuan) — TPD tidak bisa mengubahnya & server ikut
+            menegakkan saat submit, sehingga mismatch nomor vs gender mustahil terjadi.
+            Butuh pertanyaan dengan "isi otomatis jenis kelamin" aktif. Nomor non-angka tidak terkunci.
+          </span>
+        </div>
+
         {/* Kualitas Data — tandai durasi pengisian mencurigakan (terlalu singkat).
             Nilai disimpan dalam DETIK; 0 = penanda nonaktif. */}
         <div className="flex items-start gap-6 flex-wrap pt-3 border-t border-gray-100">

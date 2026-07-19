@@ -5,7 +5,7 @@ const { Response, Answer, Question, Survey, User, SurveyorQuota, Sequelize, sequ
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { createAuditLog } = require('../middleware/auditLog');
 const { validateAllAnswers } = require('../utils/answerValidator');
-const { isGenderParityMismatch } = require('../utils/genderParity');
+const { isGenderParityMismatch, parityExpectedGender } = require('../utils/genderParity');
 const { readDeviceHeaders, lockedToOtherDeviceMessage } = require('../utils/deviceLock');
 const { validateDateFormat, validateTimeFormat, validateDateAnswer, validateMatrixAnswer } = require('../utils/validators');
 const { validateFieldToolsSubmission } = require('../utils/fieldToolsValidator');
@@ -293,7 +293,7 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     // Get all questions for this survey (terurut untuk evaluasi skip logic)
     const questions = await Question.findAll({
       where: { survey_id },
-      attributes: ['id', 'is_required', 'type', 'options', 'order_index', 'skip_logic', 'allow_other'],
+      attributes: ['id', 'is_required', 'type', 'options', 'order_index', 'skip_logic', 'allow_other', 'auto_fill'],
       order: [['order_index', 'ASC']],
     });
 
@@ -310,6 +310,30 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     // Skip logic dievaluasi memakai `answers` penuh di atas; downstream memakai
     // `visibleAnswers` yang sudah bersih.
     const visibleAnswers = answers.filter((a) => !hiddenQuestionIds.has(a.question_id));
+
+    // Kunci gender-paritas (field_tools_settings.gender_parity_lock = 'locked'):
+    // server MEMAKSA jawaban jenis kelamin mengikuti paritas nomor kuesioner
+    // (ganjil → odd_value, genap → even_value). Otoritas di server — menutup
+    // celah klien lama/offline yang masih bisa mengirim nilai berbeda, sehingga
+    // mismatch nomor vs gender mustahil masuk dataset.
+    if (survey.field_tools_settings && survey.field_tools_settings.gender_parity_lock === 'locked') {
+      const parityQ = questions.find(
+        (q) => q.type === 'single_choice' && q.auto_fill && q.auto_fill.source === 'questionnaire_number_parity'
+      );
+      const uniqueQ = questions.find((q) => q.type === 'unique_id');
+      if (parityQ && uniqueQ) {
+        const numAns = visibleAnswers.find((a) => a.question_id === uniqueQ.id);
+        const expected = parityExpectedGender(numAns && numAns.answer_value, parityQ.auto_fill);
+        if (expected != null) {
+          const genderAns = visibleAnswers.find((a) => a.question_id === parityQ.id);
+          if (genderAns) {
+            genderAns.answer_value = expected;
+          } else {
+            visibleAnswers.push({ question_id: parityQ.id, answer_value: expected });
+          }
+        }
+      }
+    }
 
     // Validate required questions are answered (kecuali yang tersembunyi cabang)
     const answeredQuestionIds = new Set(visibleAnswers.map((a) => a.question_id));

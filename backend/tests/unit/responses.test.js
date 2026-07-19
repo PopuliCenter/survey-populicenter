@@ -423,6 +423,49 @@ describe('Response Module - POST /responses/submit', () => {
     expect(res.body.duration_seconds).toBe(300);
   });
 
+  test('gender_parity_lock=locked → server MEMAKSA gender sesuai paritas nomor', async () => {
+    const token = createSurveyorToken();
+    const { sessionToken } = setupSuccessfulSubmit();
+
+    // Survei dengan kunci gender-paritas aktif.
+    Survey.findOne.mockResolvedValue({
+      id: 'survey-uuid-001',
+      title: 'SRV001 Test Survey',
+      field_tools_settings: { ...defaultFieldToolsSettings, gender_parity_lock: 'locked' },
+    });
+    // Pertanyaan: nomor kuesioner (unique_id) + jenis kelamin ber-auto_fill paritas.
+    Question.findAll.mockResolvedValue([
+      { id: 'q-number', is_required: true, type: 'unique_id' },
+      {
+        id: 'q-gender',
+        is_required: true,
+        type: 'single_choice',
+        options: [{ value: 'LAKI-LAKI', label: 'Laki-laki' }, { value: 'PEREMPUAN', label: 'Perempuan' }],
+        auto_fill: { source: 'questionnaire_number_parity', odd_value: 'LAKI-LAKI', even_value: 'PEREMPUAN' },
+      },
+    ]);
+
+    const res = await request(app)
+      .post('/responses/submit')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        session_token: sessionToken,
+        answers: [
+          { question_id: 'q-number', answer_value: '15' },       // GANJIL → harus LAKI-LAKI
+          { question_id: 'q-gender', answer_value: 'PEREMPUAN' }, // klien mengirim SALAH
+        ],
+        geo: { status: 'available', lat: -6.2, lng: 106.8 },
+        ...defaultFieldToolsData,
+      });
+
+    expect(res.status).toBe(201);
+    // Jawaban yang TERSIMPAN harus sudah dipaksa ke nilai paritas.
+    const bulkArgs = Answer.bulkCreate.mock.calls[0][0];
+    const saved = bulkArgs.find((a) => a.question_id === 'q-gender');
+    expect(saved).toBeDefined();
+    expect(saved.answer_value).toBe('LAKI-LAKI');
+  });
+
   test('rentang client_time absurd (>24 jam) diabaikan → fallback ke durasi sesi', async () => {
     const token = createSurveyorToken();
     const { sessionToken } = setupSuccessfulSubmit();

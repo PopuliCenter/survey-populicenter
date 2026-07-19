@@ -10,6 +10,11 @@ const REQUIRED_PROPERTIES = ['signature_mode', 'audio_mode', 'photo_mode', 'gps_
 const OPTIONAL_ENUMS = {
   audio_indicator: ['shown', 'hidden'],
   device_lock: ['enforced', 'off'],
+  // Kunci jawaban jenis kelamin mengikuti paritas nomor kuesioner (ganjil/genap).
+  // 'locked' = TPD tak bisa mengubah (UI terkunci + server memaksa nilai paritas
+  // saat submit) → mustahil terjadi mismatch nomor vs gender.
+  // 'off' (default/absen) = perilaku lama: isi-otomatis tapi boleh diubah.
+  gender_parity_lock: ['locked', 'off'],
 };
 
 // Properti OPSIONAL numerik (detik) — ATURAN WAKTU REKAMAN AUDIO yang bisa

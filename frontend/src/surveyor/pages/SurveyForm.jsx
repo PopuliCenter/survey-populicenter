@@ -940,7 +940,7 @@ function MatrixField({ question, answer, onChange, hasError }) {
 /**
  * Renders a single question based on its type.
  */
-function QuestionField({ question, answer, onChange, hasError, displayOptions, surveyId, isOnline, assignedNumbers, usedNumbers, onAvailabilityChange, onNumberTaken }) {
+function QuestionField({ question, answer, onChange, hasError, displayOptions, surveyId, isOnline, assignedNumbers, usedNumbers, onAvailabilityChange, onNumberTaken, parityLocked = false }) {
   const baseInputClass =
     'w-full border rounded-lg px-3 py-2 text-base leading-6 focus:outline-none focus:ring-2 focus:ring-accent-400 transition-colors';
   const errorBorder = hasError ? 'border-red-400 bg-red-50' : 'border-gray-300';
@@ -958,10 +958,11 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                 key={opt.value}
                 role="radio"
                 aria-checked={isSel}
-                onClick={() => onChange(opt.value)}
+                disabled={parityLocked}
+                onClick={() => { if (!parityLocked) onChange(opt.value); }}
                 className={`w-full flex items-center gap-3 text-left rounded-2xl border px-4 min-h-[54px] transition-colors ${
                   isSel ? 'border-accent-500 bg-accent-50' : 'border-gray-200 bg-white hover:border-gray-300 active:bg-gray-50'
-                }`}
+                } ${parityLocked && !isSel ? 'opacity-40' : ''} ${parityLocked ? 'cursor-not-allowed' : ''}`}
               >
                 <span className={`flex-shrink-0 w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center transition-colors ${isSel ? 'border-accent-500 bg-accent-500' : 'border-gray-300'}`}>
                   {isSel && <span className="w-2 h-2 rounded-full bg-white" />}
@@ -970,7 +971,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
               </button>
             );
           })}
-          {question.allow_other && (
+          {question.allow_other && !parityLocked && (
             <div className="space-y-2">
               <button
                 type="button"
@@ -1008,9 +1009,18 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
             </div>
           )}
           {question.auto_fill?.source === 'questionnaire_number_parity' && (
-            <p className="text-xs text-accent-700 bg-accent-50 border border-accent-200 rounded-lg px-3 py-2 mt-1">
-              Terisi otomatis dari Nomor Kuesioner (ganjil vs genap). Bisa diubah bila perlu.
-            </p>
+            parityLocked ? (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-1 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+                Terkunci mengikuti paritas Nomor Kuesioner (ganjil/genap) — tidak dapat diubah.
+              </p>
+            ) : (
+              <p className="text-xs text-accent-700 bg-accent-50 border border-accent-200 rounded-lg px-3 py-2 mt-1">
+                Terisi otomatis dari Nomor Kuesioner (ganjil vs genap). Bisa diubah bila perlu.
+              </p>
+            )
           )}
         </div>
       );
@@ -1441,12 +1451,18 @@ function SurveyForm() {
     ) || null,
     [questions]
   );
+  // Kunci gender-paritas (field tools): jawaban DIPAKSA mengikuti paritas nomor
+  // dan tak bisa diubah TPD (UI terkunci; server ikut menegakkan saat submit).
+  const genderParityLocked =
+    fieldToolsSettings.gender_parity_lock === 'locked' && !!genderAutoFillQuestion;
   useEffect(() => {
     if (!genderAutoFillQuestion) return;
     const numStr = String(currentQuestionnaireNumber || '').trim();
     // Butuh bilangan bulat untuk menentukan paritas ganjil/genap.
     if (!/^\d+$/.test(numStr)) return;
-    if (genderAppliedNumberRef.current === numStr) return; // sudah diterapkan untuk nomor ini
+    // Mode bebas: terapkan sekali per nomor (koreksi manual TPD tak ditimpa).
+    // Mode TERKUNCI: selalu tegakkan nilai paritas (termasuk atas draft lama).
+    if (!genderParityLocked && genderAppliedNumberRef.current === numStr) return;
     const isEven = parseInt(numStr, 10) % 2 === 0;
     const value = isEven ? genderAutoFillQuestion.auto_fill.even_value : genderAutoFillQuestion.auto_fill.odd_value;
     genderAppliedNumberRef.current = numStr;
@@ -1454,7 +1470,7 @@ function SurveyForm() {
       if (prev[genderAutoFillQuestion.id] === value) return prev;
       return { ...prev, [genderAutoFillQuestion.id]: value };
     });
-  }, [currentQuestionnaireNumber, genderAutoFillQuestion]);
+  }, [currentQuestionnaireNumber, genderAutoFillQuestion, genderParityLocked]);
 
   // Jika TPD memilih nomor dari Daftar Survei, lompat ke pertanyaan SETELAH
   // pertanyaan nomor kuesioner (sekali saja, setelah daftar pertanyaan siap).
@@ -2864,6 +2880,11 @@ function SurveyForm() {
                       usedNumbers={usedNumbers}
                       onAvailabilityChange={setUniqueAvailability}
                       onNumberTaken={markNumberUsed}
+                      parityLocked={
+                        genderParityLocked &&
+                        genderAutoFillQuestion.id === question.id &&
+                        /^\d+$/.test(String(currentQuestionnaireNumber || '').trim())
+                      }
                     />
                   )}
 
@@ -3062,6 +3083,11 @@ function SurveyForm() {
                       usedNumbers={usedNumbers}
                       onAvailabilityChange={setUniqueAvailability}
                       onNumberTaken={markNumberUsed}
+                      parityLocked={
+                        genderParityLocked &&
+                        genderAutoFillQuestion.id === question.id &&
+                        /^\d+$/.test(String(currentQuestionnaireNumber || '').trim())
+                      }
                     />
                   )}
 
