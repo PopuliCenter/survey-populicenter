@@ -25,6 +25,7 @@ const importers = {
   cleanup: () => import('./pages/Cleanup'),
   systemStatus: () => import('./pages/SystemStatus'),
   storage: () => import('./pages/Storage'),
+  randomSampling: () => import('./pages/RandomSampling'),
 };
 
 const Dashboard = lazy(importers.dashboard);
@@ -40,6 +41,7 @@ const AuditLog = lazy(importers.audit);
 const Cleanup = lazy(importers.cleanup);
 const SystemStatus = lazy(importers.systemStatus);
 const Storage = lazy(importers.storage);
+const RandomSampling = lazy(importers.randomSampling);
 const SurveyList = lazy(() => import('./surveyor/pages/SurveyList'));
 const SurveyForm = lazy(() => import('./surveyor/pages/SurveyForm'));
 const SubmitSuccess = lazy(() => import('./surveyor/pages/SubmitSuccess'));
@@ -235,6 +237,16 @@ function App() {
           element={
             <ProtectedRoute role={['admin', 'supervisor', 'viewer']}>
               <Reports />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Random Sampling wilayah (MFD/BPS) */}
+        <Route
+          path="/random-sampling"
+          element={
+            <ProtectedRoute role={['admin', 'supervisor']}>
+              <RandomSampling />
             </ProtectedRoute>
           }
         />

@@ -44,3 +44,8 @@ backups/
 frontend/public/Final Report*
 frontend/public/*.thmx
 frontend/public/~$*
+
+# Sampling service (Python)
+sampling-service/.venv/
+sampling-service/__pycache__/
+sampling-service/**/__pycache__/

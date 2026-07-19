@@ -1,0 +1,9 @@
+# Layanan Random Sampling — engine metodologi + HTTP JSON.
+# Batas atas (<major berikutnya) agar update besar yang merusak tidak terpasang.
+fastapi>=0.110,<1
+uvicorn[standard]>=0.29,<1
+python-multipart>=0.0.9,<1
+pandas>=2.2,<4
+numpy>=1.26,<3
+openpyxl>=3.1,<4
+xlsxwriter>=3.1,<4

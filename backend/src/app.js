@@ -245,6 +245,7 @@ app.use('/monitoring', require('./routes/monitoring'));
 app.use('/storage', require('./routes/storage'));
 app.use('/map', require('./routes/map'));
 app.use('/upload', require('./routes/upload'));
+app.use('/sampling', require('./routes/sampling'));
 app.use('/audit-logs', require('./routes/audit-logs'));
 app.use('/cleanup', require('./routes/cleanup'));
 app.use('/public', require('./routes/public'));

@@ -85,6 +85,26 @@ services:
     #  probe yang andal. restart:unless-stopped + koneksi app yang eksplisit
     #  sudah cukup; backend TIDAK depends_on minio, jadi tak ada restart-loop.)
 
+  # ── Random Sampling Service (Python/FastAPI) ───────────────
+  # Engine metodologi (MFD/BPS) untuk menu "Random Sampling" di dashboard.
+  # TANPA auth & TANPA port ke host — hanya diakses backend Node (JWT+role)
+  # via network internal Docker (`sampling:8000`). Pemakaian sporadis → ringan.
+  sampling:
+    image: ghcr.io/populicenter/survey-sampling:${IMAGE_TAG:-latest}
+    build: ./sampling-service
+    restart: unless-stopped
+    logging: *default-logging
+    expose:
+      - "8000"
+    mem_limit: 1024m
+    cpus: 2
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
   # ── Backend API ────────────────────────────────────────────
   backend:
     # Produksi: `docker compose pull` mengambil image dari GHCR (dibangun CI).
@@ -136,6 +156,8 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER wajib di-set di file .env}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD wajib di-set di file .env}
       MINIO_BUCKET: ${MINIO_BUCKET:-survey-media}
+      # Layanan Random Sampling (Python) — hanya via network internal Docker.
+      SAMPLING_SERVICE_URL: ${SAMPLING_SERVICE_URL:-http://sampling:8000}
     volumes:
       - uploads:/app/uploads
     # TIDAK memetakan port ke host — backend hanya diakses via nginx (internal
