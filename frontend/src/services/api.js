@@ -2,6 +2,7 @@ import axios from 'axios';
 import { PRODUCTION_SERVER } from '../config/server';
 import { getDeviceUid, getDeviceLabel } from '../utils/deviceId';
 import { clearAuth } from '../utils/authStorage';
+import { localStore } from '../utils/safeStorage';
 
 function getBaseURL() {
   if (import.meta.env.VITE_API_URL) {
@@ -25,7 +26,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     config.baseURL = getBaseURL();
-    const token = localStorage.getItem('token');
+    const token = localStore.getItem('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
     // Identitas perangkat — untuk kunci perangkat (1 user = 1 device) di server.
     const deviceUid = getDeviceUid();

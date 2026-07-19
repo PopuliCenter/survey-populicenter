@@ -4,6 +4,7 @@ import { ToastProvider } from './components/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import { clearAuth } from './utils/authStorage';
+import { localStore } from './utils/safeStorage';
 
 // ─── Lazy-loaded pages (code-splitting per rute) ──────────────────────────────
 // Tiap halaman jadi chunk terpisah → bundle awal kecil. Importer dipakai ulang
@@ -83,7 +84,7 @@ function isTokenExpired(token) {
 }
 
 function ProtectedRoute({ children, role }) {
-  const token = localStorage.getItem('token');
+  const token = localStore.getItem('token');
 
   if (!token || isTokenExpired(token)) {
     if (token) {
@@ -95,7 +96,7 @@ function ProtectedRoute({ children, role }) {
   // Optional role check (dengan pewarisan: PL≈viewer, Asisten≈supervisor)
   if (role) {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = JSON.parse(localStore.getItem('user') || '{}');
       const ROLE_INHERITS = { partner_lokal: 'viewer', asisten_supervisor: 'supervisor' };
       const allowedRoles = Array.isArray(role) ? role : [role];
       const base = ROLE_INHERITS[user.role];
@@ -125,7 +126,7 @@ function App() {
   // Setelah render awal, prefetch chunk rute saat idle (hanya bila sudah login)
   // agar perpindahan halaman terasa instan.
   useEffect(() => {
-    if (!localStorage.getItem('token')) return undefined;
+    if (!localStore.getItem('token')) return undefined;
     const ric = typeof window !== 'undefined' && window.requestIdleCallback;
     const id = ric ? ric(prefetchRoutes, { timeout: 4000 }) : setTimeout(prefetchRoutes, 2500);
     return () => {

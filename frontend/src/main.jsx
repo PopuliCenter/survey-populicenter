@@ -47,14 +47,22 @@ if ('serviceWorker' in navigator) {
 
 // Pulihkan sesi dari penyimpanan natif DULU (bila localStorage terhapus oleh
 // pembersih HP / tutup paksa), baru render — agar route guard melihat token.
-// Gagal/timeout → render tetap jalan (pengguna login ulang seperti biasa).
-restoreAuthIfMissing()
+// RENDER WAJIB SELALU TERJADI: kegagalan apa pun (termasuk lempar sinkron —
+// insiden layar putih 2026-07-18) tidak boleh menghalangi render.
+function renderApp() {
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+      <App />
+      <GlobalNotifications />
+    </React.StrictMode>
+  );
+}
+let bootRestore;
+try {
+  bootRestore = restoreAuthIfMissing();
+} catch {
+  bootRestore = null; // lempar sinkron → langsung render
+}
+Promise.resolve(bootRestore)
   .catch(() => {})
-  .finally(() => {
-    ReactDOM.createRoot(document.getElementById('root')).render(
-      <React.StrictMode>
-        <App />
-        <GlobalNotifications />
-      </React.StrictMode>
-    );
-  });
+  .finally(renderApp);

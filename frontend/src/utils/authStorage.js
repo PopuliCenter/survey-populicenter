@@ -10,14 +10,25 @@
  * Web/PWA: Preferences memakai localStorage juga (tanpa manfaat ekstra) —
  * seluruh API di sini aman dipanggil di web (no-op efektif).
  *
+ * PENTING (insiden 2026-07-18): semua akses storage lewat safeStorage —
+ * `window.localStorage` bisa NULL di sebagian WebView/iframe embed; akses
+ * langsung di jalur boot membuat layar putih. Fungsi-fungsi di sini TIDAK
+ * BOLEH melempar dalam kondisi apa pun.
+ *
  * Catatan: "Hapus data" eksplisit dari Setelan Android menghapus SEMUANYA
  * (termasuk SharedPreferences) — itu memang reset total, tak bisa dihindari.
  */
 
+import { localStore } from './safeStorage';
+
 const KEYS = ['token', 'user'];
 
 function isNative() {
-  return typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+  try {
+    return typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.();
+  } catch {
+    return false;
+  }
 }
 
 async function prefs() {
@@ -27,8 +38,8 @@ async function prefs() {
 
 /** Simpan sesi (dipanggil saat login sukses). localStorage + natif. */
 export async function persistAuth(token, user) {
-  localStorage.setItem('token', token);
-  localStorage.setItem('user', JSON.stringify(user));
+  localStore.setItem('token', token);
+  localStore.setItem('user', JSON.stringify(user));
   if (!isNative()) return;
   try {
     const P = await prefs();
@@ -39,8 +50,8 @@ export async function persistAuth(token, user) {
 
 /** Hapus sesi di SEMUA lapisan (logout / 401 / token kedaluwarsa). */
 export function clearAuth() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
+  localStore.removeItem('token');
+  localStore.removeItem('user');
   if (!isNative()) return;
   // Fire-and-forget: pemanggil sinkron (interceptor/route guard) tak perlu menunggu.
   prefs()
@@ -51,17 +62,17 @@ export function clearAuth() {
 /**
  * Pulihkan sesi dari penyimpanan natif bila localStorage kosong (mis. WebView
  * dibersihkan). Panggil SEKALI di boot, SEBELUM render — agar route guard
- * langsung melihat token yang dipulihkan.
+ * langsung melihat token yang dipulihkan. TIDAK PERNAH melempar/menggantung.
  */
 export async function restoreAuthIfMissing() {
-  if (!isNative()) return;
-  if (localStorage.getItem('token')) return; // sesi masih ada — tak perlu apa-apa
   try {
+    if (!isNative()) return;
+    if (localStore.getItem('token')) return; // sesi masih ada — tak perlu apa-apa
     const P = await prefs();
     const { value: token } = await P.get({ key: 'token' });
     if (!token) return;
-    localStorage.setItem('token', token);
+    localStore.setItem('token', token);
     const { value: user } = await P.get({ key: 'user' });
-    if (user) localStorage.setItem('user', user);
+    if (user) localStore.setItem('user', user);
   } catch { /* non-kritis — pengguna login ulang seperti biasa */ }
 }

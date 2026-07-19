@@ -12,6 +12,7 @@ import { diffSurveyAvailability, toSurveyStubs } from '../../utils/surveyNotify'
 import { toastInfo, toastWarning } from '../../utils/toastBus';
 import { clearSentryUser } from '../../config/sentry';
 import { clearAuth } from '../../utils/authStorage';
+import { sessionStore } from '../../utils/safeStorage';
 import { loadAllDraftsBySurvey, clearDraft } from '../utils/surveyDraft';
 
 const LAST_SEEN_SURVEYS_KEY = 'tpd:lastSeenSurveys';
@@ -110,7 +111,7 @@ function SurveyList() {
 
   // ─── Session counter (persisted in sessionStorage) ──────────────────────────
   const [sessionCount, setSessionCount] = useState(() => {
-    const stored = sessionStorage.getItem('session_response_count');
+    const stored = sessionStore.getItem('session_response_count');
     return stored ? parseInt(stored, 10) : 0;
   });
 
@@ -451,7 +452,7 @@ function SurveyList() {
     if (location.state?.refreshQuota) {
       fetchData();
       // Update session count from sessionStorage (may have been incremented by SubmitSuccess)
-      const stored = sessionStorage.getItem('session_response_count');
+      const stored = sessionStore.getItem('session_response_count');
       if (stored) {
         setSessionCount(parseInt(stored, 10));
       }
@@ -486,7 +487,7 @@ function SurveyList() {
       // Proceed with logout even if the API call fails
     } finally {
       clearAuth(); // hapus di localStorage + penyimpanan natif
-      sessionStorage.removeItem('session_response_count');
+      sessionStore.removeItem('session_response_count');
       clearSentryUser();
       navigate('/login', { replace: true });
     }

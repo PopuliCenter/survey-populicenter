@@ -14,6 +14,7 @@
 
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { sessionStore } from '../../utils/safeStorage';
 
 function SubmitSuccess() {
   const navigate = useNavigate();
@@ -28,8 +29,8 @@ function SubmitSuccess() {
 
   // Requirement 9.4 / 9.2: increment session response counter on mount
   useEffect(() => {
-    const current = parseInt(sessionStorage.getItem('session_response_count') || '0', 10);
-    sessionStorage.setItem('session_response_count', String(current + 1));
+    const current = parseInt(sessionStore.getItem('session_response_count') || '0', 10);
+    sessionStore.setItem('session_response_count', String(current + 1));
   }, []);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
