@@ -170,6 +170,25 @@ describe('fieldToolsValidator', () => {
       expect(bad.error).toContain('gender_parity_lock');
     });
 
+    it('menerima rt_selection "enabled" / "off"; menolak nilai lain', () => {
+      expect(validateFieldToolsSettings({ ...baseModes, rt_selection: 'enabled' })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({ ...baseModes, rt_selection: 'off' })).toEqual({ valid: true });
+      const bad = validateFieldToolsSettings({ ...baseModes, rt_selection: 'aktif' });
+      expect(bad.valid).toBe(false);
+      expect(bad.error).toContain('rt_selection');
+    });
+
+    it('menerima rt_selection_count 1–10; menolak di luar rentang / non-integer', () => {
+      expect(validateFieldToolsSettings({ ...baseModes, rt_selection_count: 1 })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({ ...baseModes, rt_selection_count: 2 })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({ ...baseModes, rt_selection_count: 10 })).toEqual({ valid: true });
+      expect(validateFieldToolsSettings({ ...baseModes, rt_selection_count: 0 }).valid).toBe(false);
+      expect(validateFieldToolsSettings({ ...baseModes, rt_selection_count: 11 }).valid).toBe(false);
+      const frac = validateFieldToolsSettings({ ...baseModes, rt_selection_count: 2.5 });
+      expect(frac.valid).toBe(false);
+      expect(frac.error).toContain('rt_selection_count');
+    });
+
     it('menolak min_duration_sec di luar rentang / non-integer', () => {
       expect(validateFieldToolsSettings({ ...baseModes, min_duration_sec: -5 }).valid).toBe(false);
       expect(validateFieldToolsSettings({ ...baseModes, min_duration_sec: 4000 }).valid).toBe(false);

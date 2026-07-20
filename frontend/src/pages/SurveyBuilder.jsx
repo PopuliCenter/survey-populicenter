@@ -846,6 +846,58 @@ function FieldToolsSettingsSection({ settings, onChange }) {
           </span>
         </div>
 
+        {/* Pemilihan RT acak — menggantikan Lembar Angka Acak (Form A) + Form B kertas.
+            Server yang mengundi & hasilnya terkunci (tak bisa diacak ulang oleh TPD). */}
+        <div className="flex items-start gap-6 flex-wrap pt-3 border-t border-gray-100">
+          <span className="text-sm text-gray-700 w-36 shrink-0">Pemilihan RT</span>
+          <div className="flex flex-col gap-2 flex-1 min-w-[240px]">
+            <div className="flex items-center gap-4 flex-wrap">
+              {[{ value: 'enabled', label: 'Aktif' }, { value: 'off', label: 'Nonaktif' }].map(({ value, label: optLabel }) => (
+                <label
+                  key={value}
+                  htmlFor={`rt_selection_${value}`}
+                  className="inline-flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    id={`rt_selection_${value}`}
+                    name="rt_selection"
+                    value={value}
+                    checked={(settings.rt_selection || 'off') === value}
+                    onChange={() => onChange('rt_selection', value)}
+                    className="accent-primary-600 focus:ring-2 focus:ring-primary-400"
+                  />
+                  {optLabel}
+                </label>
+              ))}
+            </div>
+            {(settings.rt_selection || 'off') === 'enabled' && (
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <span className="shrink-0">Jumlah RT diundi per kelurahan</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={settings.rt_selection_count ?? 2}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    onChange('rt_selection_count', Math.min(10, Math.max(1, Number.isFinite(n) ? n : 2)));
+                  }}
+                  className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+                />
+                <span className="text-gray-500">RT</span>
+              </label>
+            )}
+          </div>
+          <span className="text-xs text-gray-400 basis-full">
+            Menggantikan <b>Lembar Angka Acak (Form A)</b> yang discan manual. TPD mengisi jumlah RT
+            dari aparat desa + foto Form B ber-stempel, lalu <b>server</b> yang mengundi — TPD tidak
+            bisa memengaruhi hasil. Undian <b>terkunci satu kali per kelurahan</b> (tidak bisa diacak
+            ulang), dan tersimpan lengkap dengan seed sehingga supervisor bisa menghitung ulang untuk
+            membuktikan hasilnya bukan karangan. Langkah ini <b>butuh koneksi internet</b>.
+          </span>
+        </div>
+
         {/* Kualitas Data — tandai durasi pengisian mencurigakan (terlalu singkat).
             Nilai disimpan dalam DETIK; 0 = penanda nonaktif. */}
         <div className="flex items-start gap-6 flex-wrap pt-3 border-t border-gray-100">

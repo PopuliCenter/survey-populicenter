@@ -973,6 +973,19 @@ function SurveyList() {
                     >
                       {targetMet ? 'Kuota Tercapai' : (filledNumCount > 0 ? 'Lanjutkan Mengisi' : 'Mulai Isi')}
                     </button>
+
+                    {/* Pemilihan RT — hanya bila diaktifkan di field tools survei.
+                        Dikerjakan sekali per kelurahan SEBELUM mulai wawancara. */}
+                    {survey.field_tools_settings?.rt_selection === 'enabled' && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/surveyor/survey/${survey.id}/pemilihan-rt`)}
+                        className="mt-2 w-full min-h-[48px] text-sm font-semibold px-5 rounded-xl border-2 border-accent-300 text-accent-700 bg-white hover:bg-accent-50 transition-colors"
+                        aria-label={`Buka pemilihan RT acak untuk survei ${survey.title}`}
+                      >
+                        🎲 Pemilihan RT (acak)
+                      </button>
+                    )}
                   </div>
                 </div>
               );

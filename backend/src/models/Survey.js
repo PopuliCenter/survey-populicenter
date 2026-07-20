@@ -62,12 +62,14 @@ module.exports = (sequelize) => {
             audio_indicator: ['shown', 'hidden'],
             device_lock: ['enforced', 'off'],
             gender_parity_lock: ['locked', 'off'],
+            rt_selection: ['enabled', 'off'],
           };
           // Aturan waktu rekaman audio (detik) — disetel admin/SPV per survei.
           const optionalNumerics = {
             audio_start_delay_sec: { min: 0, max: 1800 },
             audio_total_max_sec: { min: 30, max: 900 },
             min_duration_sec: { min: 0, max: 3600 },
+            rt_selection_count: { min: 1, max: 10 },
           };
           const allowedProperties = [
             ...requiredProperties,

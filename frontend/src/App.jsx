@@ -44,6 +44,7 @@ const Storage = lazy(importers.storage);
 const RandomSampling = lazy(importers.randomSampling);
 const SurveyList = lazy(() => import('./surveyor/pages/SurveyList'));
 const SurveyForm = lazy(() => import('./surveyor/pages/SurveyForm'));
+const RtSelection = lazy(() => import('./surveyor/pages/RtSelection'));
 const SubmitSuccess = lazy(() => import('./surveyor/pages/SubmitSuccess'));
 const PublicResults = lazy(() => import('./public/PublicResults'));
 const PublicMonitor = lazy(() => import('./public/PublicMonitor'));
@@ -315,6 +316,16 @@ function App() {
           element={
             <ProtectedRoute role="surveyor">
               <SurveyForm />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* TPD pemilihan RT (pengganti Form A + Form B kertas) */}
+        <Route
+          path="/surveyor/survey/:surveyId/pemilihan-rt"
+          element={
+            <ProtectedRoute role="surveyor">
+              <RtSelection />
             </ProtectedRoute>
           }
         />

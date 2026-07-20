@@ -15,6 +15,11 @@ const OPTIONAL_ENUMS = {
   // saat submit) → mustahil terjadi mismatch nomor vs gender.
   // 'off' (default/absen) = perilaku lama: isi-otomatis tapi boleh diubah.
   gender_parity_lock: ['locked', 'off'],
+  // Pemilihan RT acak di perangkat TPD (pengganti FORM A + FORM B kertas).
+  // 'enabled' = menu "Pemilihan RT" muncul di app TPD; server yang mengundi dan
+  // hasilnya TERKUNCI (tak bisa diacak ulang). 'off'/absen = alur kertas seperti
+  // biasa. Lihat utils/rtDraw.js dan routes/rtSelection.js.
+  rt_selection: ['enabled', 'off'],
 };
 
 // Properti OPSIONAL numerik (detik) — ATURAN WAKTU REKAMAN AUDIO yang bisa
@@ -29,6 +34,9 @@ const OPTIONAL_NUMERICS = {
   // bawah ini ditandai di dashboard (indikasi TPD terburu-buru/mengarang).
   // 0 = penanda nonaktif. Absen → default 30 detik (lihat isShortDuration).
   min_duration_sec: { min: 0, max: 3600 },      // 0 (off) – 60 menit
+  // Berapa RT yang diundi per kelurahan/desa. Standar Populi = 2 (lihat contoh
+  // Form B: RT 1/RW 1 dan RT 3/RW 1). Absen → default 2.
+  rt_selection_count: { min: 1, max: 10 },
 };
 const ALLOWED_PROPERTIES = [
   ...REQUIRED_PROPERTIES,

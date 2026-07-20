@@ -24,6 +24,7 @@ const AuditLog = require('./AuditLog')(sequelize);
 const ExportJob = require('./ExportJob')(sequelize);
 const PublishedResult = require('./PublishedResult')(sequelize);
 const MonitoringReport = require('./MonitoringReport')(sequelize);
+const RtSelection = require('./RtSelection')(sequelize);
 
 // ─── Associations ─────────────────────────────────────────────────────────────
 
@@ -41,6 +42,13 @@ SurveyorQuota.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
 
 User.hasMany(SurveyorQuota, { foreignKey: 'surveyor_id', as: 'quotas', onDelete: 'CASCADE' });
 SurveyorQuota.belongsTo(User, { foreignKey: 'surveyor_id', as: 'surveyor' });
+
+// Survey + User → RtSelection (undian RT per kelurahan)
+Survey.hasMany(RtSelection, { foreignKey: 'survey_id', as: 'rtSelections', onDelete: 'CASCADE' });
+RtSelection.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
+
+User.hasMany(RtSelection, { foreignKey: 'surveyor_id', as: 'rtSelections', onDelete: 'CASCADE' });
+RtSelection.belongsTo(User, { foreignKey: 'surveyor_id', as: 'surveyor' });
 
 // Survey + User → Response
 Survey.hasMany(Response, { foreignKey: 'survey_id', as: 'responses' });
@@ -96,4 +104,5 @@ module.exports = {
   ExportJob,
   PublishedResult,
   MonitoringReport,
+  RtSelection,
 };
