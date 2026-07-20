@@ -19,6 +19,13 @@ const PRESETS = {
   Kustom: { scope: 'NASIONAL', unit: 'DESA', n_total: 1200, cluster: 10 },
 };
 
+// WAJIB untuk semua unggahan di halaman ini: instance axios memasang
+// Content-Type application/json secara default, dan axios v1 MENGUBAH FormData
+// jadi JSON selama tipe itu masih terpasang — berkas MFD tak pernah terkirim
+// sebagai multipart dan server membalas 422 "File MFD wajib diunggah".
+// Timeout dilonggarkan: MFD nasional ~84rb baris + pembuatan Excel > 30 dtk.
+const UPLOAD_OPTS = { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300000 };
+
 function b64ToBlob(b64, type) {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
@@ -121,7 +128,7 @@ function RandomSampling() {
       const fd = new FormData();
       fd.append('mfd', file);
       if (refFile) fd.append('reference', refFile);
-      const res = await api.post('/sampling/inspect', fd);
+      const res = await api.post('/sampling/inspect', fd, UPLOAD_OPTS);
       setInspect(res.data);
       // Default bobot: bila ada Penduduk → 100% Penduduk, else 100% MFD.
       if (res.data?.hasPenduduk) { setWPop(1); setWDpt(0); setWMfd(0); } else { setWPop(0); setWDpt(0); setWMfd(1); }
@@ -168,13 +175,14 @@ function RandomSampling() {
     return fd;
   }
 
+
   async function handlePreview() {
     const invalid = validate();
     setError(invalid);
     if (invalid) return;
     setPreviewing(true);
     try {
-      const res = await api.post('/sampling/preview', buildForm());
+      const res = await api.post('/sampling/preview', buildForm(), UPLOAD_OPTS);
       setPreview({ ...res.data, sig: configSig });
     } catch (err) {
       setPreview(null);
@@ -191,7 +199,7 @@ function RandomSampling() {
     if (invalid) return;
     setRunning(true);
     try {
-      const res = await api.post('/sampling/run', buildForm());
+      const res = await api.post('/sampling/run', buildForm(), UPLOAD_OPTS);
       setResult(res.data);
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Gagal menjalankan sampling.');

@@ -26,6 +26,19 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     config.baseURL = getBaseURL();
+    // Pengaman: Content-Type default instance ini adalah application/json.
+    // Bila payload berupa FormData dan tipe itu dibiarkan, axios v1 mengubah
+    // FormData menjadi JSON — berkas tak pernah terkirim sebagai multipart dan
+    // server membalas "file wajib diunggah". Hapus agar browser yang mengisi
+    // multipart/form-data lengkap dengan boundary-nya.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData && config.headers) {
+      if (typeof config.headers.delete === 'function') {
+        config.headers.delete('Content-Type'); // AxiosHeaders (tak peduli huruf besar/kecil)
+      } else {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    }
     const token = localStore.getItem('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
     // Identitas perangkat — untuk kunci perangkat (1 user = 1 device) di server.
