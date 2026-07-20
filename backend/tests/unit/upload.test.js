@@ -57,6 +57,10 @@ jest.mock('multer', () => {
         next();
       }
     }),
+    // routes/sampling.js memanggil upload.fields() saat modul dimuat (app.js
+    // me-require-nya). Tanpa ini, seluruh suite gagal dimuat. Rute sampling
+    // tidak diuji di sini, jadi cukup middleware lewat-saja.
+    fields: jest.fn().mockReturnValue((req, res, next) => next()),
   }));
   multerMock.diskStorage = jest.fn().mockReturnValue({});
   multerMock.memoryStorage = jest.fn().mockReturnValue({});

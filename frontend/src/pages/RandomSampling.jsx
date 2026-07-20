@@ -88,6 +88,8 @@ function RandomSampling() {
   const [seed, setSeed] = useState(2024);
 
   const [running, setRunning] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [preview, setPreview] = useState(null); // { preview, total, wilayah, warnings, sig }
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
 
@@ -111,6 +113,7 @@ function RandomSampling() {
     setMfdFile(file);
     setInspect(null);
     setResult(null);
+    setPreview(null);
     setError('');
     if (!file) return;
     setInspecting(true);
@@ -129,33 +132,66 @@ function RandomSampling() {
     }
   }
 
-  async function handleRun() {
-    setError('');
-    setResult(null);
-    if (!mfdFile) { setError('Unggah file MFD dulu.'); return; }
-    if (wsum <= 0) { setError('Minimal satu bobot basis alokasi harus > 0.'); return; }
-    if (scope === 'PROVINSI' && scopeFilter.length === 0) { setError('Pilih minimal satu provinsi.'); return; }
-    if (scope === 'KABUPATEN' && scopeFilter.length === 0) { setError('Pilih minimal satu kabupaten/kota.'); return; }
+  // Konfigurasi dikirim ke server — dipakai pratinjau maupun sampling agar
+  // keduanya dijamin memakai parameter yang sama persis.
+  const config = useMemo(() => ({
+    scope,
+    scope_filter: scope === 'NASIONAL' ? [] : scopeFilter,
+    unit,
+    n_total: Number(nTotal),
+    cluster_size: unit === 'DESA' ? Number(clusterSize) : 1,
+    weights: { PENDUDUK: Number(wPop) || 0, DPT: Number(wDpt) || 0, MFD: Number(wMfd) || 0 },
+    stratify_ur: unit === 'DESA' ? !!stratify : false,
+    min_per_unit: Number(minPer),
+    pps: unit === 'KABUPATEN' ? !!pps : false,
+    seed: Number(seed),
+  }), [scope, scopeFilter, unit, nTotal, clusterSize, wPop, wDpt, wMfd, stratify, minPer, pps, seed]);
 
-    const config = {
-      scope,
-      scope_filter: scope === 'NASIONAL' ? [] : scopeFilter,
-      unit,
-      n_total: Number(nTotal),
-      cluster_size: unit === 'DESA' ? Number(clusterSize) : 1,
-      weights: { PENDUDUK: Number(wPop) || 0, DPT: Number(wDpt) || 0, MFD: Number(wMfd) || 0 },
-      stratify_ur: unit === 'DESA' ? !!stratify : false,
-      min_per_unit: Number(minPer),
-      pps: unit === 'KABUPATEN' ? !!pps : false,
-      seed: Number(seed),
-    };
+  // Tanda tangan parameter — seed tak memengaruhi alokasi, jadi tak ikut dihitung
+  // (ganti seed tidak membuat pratinjau usang).
+  const configSig = useMemo(() => JSON.stringify({ ...config, seed: 0 }), [config]);
+  const previewStale = !!preview && preview.sig !== configSig;
+
+  function validate() {
+    if (!mfdFile) return 'Unggah file MFD dulu.';
+    if (wsum <= 0) return 'Minimal satu bobot basis alokasi harus > 0.';
+    if (scope === 'PROVINSI' && scopeFilter.length === 0) return 'Pilih minimal satu provinsi.';
+    if (scope === 'KABUPATEN' && scopeFilter.length === 0) return 'Pilih minimal satu kabupaten/kota.';
+    return '';
+  }
+
+  function buildForm() {
+    const fd = new FormData();
+    fd.append('mfd', mfdFile);
+    fd.append('config', JSON.stringify(config));
+    if (refFile) fd.append('reference', refFile);
+    return fd;
+  }
+
+  async function handlePreview() {
+    const invalid = validate();
+    setError(invalid);
+    if (invalid) return;
+    setPreviewing(true);
+    try {
+      const res = await api.post('/sampling/preview', buildForm());
+      setPreview({ ...res.data, sig: configSig });
+    } catch (err) {
+      setPreview(null);
+      setError(err.response?.data?.error || err.message || 'Gagal menghitung pratinjau alokasi.');
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  async function handleRun() {
+    setResult(null);
+    const invalid = validate();
+    setError(invalid);
+    if (invalid) return;
     setRunning(true);
     try {
-      const fd = new FormData();
-      fd.append('mfd', mfdFile);
-      fd.append('config', JSON.stringify(config));
-      if (refFile) fd.append('reference', refFile);
-      const res = await api.post('/sampling/run', fd);
+      const res = await api.post('/sampling/run', buildForm());
       setResult(res.data);
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Gagal menjalankan sampling.');
@@ -352,11 +388,61 @@ function RandomSampling() {
             </div>
           </details>
 
-          <button type="button" onClick={handleRun} disabled={running || !inspect}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors">
-            {running ? 'Menjalankan sampling…' : '🎯 Lakukan Sampling'}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button type="button" onClick={handlePreview} disabled={previewing || running || !inspect}
+              className="px-5 py-2.5 rounded-xl border border-primary-300 text-primary-700 hover:bg-primary-50 disabled:opacity-60 text-sm font-semibold transition-colors">
+              {previewing ? 'Menghitung alokasi…' : '👁️ Pratinjau Alokasi'}
+            </button>
+            <button type="button" onClick={handleRun} disabled={running || previewing || !inspect}
+              className="px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors">
+              {running ? 'Menjalankan sampling…' : '🎯 Lakukan Sampling'}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Pratinjau menghitung pembagian titik per wilayah tanpa menarik sampel — cepat, dan angkanya
+            sama persis dengan hasil akhir. Pakai untuk mengecek sebaran sebelum menjalankan sampling.
+          </p>
         </section>
+
+        {/* 2b. Pratinjau alokasi (sebelum menjalankan) */}
+        {preview && (
+          <section className="bg-white rounded-xl shadow p-6 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center">👁️</span>
+                <h2 className="text-base font-semibold text-gray-700">Pratinjau alokasi — {preview.wilayah} {LVL_NAME[scope]}</h2>
+              </div>
+              <button type="button" onClick={() => setPreview(null)} className="text-sm text-gray-500 hover:text-gray-700">Tutup</button>
+            </div>
+
+            {previewStale && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Parameter sudah diubah sejak pratinjau ini dihitung — klik <strong>Pratinjau Alokasi</strong> lagi untuk angka terbaru.
+              </div>
+            )}
+
+            {preview.warnings?.length > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <ul className="list-disc pl-5 space-y-0.5">{preview.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+              </div>
+            )}
+
+            {preview.total && (
+              <div className="flex flex-wrap gap-3">
+                {Object.entries(preview.total)
+                  .filter(([k, v]) => k !== 'No' && v !== '' && v != null && typeof v === 'number')
+                  .map(([k, v]) => (
+                    <div key={k} className="px-4 py-2 rounded-xl bg-gray-50 border border-gray-100">
+                      <p className="text-xs text-gray-500">{k.replace(/_/g, ' ')}</p>
+                      <p className="text-lg font-semibold text-gray-800">{Number(v).toLocaleString('id-ID')}</p>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            <DataTable rows={preview.preview} max={100} />
+          </section>
+        )}
 
         {/* 3. Hasil */}
         {result && (

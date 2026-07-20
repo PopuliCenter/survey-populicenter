@@ -98,6 +98,15 @@ def _load(mfd_bytes: bytes, ref_bytes: bytes | None, ref_name: str | None):
     return df, info, has_pop, has_dpt
 
 
+def _parse_config(raw: str) -> dict:
+    import json
+
+    try:
+        return json.loads(raw)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=422, detail=f"Config JSON tidak valid: {exc}") from exc
+
+
 def _config_from(payload: dict) -> "E.SamplingConfig":
     w = payload.get("weights") or {}
     return E.SamplingConfig(
@@ -146,6 +155,57 @@ async def inspect(mfd: UploadFile = File(...), reference: UploadFile | None = Fi
     }
 
 
+@app.post("/preview")
+async def preview(
+    mfd: UploadFile = File(...),
+    config: str = Form(...),
+    reference: UploadFile | None = File(None),
+):
+    """Pratinjau alokasi titik per wilayah TANPA seleksi acak (cepat, tanpa Excel).
+
+    Alokasi bersifat deterministik — angka di sini PERSIS sama dengan hasil saat
+    sampling dijalankan; yang berbeda hanya desa mana yang terpilih (butuh seed).
+    """
+    payload = _parse_config(config)
+    mfd_bytes = await _read_upload(mfd)
+    ref_bytes = await _read_upload(reference)
+    df, _info, _hp, _hd = _load(mfd_bytes, ref_bytes, reference.filename if reference else None)
+    cfg = _config_from(payload)
+
+    try:
+        prev = E.preview_allocation(df, cfg)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Gagal menghitung alokasi: {exc}") from exc
+
+    if not len(prev):
+        raise HTTPException(status_code=422, detail="Data kosong setelah filter wilayah. Periksa pilihan cakupan.")
+
+    rows = _df_records(prev)
+    # Baris terakhir adalah TOTAL (dari engine) — pisahkan agar UI mudah menyajikan.
+    body, total = rows[:-1], (rows[-1] if rows else {})
+
+    # Peringatan diturunkan dari tabel pratinjau itu sendiri (bukan menyalin ulang
+    # logika engine), sehingga tak bisa menyimpang dari perhitungan sebenarnya.
+    warns: list[str] = []
+    alloc_col = "Total_Titik" if "Total_Titik" in prev.columns else (
+        "Kab_Dialokasikan" if "Kab_Dialokasikan" in prev.columns else None)
+    if alloc_col:
+        kosong = [r for r in body if not r.get(alloc_col)]
+        if kosong:
+            warns.append(
+                f"{len(kosong)} wilayah tidak kebagian alokasi — perbesar target responden, "
+                f"perkecil responden per titik, atau naikkan minimum per wilayah."
+            )
+    return {
+        "preview": body,
+        "total": total,
+        "wilayah": len(body),
+        "warnings": warns,
+    }
+
+
 @app.post("/run")
 async def run(
     mfd: UploadFile = File(...),
@@ -153,12 +213,7 @@ async def run(
     reference: UploadFile | None = File(None),
 ):
     """Jalankan sampling. Kembalikan ringkasan + tabel + 2 Excel (base64)."""
-    import json
-
-    try:
-        payload = json.loads(config)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=422, detail=f"Config JSON tidak valid: {exc}") from exc
+    payload = _parse_config(config)
 
     mfd_bytes = await _read_upload(mfd)
     ref_bytes = await _read_upload(reference)

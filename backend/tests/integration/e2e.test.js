@@ -178,8 +178,9 @@ describe('E2E Flow 1: Login → Pilih Survei → Isi Responden → Simpan → Ve
     const decoded = jwt.verify(res.body.token, JWT_SECRET);
     expect(decoded.role).toBe('surveyor');
     expect(decoded.id).toBe('surveyor-uuid-001');
-    // Surveyor token expires in 12 hours
-    const expectedExp = Math.floor(Date.now() / 1000) + 43200;
+    // Token surveyor berlaku 30 hari — TPD di lapangan tak boleh ter-logout
+    // saat aplikasi ditutup paksa/dibersihkan.
+    const expectedExp = Math.floor(Date.now() / 1000) + 30 * 24 * 3600;
     expect(decoded.exp).toBeGreaterThan(expectedExp - 30);
     expect(decoded.exp).toBeLessThanOrEqual(expectedExp + 30);
   });

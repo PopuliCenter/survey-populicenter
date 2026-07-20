@@ -23,6 +23,7 @@ bila engine diperbarui di sumber, salin ulang file ini.
 |---|---|---|
 | GET | `/health` | Health check (dipakai Docker healthcheck) |
 | POST | `/inspect` | Unggah MFD → daftar provinsi/kab + status DPT/Penduduk (isi form) |
+| POST | `/preview` | Pratinjau alokasi titik per wilayah **tanpa** seleksi acak (cepat, tanpa Excel) |
 | POST | `/run` | Jalankan sampling (MFD + `config` JSON) → ringkasan/tabel + 2 Excel (base64) |
 | GET | `/template/mfd` | Unduh template MFD (Excel) |
 | GET | `/template/reference` | Unduh template referensi DPT/Penduduk (Excel) |
@@ -30,6 +31,10 @@ bila engine diperbarui di sumber, salin ulang file ini.
 `config` (form field, JSON string): `scope` (NASIONAL/PROVINSI/KABUPATEN),
 `scope_filter[]`, `unit` (DESA/KABUPATEN), `n_total`, `cluster_size`,
 `weights{PENDUDUK,DPT,MFD}`, `stratify_ur`, `min_per_unit`, `pps`, `seed`.
+
+`/preview` dan `/run` menerima `config` yang sama. Alokasi bersifat deterministik
+(tak bergantung `seed`), jadi angka `/preview` **sama persis** dengan alokasi
+hasil `/run` — yang butuh `seed` hanyalah desa mana yang akhirnya terpilih.
 
 ## Jalankan lokal (dev)
 ```bash

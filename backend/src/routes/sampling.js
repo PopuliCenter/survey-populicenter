@@ -75,16 +75,30 @@ router.post('/inspect', authMiddleware, requireRole(ROLES), withFiles, async (re
   return forwardJson(res, '/inspect', form);
 });
 
-// POST /sampling/run — jalankan sampling (MFD + config JSON string) → hasil + Excel base64.
-router.post('/run', authMiddleware, requireRole(ROLES), withFiles, async (req, res) => {
+// Bangun form MFD + config (+ referensi) — dipakai /preview dan /run.
+function configForm(req, res) {
   const mfd = fileFrom(req, 'mfd');
-  if (!mfd) return res.status(422).json({ error: 'File MFD (.xlsx) wajib diunggah.' });
-  if (!req.body || !req.body.config) return res.status(422).json({ error: 'Parameter sampling (config) wajib diisi.' });
+  if (!mfd) { res.status(422).json({ error: 'File MFD (.xlsx) wajib diunggah.' }); return null; }
+  if (!req.body || !req.body.config) { res.status(422).json({ error: 'Parameter sampling (config) wajib diisi.' }); return null; }
   const form = new FormData();
   form.append('mfd', mfd.blob, mfd.name);
   form.append('config', String(req.body.config));
   const ref = fileFrom(req, 'reference');
   if (ref) form.append('reference', ref.blob, ref.name);
+  return form;
+}
+
+// POST /sampling/preview — hitung alokasi per wilayah tanpa seleksi acak (pratinjau).
+router.post('/preview', authMiddleware, requireRole(ROLES), withFiles, async (req, res) => {
+  const form = configForm(req, res);
+  if (!form) return undefined;
+  return forwardJson(res, '/preview', form);
+});
+
+// POST /sampling/run — jalankan sampling (MFD + config JSON string) → hasil + Excel base64.
+router.post('/run', authMiddleware, requireRole(ROLES), withFiles, async (req, res) => {
+  const form = configForm(req, res);
+  if (!form) return undefined;
   return forwardJson(res, '/run', form);
 });
 
