@@ -69,7 +69,8 @@ describe('getNavItemsForRole', () => {
     expect(paths).toContain('/penyimpanan');
     expect(paths).toContain('/cleanup');
     expect(paths).toContain('/random-sampling');
-    expect(items).toHaveLength(12);
+    expect(paths).toContain('/pemilihan-rt');
+    expect(items).toHaveLength(13);
   });
 
   test('returns supervisor nav items for supervisor role', () => {
@@ -82,10 +83,11 @@ describe('getNavItemsForRole', () => {
     expect(paths).toContain('/reports');
     expect(paths).toContain('/map');
     expect(paths).toContain('/random-sampling');
+    expect(paths).toContain('/pemilihan-rt');
     // Must NOT contain admin-only items
     expect(paths).not.toContain('/users');
     expect(paths).not.toContain('/audit-log');
-    expect(items).toHaveLength(7);
+    expect(items).toHaveLength(8);
   });
 
   test('returns viewer nav items for viewer role', () => {
@@ -100,6 +102,7 @@ describe('getNavItemsForRole', () => {
     expect(paths).not.toContain('/surveyors');
     expect(paths).not.toContain('/users');
     expect(paths).not.toContain('/audit-log');
+    expect(paths).not.toContain('/pemilihan-rt');
     expect(items).toHaveLength(3);
   });
 

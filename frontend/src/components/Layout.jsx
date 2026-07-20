@@ -13,6 +13,7 @@ const NAV_ITEMS_BY_ROLE = {
     { label: 'Data Responden', path: '/responses', icon: 'clipboard' },
     { label: 'Laporan', path: '/reports', icon: 'chart' },
     { label: 'Random Sampling', path: '/random-sampling', icon: 'target' },
+    { label: 'Pemilihan RT', path: '/pemilihan-rt', icon: 'shuffle' },
     { label: 'Peta', path: '/map', icon: 'map' },
     { label: 'Log Audit', path: '/audit-log', icon: 'search' },
     { label: 'Status Sistem', path: '/system', icon: 'server' },
@@ -26,6 +27,7 @@ const NAV_ITEMS_BY_ROLE = {
     { label: 'Data Responden', path: '/responses', icon: 'clipboard' },
     { label: 'Laporan', path: '/reports', icon: 'chart' },
     { label: 'Random Sampling', path: '/random-sampling', icon: 'target' },
+    { label: 'Pemilihan RT', path: '/pemilihan-rt', icon: 'shuffle' },
     { label: 'Peta', path: '/map', icon: 'map' },
   ],
   // Bug #4: viewer hanya bisa lihat responses survei aktif, sembunyikan Surveys & Reports
@@ -84,6 +86,7 @@ const ICON_PATHS = {
   server: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-14 4h.01M17 16h.01',
   database: 'M4 7c0-1.66 3.58-3 8-3s8 1.34 8 3-3.58 3-8 3-8-1.34-8-3zM4 7v10c0 1.66 3.58 3 8 3s8-1.34 8-3V7M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3',
   target: 'M12 21a9 9 0 100-18 9 9 0 000 18zm0-4a5 5 0 100-10 5 5 0 000 10zm0-4a1 1 0 100-2 1 1 0 000 2z',
+  shuffle: 'M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5',
 };
 
 // Preferensi sidebar dipertahankan antar-navigasi. Layout di-mount ulang tiap

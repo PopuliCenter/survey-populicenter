@@ -26,6 +26,7 @@ const importers = {
   systemStatus: () => import('./pages/SystemStatus'),
   storage: () => import('./pages/Storage'),
   randomSampling: () => import('./pages/RandomSampling'),
+  rtSelectionMonitor: () => import('./pages/RtSelectionMonitor'),
 };
 
 const Dashboard = lazy(importers.dashboard);
@@ -42,6 +43,7 @@ const Cleanup = lazy(importers.cleanup);
 const SystemStatus = lazy(importers.systemStatus);
 const Storage = lazy(importers.storage);
 const RandomSampling = lazy(importers.randomSampling);
+const RtSelectionMonitor = lazy(importers.rtSelectionMonitor);
 const SurveyList = lazy(() => import('./surveyor/pages/SurveyList'));
 const SurveyForm = lazy(() => import('./surveyor/pages/SurveyForm'));
 const RtSelection = lazy(() => import('./surveyor/pages/RtSelection'));
@@ -248,6 +250,16 @@ function App() {
           element={
             <ProtectedRoute role={['admin', 'supervisor']}>
               <RandomSampling />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Pengawasan pemilihan RT (hasil undian TPD + verifikasi seed) */}
+        <Route
+          path="/pemilihan-rt"
+          element={
+            <ProtectedRoute role={['admin', 'supervisor']}>
+              <RtSelectionMonitor />
             </ProtectedRoute>
           }
         />
