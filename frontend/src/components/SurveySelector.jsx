@@ -88,7 +88,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
           {s.title}
         </p>
         {s.status && (
-          <span className={`inline-block mt-1.5 text-[10px] px-1.5 py-0.5 rounded-full ${
+          <span className={`inline-block mt-1.5 text-2xs px-1.5 py-0.5 rounded-full ${
             s.status === 'published'
               ? 'bg-green-100 text-green-700'
               : s.status === 'draft'
@@ -114,7 +114,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
             type="button"
             onClick={() => setViewMode('list')}
             className={`p-1 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-primary-400 ${
-              viewMode === 'list' ? 'text-primary-600 bg-primary-50' : 'text-gray-400 hover:text-gray-600'
+              viewMode === 'list' ? 'text-primary-600 bg-primary-50' : 'text-gray-500 hover:text-gray-600'
             }`}
             aria-label="Tampilan list"
             title="Tampilan list"
@@ -127,7 +127,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
             type="button"
             onClick={() => setViewMode('grid')}
             className={`p-1 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-primary-400 ${
-              viewMode === 'grid' ? 'text-primary-600 bg-primary-50' : 'text-gray-400 hover:text-gray-600'
+              viewMode === 'grid' ? 'text-primary-600 bg-primary-50' : 'text-gray-500 hover:text-gray-600'
             }`}
             aria-label="Tampilan grid"
             title="Tampilan grid"
@@ -211,7 +211,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
           {/* Content area */}
           <div className="max-h-72 overflow-y-auto pr-1">
             {filteredSurveys.length === 0 ? (
-              <p className="text-center text-xs text-gray-400 py-6">
+              <p className="text-center text-xs text-gray-500 py-6">
                 {gridSearch ? 'Tidak ada survei yang cocok.' : 'Belum ada survei.'}
               </p>
             ) : isSearching ? (
@@ -236,7 +236,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
                         <Icon name="folder" className="w-4 h-4" />
                       </div>
                       <p className="text-sm font-semibold text-gray-800">{year}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">
+                      <p className="text-2xs text-gray-500 mt-0.5">
                         {surveyCount} survei · {monthCount} bulan
                       </p>
                     </button>
@@ -262,7 +262,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
                           <Icon name="folderOpen" className="w-4 h-4" />
                         </div>
                         <p className="text-xs font-semibold text-gray-800">{MONTH_NAMES[month]}</p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">{surveyCount} survei</p>
+                        <p className="text-2xs text-gray-500 mt-0.5">{surveyCount} survei</p>
                       </button>
                     );
                   })}

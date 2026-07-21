@@ -36,7 +36,7 @@ function typeLabel(t) {
 
 function Chevron({ open }) {
   return (
-    <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   );
@@ -89,7 +89,7 @@ function FolderTree({ surveys, selected, onSelect }) {
         onClick={() => onSelect('', '', '')}
         className={`w-full text-left px-2 py-1.5 rounded-lg mb-1 ${!selected.year ? 'bg-primary-50 text-primary-700 font-medium' : 'hover:bg-gray-50 text-gray-700'}`}
       >
-        Semua Survei <span className="text-xs text-gray-400">({surveys.length})</span>
+        Semua Survei <span className="text-xs text-gray-500">({surveys.length})</span>
       </button>
       {years.map((y) => {
         const yKey = `y${y}`;
@@ -101,7 +101,7 @@ function FolderTree({ surveys, selected, onSelect }) {
             <div className="flex items-center">
               <button type="button" onClick={() => toggle(yKey)} className="p-1" aria-label={`Buka/tutup ${y}`}><Chevron open={yExp} /></button>
               <button type="button" onClick={() => onSelect(String(y), '', '')} className={itemCls(selected.year === String(y) && !selected.month)}>
-                <FolderIcon open={yExp} /> {y} <span className="text-xs text-gray-400">({yObj.count})</span>
+                <FolderIcon open={yExp} /> {y} <span className="text-xs text-gray-500">({yObj.count})</span>
               </button>
             </div>
             {yExp && months.map((m) => {
@@ -114,7 +114,7 @@ function FolderTree({ surveys, selected, onSelect }) {
                   <div className="flex items-center">
                     <button type="button" onClick={() => toggle(mKey)} className="p-1" aria-label={`Buka/tutup ${MONTH_NAMES[m]} ${y}`}><Chevron open={mExp} /></button>
                     <button type="button" onClick={() => onSelect(String(y), String(m + 1), '')} className={itemCls(selected.year === String(y) && selected.month === String(m + 1) && !selected.type)}>
-                      <FolderIcon open={mExp} /> {MONTH_NAMES[m]} <span className="text-xs text-gray-400">({mObj.count})</span>
+                      <FolderIcon open={mExp} /> {MONTH_NAMES[m]} <span className="text-xs text-gray-500">({mObj.count})</span>
                     </button>
                   </div>
                   {mExp && types.map((t) => (
@@ -124,7 +124,7 @@ function FolderTree({ surveys, selected, onSelect }) {
                       onClick={() => onSelect(String(y), String(m + 1), t)}
                       className={`block w-full text-left pl-9 pr-2 py-1.5 rounded-lg truncate ${selected.year === String(y) && selected.month === String(m + 1) && selected.type === t ? 'bg-primary-50 text-primary-700 font-medium' : 'hover:bg-gray-50 text-gray-600'}`}
                     >
-                      {typeLabel(t)} <span className="text-xs text-gray-400">({mObj.types[t]})</span>
+                      {typeLabel(t)} <span className="text-xs text-gray-500">({mObj.types[t]})</span>
                     </button>
                   ))}
                 </div>
@@ -259,7 +259,7 @@ function CreateSurveyModal({ onClose, onSaved }) {
               className="block text-sm font-medium text-gray-700 mb-1"
             >
               Deskripsi{' '}
-              <span className="text-gray-400 font-normal text-xs">(opsional)</span>
+              <span className="text-gray-500 font-normal text-xs">(opsional)</span>
             </label>
             <textarea
               id="survey-description"
@@ -577,7 +577,7 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">File Kuesioner (JSON / CSV / Excel)</label>
             <input ref={fileRef} type="file" accept=".json,.csv,.xlsx" onChange={handleFileChange}
               className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-gray-500">
               JSON hasil export, atau spreadsheet dengan kolom: teks, tipe, wajib, opsi (opsi dipisah <b>|</b> untuk tipe pilihan).
             </p>
             <div className="mt-1.5 flex items-center gap-3 text-xs">
@@ -596,9 +596,9 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {preview.questions.map((q, i) => (
                   <div key={i} className="text-xs text-gray-600 flex gap-2">
-                    <span className="text-gray-400 shrink-0">{i + 1}.</span>
+                    <span className="text-gray-500 shrink-0">{i + 1}.</span>
                     <span className="truncate">{q.text}</span>
-                    <span className="text-gray-400 shrink-0">({q.type})</span>
+                    <span className="text-gray-500 shrink-0">({q.type})</span>
                   </div>
                 ))}
               </div>
@@ -860,7 +860,7 @@ function Surveys() {
         {/* Filter bar */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
-            <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
             </svg>
             <input
@@ -931,7 +931,7 @@ function Surveys() {
               Reset Filter
             </button>
           )}
-          <span className="text-xs text-gray-400 ml-auto">
+          <span className="text-xs text-gray-500 ml-auto">
             {filteredSurveys.length} dari {surveys.length} survei
           </span>
         </div>
@@ -948,7 +948,7 @@ function Surveys() {
           <div className="flex-1 min-w-0">
           {loading ? (
             <div
-              className="flex items-center justify-center h-48 text-gray-400 text-sm"
+              className="flex items-center justify-center h-48 text-gray-500 text-sm"
               role="status"
               aria-live="polite"
             >
@@ -968,11 +968,11 @@ function Surveys() {
               </button>
             </div>
           ) : surveys.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
               Belum ada survei. Klik "Buat Survei" untuk memulai.
             </div>
           ) : filteredSurveys.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
               Tidak ada survei yang sesuai filter.
             </div>
           ) : viewMode === 'grid' ? (
@@ -981,7 +981,7 @@ function Surveys() {
                 <div key={g.key}>
                   <div className="flex items-center gap-2 mb-3">
                     <h3 className="text-sm font-bold text-gray-700">{g.key}</h3>
-                    <span className="text-xs text-gray-400">· {g.items.length} survei</span>
+                    <span className="text-xs text-gray-500">· {g.items.length} survei</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {g.items.map((survey) => (
@@ -1033,7 +1033,7 @@ function Surveys() {
                     <React.Fragment key={g.key}>
                       <tr className="bg-gray-50/70">
                         <td colSpan={6} className="px-5 py-2 text-xs font-bold text-gray-500">
-                          {g.key} <span className="font-normal text-gray-400">· {g.items.length} survei</span>
+                          {g.key} <span className="font-normal text-gray-500">· {g.items.length} survei</span>
                         </td>
                       </tr>
                       {g.items.map((survey) => {

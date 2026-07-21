@@ -32,9 +32,9 @@ function DashboardTimePattern({ surveyId }) {
     <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Pola waktu masuk">
       <h2 className="text-base font-semibold text-gray-700 mb-4">Pola Waktu Responden Masuk</h2>
       {loading ? (
-        <p className="text-sm text-gray-400 text-center py-8">Memuat…</p>
+        <p className="text-sm text-gray-500 text-center py-8">Memuat…</p>
       ) : !hasData ? (
-        <p className="text-sm text-gray-400 text-center py-8">Belum ada data.</p>
+        <p className="text-sm text-gray-500 text-center py-8">Belum ada data.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>

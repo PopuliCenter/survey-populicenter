@@ -729,7 +729,7 @@ function FieldToolsSettingsSection({ settings, onChange }) {
                 </label>
               ))}
             </div>
-            <span className="text-xs text-gray-400 basis-full">
+            <span className="text-xs text-gray-500 basis-full">
               Tampilkan saat uji coba; sembunyikan saat survei berlangsung (berlaku di web &amp; Android). Rekaman tetap berjalan.
             </span>
           </div>
@@ -775,7 +775,7 @@ function FieldToolsSettingsSection({ settings, onChange }) {
                 />
                 <span className="text-gray-500">menit</span>
               </label>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-gray-500">
                 Untuk audio <b>Wajib</b>, rekaman mulai otomatis setelah jeda ini — berguna melewati obrolan
                 pembuka sebelum wawancara inti. Total durasi dibagi rata: separuh pembukaan, separuh penutupan.
                 Default: mulai langsung (0), total 3 menit.
@@ -807,7 +807,7 @@ function FieldToolsSettingsSection({ settings, onChange }) {
               </label>
             ))}
           </div>
-          <span className="text-xs text-gray-400 basis-full">
+          <span className="text-xs text-gray-500 basis-full">
             1 akun TPD terkunci ke 1 perangkat (HP pertama yang dipakai mengisi) — mencegah pengisian
             memakai akun orang lain. Bila TPD ganti HP, reset dari Manajemen TPD ("Reset Perangkat").
             Nonaktifkan saat uji coba.
@@ -838,7 +838,7 @@ function FieldToolsSettingsSection({ settings, onChange }) {
               </label>
             ))}
           </div>
-          <span className="text-xs text-gray-400 basis-full">
+          <span className="text-xs text-gray-500 basis-full">
             <b>Terkunci</b>: jawaban jenis kelamin dipaksa mengikuti paritas Nomor Kuesioner
             (ganjil = Laki-laki, genap = Perempuan) — TPD tidak bisa mengubahnya & server ikut
             menegakkan saat submit, sehingga mismatch nomor vs gender mustahil terjadi.
@@ -889,7 +889,7 @@ function FieldToolsSettingsSection({ settings, onChange }) {
               </label>
             )}
           </div>
-          <span className="text-xs text-gray-400 basis-full">
+          <span className="text-xs text-gray-500 basis-full">
             Menggantikan <b>Lembar Angka Acak (Form A)</b> yang discan manual. TPD mengisi jumlah RT
             dari aparat desa + foto Form B ber-stempel, lalu <b>server</b> yang mengundi — TPD tidak
             bisa memengaruhi hasil. Undian <b>terkunci satu kali per kelurahan</b> (tidak bisa diacak
@@ -919,7 +919,7 @@ function FieldToolsSettingsSection({ settings, onChange }) {
               />
               <span className="text-gray-500">detik</span>
             </label>
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-500">
               Respons yang durasinya di bawah ambang ini ditandai di dashboard (indikasi TPD terburu-buru /
               mengarang), mirip penanda gender-tak-sesuai-paritas. Isi <b>0</b> untuk menonaktifkan. Default: 30 detik.
             </span>
@@ -981,7 +981,7 @@ function DatePickerSection({ startDate, endDate, onStartDateChange, onEndDateCha
       {dateError && (
         <p id="date-error" className="text-xs text-red-600">{dateError}</p>
       )}
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         Kosongkan untuk survei tanpa batasan waktu.
       </p>
     </div>
@@ -1796,7 +1796,7 @@ function SurveyBuilder() {
 
         {loading ? (
           <div
-            className="flex items-center justify-center h-48 text-gray-400 text-sm"
+            className="flex items-center justify-center h-48 text-gray-500 text-sm"
             role="status"
             aria-live="polite"
           >
@@ -1932,7 +1932,7 @@ function SurveyBuilder() {
                   Satu Halaman (Scroll)
                 </button>
               </div>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 {formMode === 'wizard'
                   ? 'TPD melihat satu pertanyaan per halaman dengan navigasi Selanjutnya/Kembali.'
                   : 'TPD melihat semua pertanyaan dalam satu halaman (scroll ke bawah).'}
@@ -1969,7 +1969,7 @@ function SurveyBuilder() {
             {/* Questions list */}
             <div className="bg-white rounded-xl shadow overflow-hidden">
               {questions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-48 gap-3 text-gray-400 text-sm">
+                <div className="flex flex-col items-center justify-center h-48 gap-3 text-gray-500 text-sm">
                   <p>Belum ada pertanyaan.</p>
                   <button
                     onClick={() => {
@@ -2025,7 +2025,7 @@ function SurveyBuilder() {
                             {(question.type === 'single_choice' || question.type === 'multiple_choice') &&
                               Array.isArray(question.options) &&
                               question.options.length > 0 && (
-                                <p className="text-xs text-gray-400 mt-1">
+                                <p className="text-xs text-gray-500 mt-1">
                                   {question.options.length} pilihan jawaban
                                 </p>
                               )}

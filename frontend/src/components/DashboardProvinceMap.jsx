@@ -38,7 +38,7 @@ function DashboardProvinceMap({ surveyId }) {
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div>
           <h2 className="text-base font-semibold text-gray-700">Peta Sebaran per Provinsi</h2>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-500">
             {data
               ? `Data per ${new Date(data.generated_at).toLocaleString('id-ID')}${data.cached ? ' (cache)' : ''}`
               : 'Dimuat manual untuk menghemat server.'}
@@ -57,13 +57,13 @@ function DashboardProvinceMap({ surveyId }) {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {!data && !error && (
-        <p className="text-sm text-gray-400 text-center py-8">
+        <p className="text-sm text-gray-500 text-center py-8">
           Klik "Muat peta" untuk melihat sebaran responden per provinsi.
         </p>
       )}
 
       {data && regions.length === 0 && (
-        <p className="text-sm text-gray-400 text-center py-8">
+        <p className="text-sm text-gray-500 text-center py-8">
           Belum ada data wilayah. Pastikan survei memuat pertanyaan tipe wilayah (provinsi).
         </p>
       )}

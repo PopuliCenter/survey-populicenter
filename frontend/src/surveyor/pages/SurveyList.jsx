@@ -609,12 +609,12 @@ function SurveyList() {
                 </p>
                 {/* Status data wilayah dipisah agar TPD tahu persis apa yang kurang:
                     survei bisa terunduh lengkap tapi dropdown wilayah tetap kosong. */}
-                <p className={`text-[11px] inline-flex items-center gap-1 ${regionReady ? 'text-green-700' : 'text-amber-700 font-medium'}`}>
+                <p className={`text-2xs inline-flex items-center gap-1 ${regionReady ? 'text-green-700' : 'text-amber-700 font-medium'}`}>
                   <Icon name={regionReady ? 'check' : 'alert'} className="w-3 h-3 shrink-0" />
                   {regionReady ? 'Data wilayah tersimpan' : 'Data wilayah belum tersimpan — tekan Perbarui'}
                 </p>
                 {lastDownload && (
-                  <p className="text-[11px] text-gray-400 truncate">
+                  <p className="text-2xs text-gray-500 truncate">
                     Terakhir diunduh: {new Date(lastDownload).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
                   </p>
                 )}
@@ -687,7 +687,7 @@ function SurveyList() {
         )}
 
         {!loading && !error && surveys.length === 0 && (
-          <div className="text-center py-16 text-gray-400">
+          <div className="text-center py-16 text-gray-500">
             <p className="text-lg">Tidak ada survei aktif saat ini.</p>
           </div>
         )}
@@ -775,7 +775,7 @@ function SurveyList() {
                       <h2 className="text-lg font-bold font-serif text-gray-900 leading-snug">{survey.title}</h2>
                       <span
                         title={isOfflineReady ? 'Tersimpan' : 'Belum diunduh'}
-                        className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold ${
+                        className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-2xs font-semibold ${
                           isOfflineReady
                             ? 'bg-green-50 text-green-700 border border-green-200'
                             : 'bg-gray-100 text-gray-500 border border-gray-200'
@@ -814,7 +814,7 @@ function SurveyList() {
                           <QuotaProgress filled={filled} quota={quota} />
                         </>
                       ) : (
-                        <p className="text-xs text-gray-400 italic">Tidak ada target</p>
+                        <p className="text-xs text-gray-500 italic">Tidak ada target</p>
                       )}
                     </div>
 
@@ -837,18 +837,18 @@ function SurveyList() {
                           <span className="flex items-center gap-2 shrink-0">
                             {/* Ringkasan status sekilas */}
                             {localPendingCount > 0 && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent-700 bg-accent-100 rounded-full px-2 py-0.5">
+                              <span className="inline-flex items-center gap-1 text-2xs font-semibold text-accent-700 bg-accent-100 rounded-full px-2 py-0.5">
                                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 {localPendingCount}
                               </span>
                             )}
                             {localFailedCount > 0 && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
+                              <span className="inline-flex items-center gap-1 text-2xs font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
                                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 {localFailedCount}
                               </span>
                             )}
-                            <svg className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            <svg className="w-4 h-4 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                           </span>
                         </summary>
 
@@ -881,7 +881,7 @@ function SurveyList() {
                                 pending: { row: 'bg-accent-50/60', badge: 'bg-accent-100 text-accent-800', iconCls: 'text-accent-600', label: 'Menunggu upload' },
                                 failed: { row: 'bg-red-50', badge: 'bg-red-100 text-red-800', iconCls: 'text-red-600', label: 'Gagal upload — perlu ditinjau' },
                                 ready: { row: 'bg-white hover:bg-accent-50', badge: 'bg-accent-100 text-accent-700', iconCls: 'text-accent-500', label: 'Belum diisi — ketuk untuk mengisi' },
-                                not_downloaded: { row: 'bg-white', badge: 'bg-gray-100 text-gray-500', iconCls: 'text-gray-400', label: 'Belum diisi' },
+                                not_downloaded: { row: 'bg-white', badge: 'bg-gray-100 text-gray-500', iconCls: 'text-gray-500', label: 'Belum diisi' },
                                 draft: { row: 'bg-amber-50 hover:bg-amber-100', badge: 'bg-amber-100 text-amber-800', iconCls: 'text-amber-600', label: (rowDraft && rowDraft.totalSteps > 0) ? `Sedang dikerjakan · Pertanyaan ${Math.min((rowDraft.currentStep || 0) + 1, rowDraft.totalSteps)}/${rowDraft.totalSteps}` : 'Sedang dikerjakan — ketuk untuk lanjut' },
                               }[status];
                               const clickable = (status === 'ready' || status === 'not_downloaded' || status === 'draft') && temporal.canStart && !targetMet;
@@ -905,20 +905,20 @@ function SurveyList() {
                                         {map.label}
                                         {status === 'draft' && draftMediaItems(survey.id, rowDraft).length > 0 && (
                                           <span
-                                            className="inline-flex items-center gap-1.5 ml-1.5 align-middle text-gray-400"
+                                            className="inline-flex items-center gap-1.5 ml-1.5 align-middle text-gray-500"
                                             title="Rekaman/foto/tanda tangan tersimpan — ikut terkirim saat selesai"
                                           >
                                             {draftMediaItems(survey.id, rowDraft).map((it) => (
                                               <span key={it.icon} className="inline-flex items-center gap-0.5">
                                                 <Icon name={it.icon} className="w-3.5 h-3.5" />
-                                                {it.count > 1 && <span className="text-[11px] tabular-nums">{it.count}</span>}
+                                                {it.count > 1 && <span className="text-2xs tabular-nums">{it.count}</span>}
                                               </span>
                                             ))}
                                           </span>
                                         )}
                                       </span>
                                     </span>
-                                    <span className={`shrink-0 text-[11px] font-semibold rounded-full px-2 py-0.5 ${map.badge}`}>
+                                    <span className={`shrink-0 text-2xs font-semibold rounded-full px-2 py-0.5 ${map.badge}`}>
                                       {{ synced: 'Terkirim', uploading: 'Mengunggah', pending: 'Menunggu', failed: 'Gagal', ready: 'Isi', not_downloaded: 'Belum', draft: 'Lanjut' }[status]}
                                     </span>
                                     {clickable && (
@@ -931,7 +931,7 @@ function SurveyList() {
                           </ul>
 
                           {/* Keterangan ringkas */}
-                          <p className="mt-2 text-[11px] text-gray-400">
+                          <p className="mt-2 text-2xs text-gray-500">
                             Ketuk nomor yang masih "Belum diisi" untuk langsung membuka pertanyaannya.
                           </p>
                         </div>
@@ -968,7 +968,7 @@ function SurveyList() {
                                   {draftMediaItems(survey.id, latestDraft).map((it) => (
                                     <span key={it.icon} className="inline-flex items-center gap-0.5">
                                       <Icon name={it.icon} className="w-3.5 h-3.5" />
-                                      {it.count > 1 && <span className="text-[11px] tabular-nums">{it.count}</span>}
+                                      {it.count > 1 && <span className="text-2xs tabular-nums">{it.count}</span>}
                                     </span>
                                   ))}
                                 </span>
@@ -997,7 +997,7 @@ function SurveyList() {
                       className={`mt-4 w-full min-h-[48px] text-base font-semibold px-5 rounded-xl transition-colors ${
                         temporal.canStart && !targetMet
                           ? 'bg-accent-600 hover:bg-accent-700 text-white shadow-sm'
-                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       }`}
                       aria-label={
                         targetMet

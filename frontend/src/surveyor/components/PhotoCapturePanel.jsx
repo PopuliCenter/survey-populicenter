@@ -165,7 +165,7 @@ function PhotoCapturePanel({ photoCapture, onBeforeCapture }) {
 
       {/* Empty state */}
       {photos.length === 0 && (
-        <p className="text-sm text-gray-400 text-center py-4">
+        <p className="text-sm text-gray-500 text-center py-4">
           Belum ada foto. Tekan "Ambil Foto" untuk membuka kamera.
         </p>
       )}

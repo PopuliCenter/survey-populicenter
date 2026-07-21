@@ -85,13 +85,13 @@ function SamplingTargetModal({ surveyId, surveyTitle, onClose }) {
         <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between">
           <div>
             <h3 className="text-sm font-semibold text-gray-800">Target sampling per provinsi</h3>
-            <p className="text-xs text-gray-400 mt-0.5">{surveyTitle}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{surveyTitle}</p>
           </div>
           <button
             type="button"
             onClick={() => onClose?.(false)}
             aria-label="Tutup"
-            className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+            className="text-gray-500 hover:text-gray-600 text-lg leading-none"
           >
             ×
           </button>
@@ -108,7 +108,7 @@ function SamplingTargetModal({ surveyId, surveyTitle, onClose }) {
 
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1">
           {loading ? (
-            <p className="text-sm text-gray-400 py-4 text-center">Memuat…</p>
+            <p className="text-sm text-gray-500 py-4 text-center">Memuat…</p>
           ) : (
             filtered.map((prov) => (
               <div key={prov} className="flex items-center justify-between gap-3 py-1">

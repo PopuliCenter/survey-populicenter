@@ -71,19 +71,19 @@ export default function ExportQuestionnaireModal({ survey, onClose }) {
         <div className="flex gap-3">
           <button type="button" disabled={busy} onClick={() => run('xlsx')}
             className={`${btn} border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 focus:ring-emerald-300`}>
-            Excel<span className="block text-[11px] font-normal text-emerald-600/80">.xlsx</span>
+            Excel<span className="block text-2xs font-normal text-emerald-600/80">.xlsx</span>
           </button>
           <button type="button" disabled={busy} onClick={() => run('csv')}
             className={`${btn} border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 focus:ring-primary-300`}>
-            CSV<span className="block text-[11px] font-normal text-primary-600/80">.csv</span>
+            CSV<span className="block text-2xs font-normal text-primary-600/80">.csv</span>
           </button>
           <button type="button" disabled={busy} onClick={() => run('json')}
             className={`${btn} border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 focus:ring-gray-300`}>
-            JSON<span className="block text-[11px] font-normal text-gray-500">lengkap</span>
+            JSON<span className="block text-2xs font-normal text-gray-500">lengkap</span>
           </button>
         </div>
 
-        <p className="mt-3 text-xs text-gray-400">
+        <p className="mt-3 text-xs text-gray-500">
           CSV/Excel memakai kolom yang sama dengan Import (teks, tipe, wajib, opsi) — bisa diedit lalu diimpor lagi.
           JSON menyimpan semua field (untuk backup/pindah survei).
         </p>

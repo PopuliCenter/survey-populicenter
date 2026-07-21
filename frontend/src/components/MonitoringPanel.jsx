@@ -77,7 +77,7 @@ function MonitoringPanel({ surveyId, surveyTitle }) {
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm font-medium text-gray-700">Embed monitoring (klien)</span>
         {loading ? (
-          <span className="text-xs text-gray-400">Memeriksa…</span>
+          <span className="text-xs text-gray-500">Memeriksa…</span>
         ) : isLive ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Aktif
@@ -88,7 +88,7 @@ function MonitoringPanel({ surveyId, surveyTitle }) {
           </span>
         )}
       </div>
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         Tautan privat bertoken untuk klien memantau capaian vs target (refresh berkala ±15 menit).
         Jangan sebar ke publik.
       </p>

@@ -28,7 +28,7 @@ function StatCard({ title, count, description, color = 'gray' }) {
   return (
     <div className={`rounded-lg border p-4 ${colors[color]}`}>
       <p className="text-xs font-medium uppercase tracking-wide opacity-70">{title}</p>
-      <p className="text-2xl font-bold mt-1">{count.toLocaleString('id-ID')}</p>
+      <p className="text-2xl font-bold mt-1 tabular-nums">{count.toLocaleString('id-ID')}</p>
       <p className="text-xs mt-1 opacity-60">{description}</p>
     </div>
   );
@@ -134,7 +134,7 @@ function Cleanup() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+        <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
           Memuat data…
         </div>
       </Layout>
@@ -307,7 +307,7 @@ function Cleanup() {
 
             <div>
               <label htmlFor="cleanup-month" className="block text-xs font-medium text-gray-600 mb-1">
-                Bulan {!filterYear && <span className="text-gray-400">(pilih tahun dulu)</span>}
+                Bulan {!filterYear && <span className="text-gray-500">(pilih tahun dulu)</span>}
               </label>
               <select
                 id="cleanup-month"
@@ -472,14 +472,14 @@ function Cleanup() {
           </p>
 
           {surveys.filter((s) => s.status === 'inactive').length === 0 ? (
-            <p className="text-xs text-gray-400 italic">Tidak ada survei nonaktif.</p>
+            <p className="text-xs text-gray-500 italic">Tidak ada survei nonaktif.</p>
           ) : (
             <div className="space-y-3">
               {surveys.filter((s) => s.status === 'inactive').map((survey) => (
                 <div key={survey.id} className="border border-gray-200 rounded-lg p-4 flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-800 truncate">{survey.title}</p>
-                    <p className="text-xs text-gray-400">Status: Nonaktif</p>
+                    <p className="text-xs text-gray-500">Status: Nonaktif</p>
                   </div>
                   {confirmAction === `survey-${survey.id}` ? (
                     <div className="flex items-center gap-2 shrink-0">

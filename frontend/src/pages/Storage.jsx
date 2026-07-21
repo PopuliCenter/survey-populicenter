@@ -227,14 +227,14 @@ function Storage() {
                 </thead>
                 <tbody>
                   {surveys.length === 0 && (
-                    <tr><td colSpan={5} className="p-6 text-center text-gray-400">Belum ada survei.</td></tr>
+                    <tr><td colSpan={5} className="p-6 text-center text-gray-500">Belum ada survei.</td></tr>
                   )}
                   {surveys.map((s) => (
                     <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50">
                       <td className="p-3"><input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} aria-label={`Pilih ${s.title}`} /></td>
                       <td className="p-3">
                         <span className="font-medium text-gray-800">{s.title}</span>
-                        <span className={`ml-2 text-[11px] px-1.5 py-0.5 rounded ${s.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>{s.status}</span>
+                        <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded ${s.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>{s.status}</span>
                       </td>
                       <td className="p-3 text-right text-gray-700">{s.responses.toLocaleString('id-ID')}</td>
                       <td className="p-3 text-right text-gray-700">{s.media_count.toLocaleString('id-ID')}</td>
@@ -250,7 +250,7 @@ function Storage() {
               </table>
             </div>
 
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-500">
               Arsip berisi <code>responses.json</code> + folder <code>media/</code>. Untuk backup berkala &amp; dataset sangat besar, gunakan backup server (docs/ops/backup.md).
             </p>
           </>

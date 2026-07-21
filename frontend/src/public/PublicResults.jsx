@@ -83,7 +83,7 @@ function QuestionBlock({ q, index, orderMode }) {
       <h3 className="text-sm font-semibold text-gray-800 mb-1">
         {index}. {q.text}
       </h3>
-      <p className="text-xs text-gray-400 mb-3">
+      <p className="text-xs text-gray-500 mb-3">
         {q.total_answered?.toLocaleString('id-ID') || 0} responden menjawab
         {q.average != null && (
           <span className="ml-2 text-gray-600">· Rata-rata: <b>{q.average}</b></span>
@@ -99,7 +99,7 @@ function QuestionBlock({ q, index, orderMode }) {
               {row.distribution?.length > 0 ? (
                 <DistributionChart data={applyOrder(row.distribution, { mode: orderMode, isScale: true })} />
               ) : (
-                <p className="text-xs text-gray-400">Belum ada data</p>
+                <p className="text-xs text-gray-500">Belum ada data</p>
               )}
             </div>
           ))}
@@ -107,7 +107,7 @@ function QuestionBlock({ q, index, orderMode }) {
       ) : q.distribution?.length > 0 ? (
         <DistributionChart data={applyOrder(q.distribution, { mode: orderMode, isScale })} />
       ) : (
-        <p className="text-xs text-gray-400">Belum ada data</p>
+        <p className="text-xs text-gray-500">Belum ada data</p>
       )}
     </section>
   );
@@ -161,14 +161,14 @@ function PublicResults() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-[200px] flex items-center justify-center text-gray-400 text-sm">
+      <div className="min-h-[200px] flex items-center justify-center text-gray-500 text-sm">
         Memuat hasil…
       </div>
     );
   }
   if (status === 'notfound') {
     return (
-      <div className="min-h-[200px] flex items-center justify-center text-gray-400 text-sm">
+      <div className="min-h-[200px] flex items-center justify-center text-gray-500 text-sm">
         Hasil survei tidak ditemukan atau belum dipublikasikan.
       </div>
     );
@@ -228,7 +228,7 @@ function PublicResults() {
       {questions.length > 0 ? (
         questions.map((q, i) => <QuestionBlock key={q.id} q={q} index={i + 1} orderMode={orderMode} />)
       ) : (
-        <p className="text-sm text-gray-400">Belum ada pertanyaan yang bisa ditampilkan.</p>
+        <p className="text-sm text-gray-500">Belum ada pertanyaan yang bisa ditampilkan.</p>
       )}
 
       <footer className="text-center text-xs text-gray-300 pt-2">

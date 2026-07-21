@@ -36,7 +36,7 @@ function DashboardDataQuality({ surveyId }) {
     <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Kualitas data">
       <h2 className="text-base font-semibold text-gray-700 mb-4">Kualitas Data</h2>
       {loading ? (
-        <p className="text-sm text-gray-400 text-center py-8">Memuat…</p>
+        <p className="text-sm text-gray-500 text-center py-8">Memuat…</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Status review */}
@@ -56,15 +56,15 @@ function DashboardDataQuality({ surveyId }) {
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, gps.pct || 0)}%` }} />
             </div>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               {gps.with.toLocaleString('id-ID')} dengan GPS · {gps.without.toLocaleString('id-ID')} tanpa GPS
             </p>
           </div>
           {/* Pending */}
           <div className="bg-amber-50 rounded-xl p-4 flex flex-col justify-center">
             <p className="text-xs text-amber-700 mb-1">Sesi belum selesai</p>
-            <p className="text-2xl font-bold text-amber-800">{(data?.pending || 0).toLocaleString('id-ID')}</p>
-            <p className="text-[11px] text-amber-600 mt-0.5">Shell PENDING tanpa jawaban</p>
+            <p className="text-2xl font-bold text-amber-800 tabular-nums">{(data?.pending || 0).toLocaleString('id-ID')}</p>
+            <p className="text-2xs text-amber-600 mt-0.5">Shell PENDING tanpa jawaban</p>
           </div>
         </div>
       )}

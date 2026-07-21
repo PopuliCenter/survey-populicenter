@@ -23,7 +23,7 @@ export default function PasswordInput({ className = '', ...props }) {
       <button
         type="button"
         onClick={() => setShow((v) => !v)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 rounded"
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-500 hover:text-gray-600 focus:outline-none focus:text-gray-600 rounded"
         aria-label={show ? 'Sembunyikan password' : 'Tampilkan password'}
         aria-pressed={show}
         title={show ? 'Sembunyikan password' : 'Tampilkan password'}

@@ -491,7 +491,7 @@ function RatingScaleField({ question, answer, onChange, hasError }) {
           )}
         </div>
         {(labels.min || labels.max) && (
-          <div className="flex justify-between text-xs text-gray-400 px-1">
+          <div className="flex justify-between text-xs text-gray-500 px-1">
             <span>{labels.min || ''}</span>
             <span>{labels.max || ''}</span>
           </div>
@@ -529,7 +529,7 @@ function RatingScaleField({ question, answer, onChange, hasError }) {
         })}
       </div>
       {(labels.min || labels.max) && (
-        <div className="flex justify-between text-xs text-gray-400">
+        <div className="flex justify-between text-xs text-gray-500">
           <span>{labels.min || ''}</span>
           <span>{labels.max || ''}</span>
         </div>
@@ -711,7 +711,7 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
 
         {/* Cek live saat memilih nomor */}
         {availability === 'checking' && (
-          <p className="text-xs text-gray-400">Memeriksa ketersediaan nomor…</p>
+          <p className="text-xs text-gray-500">Memeriksa ketersediaan nomor…</p>
         )}
         {takenNumber && (
           <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -776,7 +776,7 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
         <p className="text-xs text-amber-600">Validasi ketersediaan nomor akan dilakukan saat sinkronisasi</p>
       )}
       {isOnline && availability === 'checking' && (
-        <p className="text-xs text-gray-400">Memeriksa ketersediaan...</p>
+        <p className="text-xs text-gray-500">Memeriksa ketersediaan...</p>
       )}
       {isOnline && availability === 'available' && (
         <p className="text-xs text-green-600">Nomor tersedia</p>
@@ -886,7 +886,7 @@ function MatrixField({ question, answer, onChange, hasError }) {
     >
       {/* Petunjuk scroll untuk mobile */}
       {columns.length > 3 && (
-        <p className="text-xs text-gray-400 mb-1 md:hidden">← Geser ke kanan untuk melihat semua kolom</p>
+        <p className="text-xs text-gray-500 mb-1 md:hidden">← Geser ke kanan untuk melihat semua kolom</p>
       )}
       {/* Wrapper dengan overflow-x-auto dan max-height untuk freeze header */}
       <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -2806,7 +2806,7 @@ function SurveyForm() {
         {formMode === 'scroll' ? (
           <>
             {visibleQuestions.length === 0 && (
-              <div className="text-center py-12 text-gray-400">
+              <div className="text-center py-12 text-gray-500">
                 <p>Tidak ada pertanyaan yang tersedia.</p>
               </div>
             )}
@@ -3029,7 +3029,7 @@ function SurveyForm() {
           /* ─── Question mode (single question) ──────────────────────────── */
           <>
             {totalSteps === 0 && (
-              <div className="text-center py-12 text-gray-400">
+              <div className="text-center py-12 text-gray-500">
                 <p>Tidak ada pertanyaan yang tersedia.</p>
               </div>
             )}
@@ -3124,7 +3124,7 @@ function SurveyForm() {
                       return (
                         <p
                           className={`text-xs mt-1 ${
-                            isOver ? 'text-red-500 font-medium' : isNearLimit ? 'text-red-500' : 'text-gray-400'
+                            isOver ? 'text-red-500 font-medium' : isNearLimit ? 'text-red-500' : 'text-gray-500'
                           }`}
                         >
                           {currentLen}/{maxLen}

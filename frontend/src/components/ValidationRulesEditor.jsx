@@ -189,7 +189,7 @@ function ValidationRulesEditor({ questionType, validation, onChange }) {
                 aria-label="Pesan error kustom"
                 placeholder="Pesan error yang ditampilkan saat validasi gagal"
               />
-              <p className="text-xs text-gray-400 mt-1 text-right">
+              <p className="text-xs text-gray-500 mt-1 text-right">
                 {(current.custom_error ?? '').length}/500
               </p>
             </div>

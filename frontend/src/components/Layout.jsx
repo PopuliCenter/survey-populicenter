@@ -238,7 +238,7 @@ function Layout({ children }) {
           {sidebarOpen && (
             <div className="min-w-0">
               <h1 className="text-sm font-bold text-white leading-tight truncate">Populi Center</h1>
-              <p className="text-[11px] text-slate-400 mt-0.5 truncate">{sidebarLabel}</p>
+              <p className="text-2xs text-slate-400 mt-0.5 truncate">{sidebarLabel}</p>
             </div>
           )}
         </div>
@@ -282,7 +282,7 @@ function Layout({ children }) {
             {sidebarOpen && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white truncate">{user.name || user.email}</p>
-                <p className="text-[11px] text-slate-400 capitalize truncate">{ROLE_LABELS[user.role] || user.role}</p>
+                <p className="text-2xs text-slate-400 capitalize truncate">{ROLE_LABELS[user.role] || user.role}</p>
               </div>
             )}
             <button

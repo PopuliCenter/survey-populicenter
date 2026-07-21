@@ -62,7 +62,7 @@ export function QuotaPanel({ surveyorId }) {
 
   if (loading) {
     return (
-      <div className="px-5 py-3 text-xs text-gray-400" role="status" aria-live="polite">
+      <div className="px-5 py-3 text-xs text-gray-500" role="status" aria-live="polite">
         Memuat data kuota…
       </div>
     );
@@ -78,7 +78,7 @@ export function QuotaPanel({ surveyorId }) {
 
   if (quotas.length === 0) {
     return (
-      <div className="px-5 py-3 text-xs text-gray-400">
+      <div className="px-5 py-3 text-xs text-gray-500">
         Belum ada data kuota untuk TPD ini.
       </div>
     );
@@ -127,7 +127,7 @@ export function QuotaPanel({ surveyorId }) {
                       );
                     })}
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-gray-500 mt-1">
                     {submittedNums.filter((n) => assignedNums.includes(n)).length}/{assignedNums.length} nomor sudah diisi
                   </p>
                 </div>

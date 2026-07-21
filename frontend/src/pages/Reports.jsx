@@ -121,7 +121,7 @@ function ExportJobTracker({ job, onDone }) {
           </span>
           <JobStatusBadge status={status} />
         </div>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-gray-500">
           Job ID: <span className="font-mono">{job.jobId}</span> &middot;{' '}
           {job.startedAt.toLocaleTimeString('id-ID')}
         </span>
@@ -153,7 +153,7 @@ function ExportJobTracker({ job, onDone }) {
           </button>
         )}
         {(status === 'pending' || status === 'processing') && (
-          <span className="text-xs text-gray-400 animate-pulse">Memproses…</span>
+          <span className="text-xs text-gray-500 animate-pulse">Memproses…</span>
         )}
         {status === 'failed' && (
           <span className="text-xs text-red-500">Ekspor gagal</span>
@@ -161,7 +161,7 @@ function ExportJobTracker({ job, onDone }) {
         {(status === 'completed' || status === 'failed') && (
           <button
             onClick={() => onDone(job.jobId)}
-            className="text-gray-400 hover:text-gray-600 px-1.5 py-1 text-sm"
+            className="text-gray-500 hover:text-gray-600 px-1.5 py-1 text-sm"
             aria-label="Tutup notifikasi ekspor"
             title="Tutup"
           >
@@ -658,7 +658,7 @@ function Reports() {
             </button>
           </div>
 
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-500">
             Untuk survei dengan lebih dari 1.000 responden, ekspor akan diproses secara
             asinkron. Status dan link unduhan akan muncul di bawah.
           </p>
@@ -669,7 +669,7 @@ function Reports() {
           <div className="bg-white rounded-xl shadow p-5 space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-gray-700">Publikasi Hasil ke Publik</h2>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-gray-500 mt-0.5">
                 Tayangkan ringkasan agregat survei di website populicenter.org.
               </p>
             </div>
@@ -685,7 +685,7 @@ function Reports() {
           <div className="bg-white rounded-xl shadow p-5 space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-gray-700">Target Sampling per Provinsi</h2>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-gray-500 mt-0.5">
                 Rencana random sampling per wilayah — dipakai untuk memantau capaian vs target.
               </p>
             </div>
@@ -701,7 +701,7 @@ function Reports() {
                 <MonitoringPanel surveyId={selectedSurveyId} surveyTitle={getSelectedSurveyTitle()} />
               </>
             ) : (
-              <p className="text-sm text-gray-400">Pilih survei terlebih dahulu.</p>
+              <p className="text-sm text-gray-500">Pilih survei terlebih dahulu.</p>
             )}
           </div>
         )}
@@ -732,7 +732,7 @@ function Reports() {
               <button
                 type="button"
                 onClick={() => setActiveJobs([])}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-xs text-gray-500 hover:text-gray-600 transition-colors"
                 aria-label="Hapus semua job ekspor dari daftar"
               >
                 Hapus semua
@@ -746,7 +746,7 @@ function Reports() {
                   <button
                     type="button"
                     onClick={() => handleDismissJob(job.jobId)}
-                    className="absolute top-2 right-2 text-gray-300 hover:text-gray-500 leading-none focus:outline-none"
+                    className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 leading-none focus:outline-none"
                     aria-label={`Hapus job ${job.jobId} dari daftar`}
                     title="Hapus dari daftar"
                   >

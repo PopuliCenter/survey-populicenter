@@ -72,7 +72,7 @@ function AnswerCard({ answer, index, mediaToken }) {
 
   function renderValue() {
     if (answer.question_type === 'photo') {
-      if (!answer.photo_path) return <span className="text-gray-400 italic">Tidak ada foto</span>;
+      if (!answer.photo_path) return <span className="text-gray-500 italic">Tidak ada foto</span>;
       const src = resolveMediaUrl(answer.photo_path);
       return (
         <a href={src} target="_blank" rel="noopener noreferrer">
@@ -105,7 +105,7 @@ function AnswerCard({ answer, index, mediaToken }) {
     }
 
     if (answer.question_type === 'rating_scale') {
-      if (!answer.answer_value) return <span className="text-gray-400 italic">—</span>;
+      if (!answer.answer_value) return <span className="text-gray-500 italic">—</span>;
       const numVal = parseInt(answer.answer_value, 10);
       const config = answer.question_options || {};
       const { max = 5, display = 'stars', labels = {} } = config;
@@ -128,7 +128,7 @@ function AnswerCard({ answer, index, mediaToken }) {
               </span>
             </div>
             {(labels.min || labels.max) && (
-              <div className="flex justify-between text-xs text-gray-400 max-w-xs">
+              <div className="flex justify-between text-xs text-gray-500 max-w-xs">
                 <span>{labels.min || ''}</span>
                 <span>{labels.max || ''}</span>
               </div>
@@ -145,7 +145,7 @@ function AnswerCard({ answer, index, mediaToken }) {
           </span>
           <span className="text-sm text-gray-500">dari {max}</span>
           {(labels.min || labels.max) && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-500">
               ({labels.min || ''} – {labels.max || ''})
             </span>
           )}
@@ -164,7 +164,7 @@ function AnswerCard({ answer, index, mediaToken }) {
       const columns = options.columns || [];
 
       if (!matrixAnswer || (typeof matrixAnswer === 'object' && Object.keys(matrixAnswer).length === 0)) {
-        return <span className="text-gray-400 italic">Tidak ada jawaban</span>;
+        return <span className="text-gray-500 italic">Tidak ada jawaban</span>;
       }
 
       return (
@@ -216,7 +216,7 @@ function AnswerCard({ answer, index, mediaToken }) {
     if (answer.question_type === 'indonesia_region') {
       const v = answer.answer_json;
       if (!v || typeof v !== 'object' || !v.province_id) {
-        return <span className="text-gray-400 italic">Tidak ada jawaban</span>;
+        return <span className="text-gray-500 italic">Tidak ada jawaban</span>;
       }
       const parts = [
         v.province_name && { label: 'Provinsi', value: v.province_name },
@@ -259,7 +259,7 @@ function AnswerCard({ answer, index, mediaToken }) {
     <div className="bg-gray-50 rounded-lg p-4 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium text-gray-800">
-          <span className="text-gray-400 mr-2">{index + 1}.</span>
+          <span className="text-gray-500 mr-2">{index + 1}.</span>
           {answer.question_text || '(Pertanyaan tidak tersedia)'}
         </p>
         <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-700">
@@ -414,7 +414,7 @@ function ResponseDetail() {
 
         {loading ? (
           <div
-            className="flex items-center justify-center h-48 text-gray-400 text-sm"
+            className="flex items-center justify-center h-48 text-gray-500 text-sm"
             role="status"
             aria-live="polite"
           >
@@ -517,11 +517,11 @@ function ResponseDetail() {
                     response.duration_seconds != null ? (
                       <span className={response.short_duration === true ? 'text-amber-700 font-semibold' : undefined}>
                         {response.duration_seconds} detik{' '}
-                        <span className={response.short_duration === true ? 'text-amber-500' : 'text-gray-400'}>
+                        <span className={response.short_duration === true ? 'text-amber-500' : 'text-gray-500'}>
                           ({formatDurationMmSs(response.duration_seconds)})
                         </span>
                         {response.short_duration === true && (
-                          <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-semibold align-middle">
+                          <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-2xs font-semibold align-middle">
                             <Icon name="alert" className="w-3 h-3" />terlalu singkat
                           </span>
                         )}
@@ -614,7 +614,7 @@ function ResponseDetail() {
                           </div>
                         ))}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-gray-500 mt-1">
                         {audioList.length > 1
                           ? 'Rekaman terekam dalam beberapa bagian (diputar berurutan).'
                           : 'Klik play untuk mendengarkan rekaman wawancara'}
@@ -699,7 +699,7 @@ function ResponseDetail() {
 
                     {/* Reviewer info */}
                     {response.reviewer_name && (
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-gray-500">
                         Terakhir direview oleh{' '}
                         <span className="font-medium text-gray-600">
                           {response.reviewer_name}
@@ -747,7 +747,7 @@ function ResponseDetail() {
                     )}
 
                     {response.reviewer_name && (
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-gray-500">
                         Direview oleh{' '}
                         <span className="font-medium text-gray-600">
                           {response.reviewer_name}
@@ -765,7 +765,7 @@ function ResponseDetail() {
               <h2 className="text-base font-semibold text-gray-700 mb-4">
                 Jawaban Responden
                 {Array.isArray(response.answers) && (
-                  <span className="ml-2 text-sm font-normal text-gray-400">
+                  <span className="ml-2 text-sm font-normal text-gray-500">
                     ({response.answers.length} pertanyaan)
                   </span>
                 )}
@@ -773,7 +773,7 @@ function ResponseDetail() {
 
               {!Array.isArray(response.answers) ||
               response.answers.length === 0 ? (
-                <p className="text-sm text-gray-400 italic">
+                <p className="text-sm text-gray-500 italic">
                   Tidak ada jawaban tersedia.
                 </p>
               ) : (

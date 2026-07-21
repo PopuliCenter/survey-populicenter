@@ -16,7 +16,7 @@ import React from 'react';
 function SurveyorProgressTable({ surveyors = [] }) {
   if (surveyors.length === 0) {
     return (
-      <p className="text-sm text-gray-400 text-center py-8">
+      <p className="text-sm text-gray-500 text-center py-8">
         Belum ada TPD yang ditugaskan untuk survei ini.
       </p>
     );
@@ -38,7 +38,7 @@ function SurveyorProgressTable({ surveyors = [] }) {
         <tbody>
           {surveyors.map((s, index) => (
             <tr key={s.surveyorId} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-              <td className="py-2.5 pr-4 text-gray-400 font-medium">{index + 1}</td>
+              <td className="py-2.5 pr-4 text-gray-500 font-medium">{index + 1}</td>
               <td className="py-2.5 pr-4 text-gray-800 font-medium">{s.surveyorName}</td>
               <td className="py-2.5 pr-4 text-right text-gray-600">{s.quota}</td>
               <td className="py-2.5 pr-4 text-right text-gray-600">{s.collected}</td>

@@ -56,7 +56,7 @@ function ConditionRow({ condition, questionIndex, condIndex, questions, onUpdate
 
       {/* Pertanyaan sumber */}
       <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-xs text-gray-400">Pertanyaan</span>
+        <span className="text-xs text-gray-500">Pertanyaan</span>
         <select
           value={condition.question_id}
           onChange={(e) => onUpdate(questionIndex, condIndex, 'question_id', e.target.value)}
@@ -74,7 +74,7 @@ function ConditionRow({ condition, questionIndex, condIndex, questions, onUpdate
 
       {/* Operator */}
       <div className="flex flex-col gap-0.5">
-        <span className="text-xs text-gray-400">Kondisi</span>
+        <span className="text-xs text-gray-500">Kondisi</span>
         <select
           value={condition.operator}
           onChange={(e) => onUpdate(questionIndex, condIndex, 'operator', e.target.value)}
@@ -90,7 +90,7 @@ function ConditionRow({ condition, questionIndex, condIndex, questions, onUpdate
       {/* Nilai — disembunyikan untuk operator tanpa nilai (terisi/kosong) */}
       {!valueless && (
         <div className="flex flex-col gap-0.5">
-          <span className="text-xs text-gray-400">Nilai</span>
+          <span className="text-xs text-gray-500">Nilai</span>
           {isChoiceType && choiceOptions.length > 0 ? (
             <select
               value={condition.value}
@@ -157,7 +157,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
 
   if (eligibleQuestions.length === 0) {
     return (
-      <p className="text-xs text-gray-400 italic">
+      <p className="text-xs text-gray-500 italic">
         Tidak ada pertanyaan yang mendukung skip logic. Tambahkan pertanyaan bertipe
         Pilihan Tunggal, Pilihan Ganda, Teks Pendek, Teks Panjang, atau Skala Numerik terlebih dahulu.
       </p>
@@ -278,7 +278,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
       </div>
 
       {skipLogic.length === 0 && (
-        <p className="text-xs text-gray-400 italic">
+        <p className="text-xs text-gray-500 italic">
           Belum ada aturan. Klik "Tambah Aturan Lompat" untuk menambahkan.
         </p>
       )}
@@ -321,7 +321,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
                 >
                   Hapus
                 </button>
-                <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                <span className="text-gray-500 text-xs">{isExpanded ? '▲' : '▼'}</span>
               </div>
             </div>
 
@@ -331,7 +331,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
                 {/* Kondisi-kondisi */}
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-gray-600">
-                    Kondisi <span className="text-gray-400 font-normal">(semua kondisi harus terpenuhi)</span>
+                    Kondisi <span className="text-gray-500 font-normal">(semua kondisi harus terpenuhi)</span>
                   </p>
                   {conditions.map((cond, condIndex) => (
                     <ConditionRow
@@ -405,7 +405,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
 
       {/* Panduan singkat */}
       {skipLogic.length > 0 && (
-        <details className="text-xs text-gray-400">
+        <details className="text-xs text-gray-500">
           <summary className="cursor-pointer hover:text-gray-600">Panduan skip logic bercabang</summary>
           <div className="mt-2 space-y-1 pl-3 border-l-2 border-gray-200">
             <p>• Tambahkan beberapa aturan untuk membuat percabangan (misal: A→Q5, B→Q10, C→Q15)</p>

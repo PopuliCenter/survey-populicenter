@@ -82,10 +82,10 @@ function PublicMonitor() {
   );
 
   if (status === 'loading') {
-    return <div className="min-h-[200px] flex items-center justify-center text-gray-400 text-sm">Memuat monitoring…</div>;
+    return <div className="min-h-[200px] flex items-center justify-center text-gray-500 text-sm">Memuat monitoring…</div>;
   }
   if (status === 'notfound') {
-    return <div className="min-h-[200px] flex items-center justify-center text-gray-400 text-sm">Tautan monitoring tidak valid atau dinonaktifkan.</div>;
+    return <div className="min-h-[200px] flex items-center justify-center text-gray-500 text-sm">Tautan monitoring tidak valid atau dinonaktifkan.</div>;
   }
   if (status === 'error') {
     return <div className="min-h-[200px] flex items-center justify-center text-red-400 text-sm">Gagal memuat. Coba muat ulang.</div>;
@@ -149,7 +149,7 @@ function PublicMonitor() {
           </div>
         </section>
       ) : (
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-gray-500">
           {data.has_region_data
             ? 'Belum ada target per provinsi. Atur target sampling di dashboard.'
             : 'Survei ini tidak punya pertanyaan wilayah, sehingga capaian hanya ditampilkan total.'}

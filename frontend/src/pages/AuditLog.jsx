@@ -352,7 +352,7 @@ function AuditLog() {
                       <td className="px-4 py-3 text-sm text-gray-700">
                         <div className="font-medium">{log.user_name || '-'}</div>
                         {log.user_id && (
-                          <div className="text-xs text-gray-400 font-mono truncate max-w-[160px]">
+                          <div className="text-xs text-gray-500 font-mono truncate max-w-[160px]">
                             {log.user_id}
                           </div>
                         )}

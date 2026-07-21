@@ -49,7 +49,7 @@ function StatCard({ title, value, subtitle, iconName, tint, trend }) {
           <DIcon name={iconName} />
         </div>
         {trend && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+          <span className="inline-flex items-center gap-1 text-2xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M5 15l7-7 7 7" />
             </svg>
@@ -57,11 +57,13 @@ function StatCard({ title, value, subtitle, iconName, tint, trend }) {
           </span>
         )}
       </div>
-      <p className="text-2xl font-bold text-gray-900 mt-3">
+      {/* tabular-nums: lebar tiap digit sama, sehingga angka tidak "bergoyang"
+          saat nilainya berubah (dashboard ini menyegarkan berkala). */}
+      <p className="text-2xl font-bold text-gray-900 mt-3 tabular-nums">
         {value !== null && value !== undefined ? value.toLocaleString('id-ID') : '—'}
       </p>
-      <p className="text-xs text-gray-400 mt-0.5">{title}</p>
-      {subtitle && <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>}
+      <p className="text-xs text-gray-500 mt-0.5">{title}</p>
+      {subtitle && <p className="text-2xs text-gray-500 mt-0.5">{subtitle}</p>}
     </div>
   );
 }
@@ -364,7 +366,7 @@ function Dashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-xs text-gray-500 mb-1">Laju (7 hari)</p>
-                <p className="text-xl font-bold text-gray-800">{Math.round(avgPerDay).toLocaleString('id-ID')}<span className="text-sm font-normal text-gray-400"> /hari</span></p>
+                <p className="text-xl font-bold text-gray-800">{Math.round(avgPerDay).toLocaleString('id-ID')}<span className="text-sm font-normal text-gray-500"> /hari</span></p>
               </div>
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-xs text-gray-500 mb-1">Sisa target</p>
@@ -377,10 +379,10 @@ function Dashboard() {
                 ) : projectedDate ? (
                   <p className="text-xl font-bold text-gray-800">
                     {projectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    <span className="text-sm font-normal text-gray-400"> · {daysNeeded} hari</span>
+                    <span className="text-sm font-normal text-gray-500"> · {daysNeeded} hari</span>
                   </p>
                 ) : (
-                  <p className="text-sm text-gray-400">Belum bisa diestimasi (laju 0)</p>
+                  <p className="text-sm text-gray-500">Belum bisa diestimasi (laju 0)</p>
                 )}
               </div>
             </div>
@@ -398,7 +400,7 @@ function Dashboard() {
           {trendLoading && trend.length === 0 ? (
             <Skeleton className="w-full h-[280px]" />
           ) : trendData.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">Belum ada data tren.</p>
+            <p className="text-sm text-gray-500 text-center py-8">Belum ada data tren.</p>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={trendData} margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
@@ -454,11 +456,11 @@ function Dashboard() {
           </div>
 
           {progressLoading ? (
-            <p className="text-sm text-gray-400 text-center py-8">Memuat data progress...</p>
+            <p className="text-sm text-gray-500 text-center py-8">Memuat data progress...</p>
           ) : progressError ? (
             <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4"><p className="text-sm">{progressError}</p></div>
           ) : activeSurveys.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">Tidak ada survei aktif.</p>
+            <p className="text-sm text-gray-500 text-center py-8">Tidak ada survei aktif.</p>
           ) : selectedSurvey ? (
             <div>
               {progressMap[selectedSurvey] && (
@@ -472,7 +474,7 @@ function Dashboard() {
                 </div>
               )}
               {detailLoading ? (
-                <p className="text-sm text-gray-400 text-center py-4">Memuat breakdown...</p>
+                <p className="text-sm text-gray-500 text-center py-4">Memuat breakdown...</p>
               ) : selectedProgress ? (
                 <SurveyorProgressTable surveyors={selectedProgress.surveyors} />
               ) : null}
@@ -504,7 +506,7 @@ function Dashboard() {
               {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : topTPD.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">Belum ada data TPD.</p>
+            <p className="text-sm text-gray-500 text-center py-8">Belum ada data TPD.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
@@ -522,7 +524,7 @@ function Dashboard() {
                     const rankTint = index === 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600';
                     return (
                     <tr key={tpd.email} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="py-2.5 pr-4 text-gray-400 font-medium">{index + 1}</td>
+                      <td className="py-2.5 pr-4 text-gray-500 font-medium">{index + 1}</td>
                       <td className="py-2.5 pr-4 text-gray-800 font-medium">
                         <span className="flex items-center gap-2.5">
                           <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${rankTint}`}>{initials}</span>

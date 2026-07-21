@@ -287,7 +287,7 @@ function UserFormModal({ mode, initial, tabKey, currentUserRole, onClose, onSave
                 <span aria-hidden="true" className="text-red-500">*</span>
               )}
               {isEdit && (
-                <span className="text-gray-400 font-normal text-xs ml-1">
+                <span className="text-gray-500 font-normal text-xs ml-1">
                   (kosongkan jika tidak ingin mengubah)
                 </span>
               )}
@@ -303,7 +303,7 @@ function UserFormModal({ mode, initial, tabKey, currentUserRole, onClose, onSave
               aria-describedby="user-password-hint user-password-error"
               aria-invalid={!!fieldErrors.password}
             />
-            <p id="user-password-hint" className="mt-1 text-xs text-gray-400">
+            <p id="user-password-hint" className="mt-1 text-xs text-gray-500">
               Min. 8 karakter, huruf besar, huruf kecil, dan angka
             </p>
             {fieldErrors.password && (
@@ -596,7 +596,7 @@ function UserManagement() {
         <div className="bg-white rounded-xl shadow overflow-hidden">
           {loading ? (
             <div
-              className="flex items-center justify-center h-48 text-gray-400 text-sm"
+              className="flex items-center justify-center h-48 text-gray-500 text-sm"
               role="status"
               aria-live="polite"
             >
@@ -616,7 +616,7 @@ function UserManagement() {
               </button>
             </div>
           ) : users.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
               Belum ada data {activeTab?.label.toLowerCase()}.
             </div>
           ) : (

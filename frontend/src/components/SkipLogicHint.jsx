@@ -42,7 +42,7 @@ function SkipLogicHint({ question, questions = [] }) {
               )}
             </span>
           ))}
-          <span className="block border-t border-gray-700 pt-1.5 mt-1 text-gray-400">
+          <span className="block border-t border-gray-700 pt-1.5 mt-1 text-gray-500">
             Pertanyaan <strong className="text-gray-200">wajib</strong> pada cabang yang dilewati otomatis tidak diwajibkan.
             Susun blok cabang secara <strong className="text-gray-200">berurutan</strong>.
           </span>

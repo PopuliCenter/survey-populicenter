@@ -82,14 +82,14 @@ function ReportConfigModal({ surveyId, surveyTitle, onClose }) {
         <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between">
           <div>
             <h3 className="text-sm font-semibold text-gray-800">Konfigurasi Laporan PPTX</h3>
-            <p className="text-xs text-gray-400 mt-0.5">{surveyTitle}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{surveyTitle}</p>
           </div>
-          <button type="button" onClick={() => onClose?.(false)} aria-label="Tutup" className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+          <button type="button" onClick={() => onClose?.(false)} aria-label="Tutup" className="text-gray-500 hover:text-gray-600 text-lg leading-none">×</button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           {loading ? (
-            <p className="text-sm text-gray-400 text-center py-6">Memuat…</p>
+            <p className="text-sm text-gray-500 text-center py-6">Memuat…</p>
           ) : (
             <>
               <div>
@@ -134,7 +134,7 @@ function ReportConfigModal({ surveyId, surveyTitle, onClose }) {
                       />
                     </div>
                   ))}
-                  {questions.length === 0 && <p className="text-sm text-gray-400">Tidak ada pertanyaan yang bisa ditampilkan.</p>}
+                  {questions.length === 0 && <p className="text-sm text-gray-500">Tidak ada pertanyaan yang bisa ditampilkan.</p>}
                 </div>
               </div>
             </>

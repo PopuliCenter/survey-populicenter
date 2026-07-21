@@ -48,15 +48,15 @@ function SurveyCard({
       {/* Body: Metadata */}
       <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-4 flex-1">
         <div>
-          <span className="block text-gray-400">Pertanyaan</span>
+          <span className="block text-gray-500">Pertanyaan</span>
           <span className="font-medium text-gray-700">{survey.question_count ?? 0}</span>
         </div>
         <div>
-          <span className="block text-gray-400">Responden</span>
+          <span className="block text-gray-500">Responden</span>
           <span className="font-medium text-gray-700">{survey.response_count ?? 0}</span>
         </div>
         <div className="col-span-2">
-          <span className="block text-gray-400">Dibuat</span>
+          <span className="block text-gray-500">Dibuat</span>
           <span className="font-medium text-gray-700">{formatDate(survey.created_at)}</span>
         </div>
       </div>

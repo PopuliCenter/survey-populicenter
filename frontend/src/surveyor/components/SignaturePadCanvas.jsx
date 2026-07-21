@@ -38,7 +38,7 @@ function SignaturePadCanvas({ signaturePad, required = false, hasError = false }
 
       {/* Hint */}
       {isEmpty && !showError && (
-        <p className="text-xs text-gray-400 mt-1 text-center">Gambar tanda tangan di area di atas</p>
+        <p className="text-xs text-gray-500 mt-1 text-center">Gambar tanda tangan di area di atas</p>
       )}
 
       {showError && (

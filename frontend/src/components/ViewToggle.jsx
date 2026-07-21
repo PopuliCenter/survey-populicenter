@@ -50,7 +50,7 @@ function ViewToggle({ viewMode, onViewChange }) {
         className={`p-2 transition-colors ${
           viewMode === 'table'
             ? 'bg-primary-100 text-primary-700'
-            : 'bg-gray-50 text-gray-400 hover:text-gray-600'
+            : 'bg-gray-50 text-gray-500 hover:text-gray-600'
         }`}
         onClick={() => onViewChange('table')}
         aria-label="Tampilan Tabel"
@@ -75,7 +75,7 @@ function ViewToggle({ viewMode, onViewChange }) {
         className={`p-2 transition-colors ${
           viewMode === 'grid'
             ? 'bg-primary-100 text-primary-700'
-            : 'bg-gray-50 text-gray-400 hover:text-gray-600'
+            : 'bg-gray-50 text-gray-500 hover:text-gray-600'
         }`}
         onClick={() => onViewChange('grid')}
         aria-label="Tampilan Grid"

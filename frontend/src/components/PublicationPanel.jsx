@@ -129,7 +129,7 @@ function PublicationPanel({ surveyId, surveyTitle }) {
 
   if (!surveyId) {
     return (
-      <p className="text-sm text-gray-400">Pilih survei terlebih dahulu untuk mengelola publikasi hasil.</p>
+      <p className="text-sm text-gray-500">Pilih survei terlebih dahulu untuk mengelola publikasi hasil.</p>
     );
   }
 
@@ -141,7 +141,7 @@ function PublicationPanel({ surveyId, surveyTitle }) {
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm text-gray-600">Status:</span>
         {loading ? (
-          <span className="text-sm text-gray-400">Memeriksa…</span>
+          <span className="text-sm text-gray-500">Memeriksa…</span>
         ) : isLive ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Tayang publik
@@ -156,7 +156,7 @@ function PublicationPanel({ surveyId, surveyTitle }) {
           </span>
         )}
         {pub?.published_at && (
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-gray-500">
             · {pub.response_count?.toLocaleString('id-ID')} responden · diperbarui{' '}
             {new Date(pub.published_at).toLocaleString('id-ID')}
           </span>
@@ -209,7 +209,7 @@ function PublicationPanel({ surveyId, surveyTitle }) {
               </label>
             ))}
           </div>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-gray-500 mt-1">
             Hanya pertanyaan pilihan/skala/matriks/wilayah yang bisa ditayangkan (teks bebas &amp; media dikecualikan demi privasi).
           </p>
         </div>
@@ -238,7 +238,7 @@ function PublicationPanel({ surveyId, surveyTitle }) {
       </div>
 
       {/* Snapshot membekukan angka — penjelasan */}
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         "Publikasikan" membekukan angka agregat saat ini. Bila ada responden baru,
         klik "Perbarui snapshot" untuk menayangkan angka terkini. Hanya data agregat
         yang ditayangkan — tidak ada jawaban individual, identitas, atau lokasi mentah.
@@ -279,7 +279,7 @@ function PublicationPanel({ surveyId, surveyTitle }) {
               <option value="urutan">Urutan asli (sesuai susunan pertanyaan/matriks)</option>
               <option value="terbanyak">Peringkat (dari jawaban terbanyak)</option>
             </select>
-            <p className="text-[11px] text-gray-400 mb-2">
+            <p className="text-2xs text-gray-500 mb-2">
               "Urutan asli" cocok untuk skala & matriks; "Peringkat" mengurutkan dari yang paling banyak dipilih.
             </p>
           </div>

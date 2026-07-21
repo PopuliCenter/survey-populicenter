@@ -228,7 +228,7 @@ function MapView() {
         {/* Map */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
           {!hasFiltered ? (
-            <div className="w-full h-[500px] rounded-lg border border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400 gap-3">
+            <div className="w-full h-[500px] rounded-lg border border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-500 gap-3">
               <svg
                 className="w-16 h-16 text-gray-300"
                 viewBox="0 0 24 24"

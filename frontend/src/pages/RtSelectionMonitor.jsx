@@ -106,7 +106,7 @@ function RtSelectionMonitor() {
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
-          <h1 className="text-xl font-semibold text-gray-800">Pengawasan Pemilihan RT</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Pengawasan Pemilihan RT</h1>
           <p className="text-sm text-gray-500 mt-1">
             Hasil undian RT per kelurahan/desa, lengkap dengan verifikasi ulang dari seed dan bukti
             Form B ber-tanda tangan aparat desa.
@@ -202,7 +202,7 @@ function RtSelectionMonitor() {
                       </td>
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
                         {r.official_name || '—'}
-                        {r.official_position ? <span className="text-gray-400"> · {r.official_position}</span> : null}
+                        {r.official_position ? <span className="text-gray-500"> · {r.official_position}</span> : null}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         {r.form_b_photo_path ? (
@@ -230,7 +230,7 @@ function RtSelectionMonitor() {
           )}
         </section>
 
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-500">
           &quot;Terverifikasi&quot; berarti nomor RT yang tersimpan sama persis dengan hasil hitung ulang
           dari seed undian — bukti hasil tidak dikarang. Undian terkunci satu kali per kelurahan dan
           tidak dapat diulang oleh TPD.

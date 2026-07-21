@@ -609,7 +609,7 @@ function Responses() {
         {/* Table card */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
           {appliedFilters === null ? (
-            <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-sm gap-2">
+            <div className="flex flex-col items-center justify-center h-48 text-gray-500 text-sm gap-2">
               <svg
                 className="w-10 h-10 text-gray-300"
                 viewBox="0 0 24 24"
@@ -627,7 +627,7 @@ function Responses() {
             </div>
           ) : loading ? (
             <div
-              className="flex items-center justify-center h-48 text-gray-400 text-sm"
+              className="flex items-center justify-center h-48 text-gray-500 text-sm"
               role="status"
               aria-live="polite"
             >
@@ -647,7 +647,7 @@ function Responses() {
               </button>
             </div>
           ) : responses.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
               Tidak ada data responden yang sesuai filter.
             </div>
           ) : (
@@ -695,7 +695,7 @@ function Responses() {
                           {response.gender_parity_mismatch === true && (
                             <span
                               title="Jenis kelamin tidak sesuai paritas nomor kuesioner (ganjil = Laki-laki, genap = Perempuan)"
-                              className="inline-flex items-center gap-0.5 rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-semibold"
+                              className="inline-flex items-center gap-0.5 rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-2xs font-semibold"
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" />
@@ -706,7 +706,7 @@ function Responses() {
                           {response.short_duration === true && (
                             <span
                               title="Durasi pengisian terlalu singkat (di bawah ambang survei) — indikasi wawancara terburu-buru"
-                              className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-semibold"
+                              className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-2xs font-semibold"
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

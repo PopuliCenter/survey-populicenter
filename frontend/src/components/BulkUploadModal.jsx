@@ -178,7 +178,7 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
                 className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 focus:outline-none"
                 aria-describedby="bulk-upload-file-hint"
               />
-              <p id="bulk-upload-file-hint" className="mt-1 text-xs text-gray-400">
+              <p id="bulk-upload-file-hint" className="mt-1 text-xs text-gray-500">
                 Format: CSV atau Excel (.xlsx). Kolom: nama, email, password
               </p>
             </div>

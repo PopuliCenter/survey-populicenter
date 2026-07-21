@@ -51,17 +51,17 @@ function SurveyorCard({
       {/* Body: Metadata */}
       <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-4 flex-1">
         <div className="col-span-2">
-          <span className="block text-gray-400">Email</span>
+          <span className="block text-gray-500">Email</span>
           <span className="font-medium text-gray-700 truncate block" title={surveyor.email}>
             {surveyor.email}
           </span>
         </div>
         <div>
-          <span className="block text-gray-400">Responden</span>
+          <span className="block text-gray-500">Responden</span>
           <span className="font-medium text-gray-700">{responseCount ?? surveyor.response_count ?? 0}</span>
         </div>
         <div>
-          <span className="block text-gray-400">Bergabung</span>
+          <span className="block text-gray-500">Bergabung</span>
           <span className="font-medium text-gray-700">{formatDate(surveyor.created_at)}</span>
         </div>
       </div>

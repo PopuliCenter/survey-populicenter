@@ -116,12 +116,12 @@ function SystemStatus() {
                   {[['Menunggu', q.waiting], ['Aktif', q.active], ['Selesai', q.completed], ['Gagal', q.failed], ['Tunda', q.delayed]].map(([l, v]) => (
                     <div key={l} className="bg-gray-50 rounded-lg py-2">
                       <p className={`text-lg font-bold ${l === 'Gagal' && v > 0 ? 'text-red-600' : 'text-gray-800'}`}>{v ?? 0}</p>
-                      <p className="text-[11px] text-gray-500">{l}</p>
+                      <p className="text-2xs text-gray-500">{l}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">{data.queue?.error || 'Tidak tersedia.'}</p>
+                <p className="text-sm text-gray-500">{data.queue?.error || 'Tidak tersedia.'}</p>
               )}
             </Card>
 

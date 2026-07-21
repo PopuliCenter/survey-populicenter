@@ -46,7 +46,7 @@ function triggerDownload(blob, filename) {
 
 // Tabel generik dari list-of-object (kolom = key baris pertama).
 function DataTable({ rows, max = 200 }) {
-  if (!rows || rows.length === 0) return <p className="text-sm text-gray-400 italic">Tidak ada data.</p>;
+  if (!rows || rows.length === 0) return <p className="text-sm text-gray-500 italic">Tidak ada data.</p>;
   const cols = Object.keys(rows[0]);
   const shown = rows.slice(0, max);
   return (
@@ -231,7 +231,7 @@ function RandomSampling() {
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
-          <h1 className="text-xl font-semibold text-gray-800">Random Sampling Wilayah</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Random Sampling Wilayah</h1>
           <p className="text-sm text-gray-500 mt-1">
             Sampling multistage proporsional berbasis MFD (BPS) — terstratifikasi Kota/Desa dengan jaminan
             setiap wilayah tersampling. Metodologi SILOGNAS / SURNAS.

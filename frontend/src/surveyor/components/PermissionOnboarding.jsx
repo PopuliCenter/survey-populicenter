@@ -125,7 +125,7 @@ function PermissionOnboarding({ onDone }) {
         >
           Nanti saja
         </button>
-        <p className="text-[11px] text-gray-400 mt-3 leading-relaxed">
+        <p className="text-2xs text-gray-500 mt-3 leading-relaxed">
           Pilih <b>"Saat aplikasi digunakan"</b> / <b>Izinkan</b> pada setiap dialog.
           Jika terlanjur menolak, aktifkan lewat Setelan HP → Aplikasi → Izin.
         </p>

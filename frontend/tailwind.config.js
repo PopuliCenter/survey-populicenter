@@ -6,6 +6,23 @@ export default {
   ],
   theme: {
     extend: {
+      // ── Skala teks ──────────────────────────────────────────────────────────
+      // Sebelumnya ada 39 pemakaian ukuran sembarang (text-[10px]/text-[11px])
+      // yang tersebar tanpa aturan. Satu langkah bernama membuatnya disengaja
+      // dan konsisten. 10px dinaikkan ke 11px — di bawah itu teks sulit dibaca,
+      // terlebih di layar HP.
+      //
+      // Skala yang dipakai aplikasi (jangan mengarang ukuran baru):
+      //   2xs  11px  → meta/keterangan kecil (timestamp, satuan, catatan kaki)
+      //   xs   12px  → label, badge, teks pendamping
+      //   sm   14px  → teks isi & sebagian besar kontrol (ukuran kerja utama)
+      //   base 16px  → teks isi yang perlu menonjol
+      //   lg   18px  → judul kartu/bagian
+      //   xl   20px  → judul bagian besar
+      //   2xl  24px  → JUDUL HALAMAN (h1) — seragam di seluruh dashboard
+      fontSize: {
+        '2xs': ['0.6875rem', { lineHeight: '1rem' }],
+      },
       colors: {
         primary: {
           50: '#eff6ff',

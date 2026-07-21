@@ -356,7 +356,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
             <label htmlFor="tpd-password" className="block text-sm font-medium text-gray-700 mb-1">
               Password{' '}
               {!isEdit && <span aria-hidden="true" className="text-red-500">*</span>}
-              {isEdit && <span className="text-gray-400 font-normal text-xs ml-1">(kosongkan jika tidak ingin mengubah)</span>}
+              {isEdit && <span className="text-gray-500 font-normal text-xs ml-1">(kosongkan jika tidak ingin mengubah)</span>}
             </label>
             <PasswordInput
               id="tpd-password"
@@ -366,7 +366,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
               autoComplete="new-password"
               aria-invalid={!!fieldErrors.password}
             />
-            <p className="mt-1 text-xs text-gray-400">Min. 8 karakter, huruf besar, huruf kecil, dan angka</p>
+            <p className="mt-1 text-xs text-gray-500">Min. 8 karakter, huruf besar, huruf kecil, dan angka</p>
             {fieldErrors.password && <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
           </div>
 
@@ -374,7 +374,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
           <div>
             <label htmlFor="tpd-survey" className="block text-sm font-medium text-gray-700 mb-1">
               Tugaskan ke Survei{' '}
-              <span className="text-gray-400 font-normal text-xs ml-1">(opsional)</span>
+              <span className="text-gray-500 font-normal text-xs ml-1">(opsional)</span>
             </label>
             <select
               id="tpd-survey"
@@ -388,7 +388,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
               ))}
             </select>
             {isEdit && (
-              <p className="mt-1 text-xs text-gray-400">Pilih survei untuk menambah/memperbarui kuota TPD ini</p>
+              <p className="mt-1 text-xs text-gray-500">Pilih survei untuk menambah/memperbarui kuota TPD ini</p>
             )}
           </div>
 
@@ -410,7 +410,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                   className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 ${fieldErrors.quota ? 'border-red-400' : 'border-gray-300'}`}
                   aria-invalid={!!fieldErrors.quota}
                 />
-                <p className="mt-1 text-xs text-gray-400">Jumlah maksimum kuesioner yang boleh diisi TPD untuk survei ini</p>
+                <p className="mt-1 text-xs text-gray-500">Jumlah maksimum kuesioner yang boleh diisi TPD untuk survei ini</p>
                 {fieldErrors.quota && <p className="mt-1 text-xs text-red-600">{fieldErrors.quota}</p>}
               </div>
 
@@ -418,7 +418,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
               <div>
                 <label htmlFor="tpd-assigned-numbers" className="block text-sm font-medium text-gray-700 mb-1">
                   Nomor Kuesioner yang Ditugaskan{' '}
-                  <span className="text-gray-400 font-normal text-xs ml-1">(opsional)</span>
+                  <span className="text-gray-500 font-normal text-xs ml-1">(opsional)</span>
                 </label>
 
                 {/* Generator rentang — isi cepat tanpa ketik satu per satu */}
@@ -426,25 +426,25 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                   <p className="text-xs font-semibold text-gray-600 mb-2">Buat cepat dari rentang</p>
                   <div className="flex flex-wrap items-end gap-2">
                     <div>
-                      <label htmlFor="range-from" className="block text-[11px] text-gray-500 mb-0.5">Dari</label>
+                      <label htmlFor="range-from" className="block text-2xs text-gray-500 mb-0.5">Dari</label>
                       <input id="range-from" type="number" inputMode="numeric" value={rangeFrom}
                         onChange={(e) => setRangeFrom(e.target.value)} placeholder="1"
                         className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
                     </div>
                     <div>
-                      <label htmlFor="range-to" className="block text-[11px] text-gray-500 mb-0.5">Sampai</label>
+                      <label htmlFor="range-to" className="block text-2xs text-gray-500 mb-0.5">Sampai</label>
                       <input id="range-to" type="number" inputMode="numeric" value={rangeTo}
                         onChange={(e) => setRangeTo(e.target.value)} placeholder="50"
                         className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
                     </div>
                     <div>
-                      <label htmlFor="range-prefix" className="block text-[11px] text-gray-500 mb-0.5">Awalan</label>
+                      <label htmlFor="range-prefix" className="block text-2xs text-gray-500 mb-0.5">Awalan</label>
                       <input id="range-prefix" type="text" value={rangePrefix}
                         onChange={(e) => setRangePrefix(e.target.value)} placeholder="mis. SBY-"
                         className="w-24 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
                     </div>
                     <div>
-                      <label htmlFor="range-pad" className="block text-[11px] text-gray-500 mb-0.5" title="Jumlah digit dengan nol di depan; 0/kosong = tanpa nol">Digit</label>
+                      <label htmlFor="range-pad" className="block text-2xs text-gray-500 mb-0.5" title="Jumlah digit dengan nol di depan; 0/kosong = tanpa nol">Digit</label>
                       <input id="range-pad" type="number" inputMode="numeric" min={0} value={rangePad}
                         onChange={(e) => setRangePad(e.target.value)} placeholder="3"
                         className="w-16 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
@@ -469,11 +469,11 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                   </div>
                   {rangeError && <p className="mt-1.5 text-xs text-red-600">{rangeError}</p>}
                   {surveyId && surveyAssignments.length > 0 && (
-                    <p className="mt-1.5 text-[11px] text-gray-500">
+                    <p className="mt-1.5 text-2xs text-gray-500">
                       Sudah dipakai {surveyAssignments.reduce((s, a) => s + (a.assigned_numbers?.length || 0), 0)} nomor di survei ini · tertinggi <b>{maxAssignedNumeric()}</b>.
                     </p>
                   )}
-                  <p className="mt-1.5 text-[11px] text-gray-400">Contoh: Dari <b>1</b>, Sampai <b>50</b>, Digit <b>3</b> → 001…050. Awalan opsional (mis. "SBY-001"). Hasil bisa diedit manual di bawah.</p>
+                  <p className="mt-1.5 text-2xs text-gray-500">Contoh: Dari <b>1</b>, Sampai <b>50</b>, Digit <b>3</b> → 001…050. Awalan opsional (mis. "SBY-001"). Hasil bisa diedit manual di bawah.</p>
                 </div>
 
                 <textarea
@@ -485,7 +485,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                   className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 font-mono resize-none ${fieldErrors.assignedNumbers ? 'border-red-400' : 'border-gray-300'}`}
                   aria-invalid={!!fieldErrors.assignedNumbers}
                 />
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-gray-500">
                   TPD akan melihat daftar nomor ini sebagai tugas yang harus diisi.
                   Kosongkan jika tidak ingin menentukan nomor spesifik.
                 </p>
@@ -984,7 +984,7 @@ function Surveyors() {
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-gray-700">Pilih Survei</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Pilih survei untuk melihat & mengelola TPD yang ditugaskan padanya.</p>
+                <p className="text-xs text-gray-500 mt-0.5">Pilih survei untuk melihat & mengelola TPD yang ditugaskan padanya.</p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <select
@@ -1016,11 +1016,11 @@ function Surveyors() {
             </div>
 
             {loading ? (
-              <div className="flex items-center justify-center h-48 text-gray-400 text-sm" role="status" aria-live="polite">
+              <div className="flex items-center justify-center h-48 text-gray-500 text-sm" role="status" aria-live="polite">
                 Memuat…
               </div>
             ) : visibleSurveys.length === 0 ? (
-              <div className="bg-white rounded-xl shadow flex items-center justify-center h-40 text-gray-400 text-sm">
+              <div className="bg-white rounded-xl shadow flex items-center justify-center h-40 text-gray-500 text-sm">
                 {surveys.length === 0 ? 'Belum ada survei.' : 'Tidak ada survei yang cocok.'}
               </div>
             ) : (
@@ -1031,7 +1031,7 @@ function Surveyors() {
                     <div className="flex items-center gap-2 mb-3">
                       <span className={`w-2 h-2 rounded-full ${group.dot}`} aria-hidden="true" />
                       <h3 className="text-sm font-semibold text-gray-700">{group.label}</h3>
-                      <span className="text-xs text-gray-400">({group.items.length})</span>
+                      <span className="text-xs text-gray-500">({group.items.length})</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {group.items.map((s) => {
@@ -1141,7 +1141,7 @@ function Surveyors() {
               Reset Filter
             </button>
           )}
-          <span className="text-xs text-gray-400 ml-auto">
+          <span className="text-xs text-gray-500 ml-auto">
             {filteredSurveyors.length} dari {tpdList.length} TPD
           </span>
         </div>
@@ -1150,7 +1150,7 @@ function Surveyors() {
         <div className="bg-white rounded-xl shadow overflow-hidden">
           {loading ? (
             <div
-              className="flex items-center justify-center h-48 text-gray-400 text-sm"
+              className="flex items-center justify-center h-48 text-gray-500 text-sm"
               role="status"
               aria-live="polite"
             >
@@ -1170,11 +1170,11 @@ function Surveyors() {
               </button>
             </div>
           ) : tpdList.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
               Belum ada data TPD.
             </div>
           ) : filteredSurveyors.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
               Tidak ada TPD yang sesuai filter.
             </div>
           ) : viewMode === 'grid' ? (
@@ -1301,7 +1301,7 @@ function Surveyors() {
                             {tpd.name}
                             {tpd.device_bound && (
                               <span
-                                className="ml-2 inline-flex items-center gap-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold align-middle"
+                                className="ml-2 inline-flex items-center gap-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-2xs font-semibold align-middle"
                                 title={`Terkunci ke perangkat${tpd.device_label ? `: ${tpd.device_label}` : ''}${tpd.device_bound_at ? ` (sejak ${new Date(tpd.device_bound_at).toLocaleDateString('id-ID')})` : ''}`}
                               >
                                 <Icon name="lock" className="w-3 h-3" />
@@ -1641,7 +1641,7 @@ function Surveyors() {
               />
               <span className="text-sm text-gray-700">
                 Bagikan <b>nomor kuesioner</b> otomatis
-                <span className="block text-xs text-gray-400">Tiap TPD menerima blok nomor berurutan sesuai kuota.</span>
+                <span className="block text-xs text-gray-500">Tiap TPD menerima blok nomor berurutan sesuai kuota.</span>
               </span>
             </label>
 
@@ -1670,9 +1670,9 @@ function Surveyors() {
                       TPD pertama {pad(start)}–{pad(start + quotaNum - 1)}, berikutnya menyusul berurutan.
                     </p>
                   ) : (
-                    <p className="text-xs text-gray-400 mt-2">Isi kuota & nomor awal untuk melihat pembagian.</p>
+                    <p className="text-xs text-gray-500 mt-2">Isi kuota & nomor awal untuk melihat pembagian.</p>
                   )}
-                  <p className="text-[11px] text-amber-600 mt-1">Nomor yang sudah dipakai TPD lain akan ditolak — pilih nomor awal setelah rentang yang ada.</p>
+                  <p className="text-2xs text-amber-600 mt-1">Nomor yang sudah dipakai TPD lain akan ditolak — pilih nomor awal setelah rentang yang ada.</p>
                 </div>
               );
             })()}

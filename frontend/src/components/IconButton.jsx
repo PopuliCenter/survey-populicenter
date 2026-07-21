@@ -88,7 +88,7 @@ function IconButton({
       </button>
       <span
         role="tooltip"
-        className={`pointer-events-none absolute left-1/2 -translate-x-1/2 ${tipPos} whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 z-30`}
+        className={`pointer-events-none absolute left-1/2 -translate-x-1/2 ${tipPos} whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-2xs font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 z-30`}
       >
         {label}
       </span>
