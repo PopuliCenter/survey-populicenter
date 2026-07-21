@@ -1239,11 +1239,19 @@ describe('survey deadline', () => {
     expect(findAllCall.attributes).toContain('field_tools_settings');
   });
 
-  test('GET /surveys → field_tools_settings ikut untuk SEMUA role (TPD butuh utk tombol Pemilihan RT)', async () => {
+  test('GET /surveys → field_tools_settings sampai di BADAN RESPONS untuk semua role', async () => {
+    // Dua kali bug lolos karena assertion di lapisan yang salah:
+    // (1) mock frontend menjanjikan field yang tak dikirim endpoint;
+    // (2) tes backend memeriksa attributes QUERY, padahal serialisasi respons
+    //     (surveys.map → objek baru) membuang field-nya lagi.
+    // Maka yang diuji di sini adalah res.body — kontrak yang dilihat klien.
+    const settings = { signature_mode: 'required', audio_mode: 'required', photo_mode: 'required', gps_mode: 'required', rt_selection: 'enabled', rt_selection_count: 2 };
     for (const makeToken of [createAdminToken, createSurveyorToken]) {
       Survey.findAll.mockClear();
-      Survey.findAll.mockResolvedValue([]);
-      Question.findAll.mockResolvedValue([]);
+      Survey.findAll.mockResolvedValue([
+        mockSurvey({ id: 'svy-rt', status: 'active', start_date: null, end_date: null, field_tools_settings: settings }),
+      ]);
+      Question.findAll.mockResolvedValue([{ survey_id: 'svy-rt', count: '3' }]);
       Response.findAll.mockResolvedValue([]);
 
       const res = await request(app)
@@ -1251,7 +1259,9 @@ describe('survey deadline', () => {
         .set('Authorization', `Bearer ${makeToken()}`);
 
       expect(res.status).toBe(200);
-      expect(Survey.findAll.mock.calls[0][0].attributes).toContain('field_tools_settings');
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0].field_tools_settings).toEqual(settings);
+      expect(res.body[0].field_tools_settings.rt_selection).toBe('enabled');
     }
   });
 

@@ -189,6 +189,9 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
       start_date: s.start_date,
       end_date: s.end_date,
       created_at: s.created_at,
+      // WAJIB diteruskan sampai respons (bukan hanya di-SELECT): app TPD
+      // membaca ini untuk tombol "Pemilihan RT", dashboard untuk pengawasan RT.
+      field_tools_settings: s.field_tools_settings || null,
     }));
 
     if (role === 'surveyor') {
