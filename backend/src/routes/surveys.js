@@ -93,17 +93,21 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
 
     let surveys;
 
+    // field_tools_settings WAJIB ikut di daftar: dipakai app TPD untuk
+    // menampilkan tombol "Pemilihan RT" (rt_selection) dan dashboard untuk
+    // halaman pengawasan RT. Tanpa ini fitur tsb mati diam-diam — daftar
+    // tampak normal tetapi setiap survei terbaca "nonaktif".
     if (role === 'admin' || role === 'supervisor' || role === 'asisten_supervisor') {
       // Admin, supervisor & asisten supervisor melihat semua survei
       surveys = await Survey.findAll({
-        attributes: ['id', 'title', 'description', 'status', 'type', 'start_date', 'end_date', 'created_at'],
+        attributes: ['id', 'title', 'description', 'status', 'type', 'start_date', 'end_date', 'created_at', 'field_tools_settings'],
         order: [['created_at', 'DESC']],
       });
     } else if (role === 'viewer' || role === 'partner_lokal') {
       // Viewer sees active and inactive surveys (not draft)
       surveys = await Survey.findAll({
         where: { status: ['active', 'inactive'] },
-        attributes: ['id', 'title', 'description', 'status', 'type', 'start_date', 'end_date', 'created_at'],
+        attributes: ['id', 'title', 'description', 'status', 'type', 'start_date', 'end_date', 'created_at', 'field_tools_settings'],
         order: [['created_at', 'DESC']],
       });
     } else {
@@ -127,7 +131,7 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
             },
           ],
         },
-        attributes: ['id', 'title', 'description', 'status', 'type', 'start_date', 'end_date', 'created_at'],
+        attributes: ['id', 'title', 'description', 'status', 'type', 'start_date', 'end_date', 'created_at', 'field_tools_settings'],
         order: [['created_at', 'DESC']],
       });
     }

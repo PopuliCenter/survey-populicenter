@@ -1233,6 +1233,26 @@ describe('survey deadline', () => {
     // Verify start_date and end_date are in attributes
     expect(findAllCall.attributes).toContain('start_date');
     expect(findAllCall.attributes).toContain('end_date');
+    // REGRESI NYATA: field_tools_settings pernah tak ikut di daftar → tombol
+    // "Pemilihan RT" TPD & halaman pengawasan RT membaca undefined dan fitur
+    // mati diam-diam (semua survei terbaca "nonaktif") padahal builder "Aktif".
+    expect(findAllCall.attributes).toContain('field_tools_settings');
+  });
+
+  test('GET /surveys → field_tools_settings ikut untuk SEMUA role (TPD butuh utk tombol Pemilihan RT)', async () => {
+    for (const makeToken of [createAdminToken, createSurveyorToken]) {
+      Survey.findAll.mockClear();
+      Survey.findAll.mockResolvedValue([]);
+      Question.findAll.mockResolvedValue([]);
+      Response.findAll.mockResolvedValue([]);
+
+      const res = await request(app)
+        .get('/surveys')
+        .set('Authorization', `Bearer ${makeToken()}`);
+
+      expect(res.status).toBe(200);
+      expect(Survey.findAll.mock.calls[0][0].attributes).toContain('field_tools_settings');
+    }
   });
 
   test('GET /surveys/:id → response mengandung start_date, end_date, is_expired', async () => {
