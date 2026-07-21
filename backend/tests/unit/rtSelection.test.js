@@ -20,10 +20,11 @@ jest.mock('../../src/middleware/auth', () => ({
 jest.mock('../../src/models', () => ({
   Survey: { findByPk: jest.fn() },
   RtSelection: { findOne: jest.fn(), create: jest.fn(), findAll: jest.fn() },
+  RtSeedTicket: { findAll: jest.fn(), findOne: jest.fn(), bulkCreate: jest.fn() },
   User: {},
 }));
 
-const { Survey, RtSelection } = require('../../src/models');
+const { Survey, RtSelection, RtSeedTicket } = require('../../src/models');
 const rtRouter = require('../../src/routes/rtSelection');
 const { verifyDraw } = require('../../src/utils/rtDraw');
 
@@ -51,6 +52,9 @@ beforeEach(() => {
   Survey.findByPk.mockResolvedValue(surveyWith({ rt_selection: 'enabled', rt_selection_count: 2 }));
   RtSelection.findOne.mockResolvedValue(null);
   RtSelection.create.mockImplementation(async (row) => ({ ...row, id: 'sel-1' }));
+  RtSeedTicket.findAll.mockResolvedValue([]);
+  RtSeedTicket.findOne.mockResolvedValue(null);
+  RtSeedTicket.bulkCreate.mockImplementation(async (rows) => rows.map((r, i) => ({ ...r, id: `tik-${i + 1}` })));
 });
 
 describe('POST /rt-selection — undian pertama', () => {
@@ -170,6 +174,115 @@ describe('POST /rt-selection — penolakan', () => {
     expect(res.status).toBe(422);
     expect(res.body.error).toMatch(/hanya punya 1 RT/i);
     expect(RtSelection.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /rt-selection/tickets — jatah seed offline', () => {
+  test('membuat 20 tiket berurutan saat belum ada, dengan seed berbeda-beda', async () => {
+    const res = await request(makeApp()).get('/rt-selection/tickets?survey_id=srv-1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.rt_count).toBe(2);
+    expect(res.body.tickets).toHaveLength(20);
+
+    const dibuat = RtSeedTicket.bulkCreate.mock.calls[0][0];
+    expect(dibuat.map((t) => t.seq)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+    expect(new Set(dibuat.map((t) => t.seed)).size).toBe(20); // seed unik semua
+  });
+
+  test('idempoten: jatah sudah penuh → tidak membuat tiket baru', async () => {
+    RtSeedTicket.findAll.mockResolvedValue(
+      Array.from({ length: 20 }, (_, i) => ({ id: `t-${i + 1}`, seq: i + 1, seed: `s${i + 1}`, used_village: null }))
+    );
+
+    const res = await request(makeApp()).get('/rt-selection/tickets?survey_id=srv-1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.tickets).toHaveLength(20);
+    expect(RtSeedTicket.bulkCreate).not.toHaveBeenCalled();
+  });
+
+  test('survei tanpa rt_selection aktif ditolak', async () => {
+    Survey.findByPk.mockResolvedValue(surveyWith({ rt_selection: 'off' }));
+
+    const res = await request(makeApp()).get('/rt-selection/tickets?survey_id=srv-1');
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /rt-selection/offline-sync — setor undian offline', () => {
+  const { drawRt } = require('../../src/utils/rtDraw');
+  const TIKET = { id: 'tik-1', seq: 1, seed: 'seed-offline-1', used_village: null, update: jest.fn().mockResolvedValue(true) };
+
+  function offlineBody(over = {}) {
+    return {
+      survey_id: 'srv-1',
+      ticket_id: 'tik-1',
+      ...LOKASI,
+      total_rt: 25,
+      selected: drawRt({ seed: TIKET.seed, totalRt: 25, count: 2 }),
+      locked_at: '2026-07-21T10:00:00.000Z',
+      ...over,
+    };
+  }
+
+  beforeEach(() => {
+    TIKET.update.mockClear();
+    RtSeedTicket.findOne.mockResolvedValue(TIKET);
+  });
+
+  test('hasil sah: server hitung ulang cocok → tersimpan verified & tiket ditandai terpakai', async () => {
+    const res = await request(makeApp()).post('/rt-selection/offline-sync').send(offlineBody());
+
+    expect(res.status).toBe(201);
+    expect(res.body.verified).toBe(true);
+    expect(res.body.selection.seed).toBe('seed-offline-1');
+    expect(TIKET.update).toHaveBeenCalledWith({ used_village: LOKASI.village, used_at: expect.any(Date) });
+  });
+
+  test('hasil DIMANIPULASI: tetap disimpan apa adanya tetapi verified=false (pengawasan menandai merah)', async () => {
+    const palsu = [1, 2]; // hampir pasti beda dari hitung-ulang seed
+    const asli = drawRt({ seed: TIKET.seed, totalRt: 25, count: 2 });
+    expect(palsu).not.toEqual(asli); // pastikan memang beda
+
+    const res = await request(makeApp()).post('/rt-selection/offline-sync').send(offlineBody({ selected: palsu }));
+
+    expect(res.status).toBe(201);
+    expect(res.body.verified).toBe(false);
+    expect(res.body.selection.selected).toEqual(palsu); // yang dilihat TPD yang disimpan
+  });
+
+  test('tiket orang lain / tak dikenal → 404', async () => {
+    RtSeedTicket.findOne.mockResolvedValue(null);
+
+    const res = await request(makeApp()).post('/rt-selection/offline-sync').send(offlineBody());
+
+    expect(res.status).toBe(404);
+    expect(RtSelection.create).not.toHaveBeenCalled();
+  });
+
+  test('tiket sudah terpakai untuk kelurahan lain → 409', async () => {
+    RtSeedTicket.findOne.mockResolvedValue({ ...TIKET, used_village: 'KELURAHAN LAIN' });
+
+    const res = await request(makeApp()).post('/rt-selection/offline-sync').send(offlineBody());
+
+    expect(res.status).toBe(409);
+    expect(RtSelection.create).not.toHaveBeenCalled();
+  });
+
+  test('idempoten per kelurahan: sinkron ulang mengembalikan hasil tersimpan', async () => {
+    RtSelection.findOne.mockResolvedValue({
+      id: 'sel-x', survey_id: 'srv-1', ...LOKASI, total_rt: 25,
+      selected: [3, 9], seed: 'seed-offline-1', algo_version: 1, locked_at: new Date(),
+    });
+
+    const res = await request(makeApp()).post('/rt-selection/offline-sync').send(offlineBody());
+
+    expect(res.status).toBe(200);
+    expect(res.body.already_locked).toBe(true);
+    expect(RtSelection.create).not.toHaveBeenCalled();
+    expect(TIKET.update).not.toHaveBeenCalled();
   });
 });
 

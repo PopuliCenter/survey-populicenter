@@ -22,7 +22,7 @@
 
 const express = require('express');
 const { Op } = require('sequelize');
-const { Survey, RtSelection, User } = require('../models');
+const { Survey, RtSelection, RtSeedTicket, User } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { drawRt, generateSeed, verifyDraw, ALGO_VERSION } = require('../utils/rtDraw');
 
@@ -171,6 +171,177 @@ router.post('/', authMiddleware, async (req, res) => {
       }
     }
     return res.status(500).json({ error: 'Gagal menyimpan hasil undian RT.' });
+  }
+});
+
+// ── MODE OFFLINE: tiket seed dijatah di muka ─────────────────────────────────
+// Di pelosok tanpa sinyal, TPD tetap bisa mengundi: aplikasi memakai seed yang
+// SUDAH dijatah server (berurutan, tak bisa memilih), menghitung lokal dengan
+// algoritma identik, lalu menyinkron saat sinyal kembali — dan server
+// menghitung ulang dari seed tiket untuk membuktikan hasil tidak dimanipulasi.
+
+const TICKET_TARGET = 20; // jatah tiket per (survei, TPD) — cukup 20 kelurahan offline
+
+// GET /rt-selection/tickets?survey_id= — ambil (dan lengkapi) jatah tiket.
+// Idempoten: tiket yang sudah ada dikembalikan apa adanya; kekurangan dibuat.
+router.get('/tickets', authMiddleware, async (req, res) => {
+  const surveyId = req.query.survey_id;
+  if (!surveyId) return res.status(422).json({ error: 'survey_id wajib diisi.' });
+
+  let survey;
+  try {
+    survey = await Survey.findByPk(surveyId);
+  } catch {
+    return res.status(500).json({ error: 'Gagal membaca survei.' });
+  }
+  if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan.' });
+  if (!isEnabled(survey)) {
+    return res.status(400).json({ error: 'Pemilihan RT tidak diaktifkan untuk survei ini.' });
+  }
+
+  try {
+    const existing = await RtSeedTicket.findAll({
+      where: { survey_id: surveyId, surveyor_id: req.user.id },
+      order: [['seq', 'ASC']],
+    });
+    const missing = [];
+    for (let seq = existing.length + 1; seq <= TICKET_TARGET; seq++) {
+      missing.push({
+        survey_id: surveyId,
+        surveyor_id: req.user.id,
+        seq,
+        seed: generateSeed(),
+      });
+    }
+    const created = missing.length ? await RtSeedTicket.bulkCreate(missing) : [];
+    const all = [...existing, ...created].sort((a, b) => a.seq - b.seq);
+    return res.json({
+      rt_count: rtCountOf(survey),
+      algo_version: ALGO_VERSION,
+      tickets: all.map((t) => ({
+        id: t.id, seq: t.seq, seed: t.seed, used_village: t.used_village || null,
+      })),
+    });
+  } catch {
+    return res.status(500).json({ error: 'Gagal menyiapkan tiket undian offline.' });
+  }
+});
+
+// POST /rt-selection/offline-sync — setor hasil undian yang dihitung offline.
+// Server MEMVERIFIKASI: tiket milik TPD ini & belum dipakai kelurahan lain,
+// lalu MENGHITUNG ULANG dari seed tiket. Hasil yang tak cocok tetap disimpan
+// (data lapangan jangan hilang) tetapi otomatis berstatus "tidak terverifikasi"
+// di halaman pengawasan — bahan tindak lanjut supervisor.
+router.post('/offline-sync', authMiddleware, async (req, res) => {
+  const {
+    survey_id: surveyId,
+    ticket_id: ticketId,
+    province, city, district, village,
+    total_rt: totalRtRaw,
+    selected: clientSelected,
+    official_name: officialName,
+    official_position: officialPosition,
+    official_phone: officialPhone,
+    form_b_photo_path: formBPhotoPath,
+    locked_at: lockedAt,
+  } = req.body || {};
+
+  if (!surveyId || !ticketId) {
+    return res.status(422).json({ error: 'survey_id dan ticket_id wajib diisi.' });
+  }
+  const prov = clean(province, 120);
+  const kab = clean(city, 120);
+  const kec = clean(district, 120);
+  const kel = clean(village, 120);
+  if (!prov || !kab || !kec || !kel) {
+    return res.status(422).json({ error: 'Provinsi, kabupaten/kota, kecamatan, dan kelurahan/desa wajib diisi.' });
+  }
+  const totalRt = Number(totalRtRaw);
+  if (!Number.isInteger(totalRt) || totalRt < 1) {
+    return res.status(422).json({ error: 'Jumlah RT harus bilangan bulat minimal 1.' });
+  }
+
+  let survey;
+  try {
+    survey = await Survey.findByPk(surveyId);
+  } catch {
+    return res.status(500).json({ error: 'Gagal membaca survei.' });
+  }
+  if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan.' });
+  if (!isEnabled(survey)) {
+    return res.status(400).json({ error: 'Pemilihan RT tidak diaktifkan untuk survei ini.' });
+  }
+
+  // Idempoten per kelurahan: sinkron ulang mengembalikan hasil tersimpan.
+  const existing = await RtSelection.findOne({
+    where: { survey_id: surveyId, surveyor_id: req.user.id, village: kel },
+  });
+  if (existing) {
+    return res.status(200).json({ selection: serialize(existing), already_locked: true });
+  }
+
+  const ticket = await RtSeedTicket.findOne({
+    where: { id: ticketId, survey_id: surveyId, surveyor_id: req.user.id },
+  });
+  if (!ticket) {
+    return res.status(404).json({ error: 'Tiket undian tidak ditemukan / bukan milik Anda.' });
+  }
+  if (ticket.used_village && ticket.used_village !== kel) {
+    return res.status(409).json({
+      error: `Tiket ini sudah terpakai untuk kelurahan ${ticket.used_village}.`,
+    });
+  }
+
+  const count = rtCountOf(survey);
+  let serverSelected;
+  try {
+    serverSelected = drawRt({ seed: ticket.seed, totalRt, count });
+  } catch (err) {
+    return res.status(422).json({ error: err.message });
+  }
+
+  // Hasil klien vs hitung-ulang server. Bila beda, simpan MILIK KLIEN (itulah
+  // yang dilihat TPD di lapangan) — verifyDraw di pengawasan otomatis menandai
+  // baris ini merah karena tak cocok dengan seed.
+  const clientArr = Array.isArray(clientSelected) ? clientSelected.map(Number) : null;
+  const matches = !!clientArr
+    && clientArr.length === serverSelected.length
+    && clientArr.every((v, i) => v === serverSelected[i]);
+  const selected = clientArr || serverSelected;
+
+  try {
+    const row = await RtSelection.create({
+      survey_id: surveyId,
+      surveyor_id: req.user.id,
+      province: prov,
+      city: kab,
+      district: kec,
+      village: kel,
+      total_rt: totalRt,
+      rt_list: null,
+      selected,
+      seed: ticket.seed,
+      algo_version: ALGO_VERSION,
+      official_name: clean(officialName, 150),
+      official_position: clean(officialPosition, 150),
+      official_phone: clean(officialPhone, 40),
+      form_b_photo_path: clean(formBPhotoPath, 500),
+      locked_at: lockedAt ? new Date(lockedAt) : new Date(),
+    });
+    await ticket.update({ used_village: kel, used_at: new Date() });
+    return res.status(201).json({
+      selection: serialize(row),
+      already_locked: false,
+      verified: matches,
+    });
+  } catch (err) {
+    if (err && (err.name === 'SequelizeUniqueConstraintError' || err.parent?.code === '23505')) {
+      const row = await RtSelection.findOne({
+        where: { survey_id: surveyId, surveyor_id: req.user.id, village: kel },
+      });
+      if (row) return res.status(200).json({ selection: serialize(row), already_locked: true });
+    }
+    return res.status(500).json({ error: 'Gagal menyimpan hasil undian offline.' });
   }
 });
 

@@ -13,7 +13,7 @@ import { diffSurveyAvailability, toSurveyStubs } from '../../utils/surveyNotify'
 import { toastInfo, toastWarning } from '../../utils/toastBus';
 import { clearSentryUser } from '../../config/sentry';
 import { clearAuth } from '../../utils/authStorage';
-import { sessionStore } from '../../utils/safeStorage';
+import { sessionStore, localStore } from '../../utils/safeStorage';
 import { downloadRegionData, isRegionDataReadyOffline } from '../../utils/regionData';
 import { loadAllDraftsBySurvey, clearDraft } from '../utils/surveyDraft';
 
@@ -443,6 +443,16 @@ function SurveyList() {
       const region = await downloadRegionData();
       setRegionReady(region.ok && region.persisted);
     } catch { /* non-kritis — status tetap ditampilkan apa adanya */ }
+
+    // Jatah tiket undian RT offline ikut ditarik untuk survei yang memakainya —
+    // di pelosok tanpa sinyal TPD tetap bisa mengundi (seed sudah dijatah server).
+    for (const s of surveys) {
+      if (s.field_tools_settings?.rt_selection !== 'enabled') continue;
+      try {
+        const res = await api.get('/rt-selection/tickets', { params: { survey_id: s.id } });
+        localStore.setItem(`rt_tickets__${s.id}`, JSON.stringify(res.data));
+      } catch { /* non-kritis — bisa diambil lagi dari layar Pemilihan RT */ }
+    }
 
     setDownloadedSurveys(newCached);
     setDownloading(false);

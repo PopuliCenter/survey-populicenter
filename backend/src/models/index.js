@@ -25,6 +25,7 @@ const ExportJob = require('./ExportJob')(sequelize);
 const PublishedResult = require('./PublishedResult')(sequelize);
 const MonitoringReport = require('./MonitoringReport')(sequelize);
 const RtSelection = require('./RtSelection')(sequelize);
+const RtSeedTicket = require('./RtSeedTicket')(sequelize);
 
 // ─── Associations ─────────────────────────────────────────────────────────────
 
@@ -49,6 +50,12 @@ RtSelection.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
 
 User.hasMany(RtSelection, { foreignKey: 'surveyor_id', as: 'rtSelections', onDelete: 'CASCADE' });
 RtSelection.belongsTo(User, { foreignKey: 'surveyor_id', as: 'surveyor' });
+
+// Survey + User → RtSeedTicket (jatah seed undian offline)
+Survey.hasMany(RtSeedTicket, { foreignKey: 'survey_id', as: 'rtSeedTickets', onDelete: 'CASCADE' });
+RtSeedTicket.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
+User.hasMany(RtSeedTicket, { foreignKey: 'surveyor_id', as: 'rtSeedTickets', onDelete: 'CASCADE' });
+RtSeedTicket.belongsTo(User, { foreignKey: 'surveyor_id', as: 'surveyor' });
 
 // Survey + User → Response
 Survey.hasMany(Response, { foreignKey: 'survey_id', as: 'responses' });
@@ -105,4 +112,5 @@ module.exports = {
   PublishedResult,
   MonitoringReport,
   RtSelection,
+  RtSeedTicket,
 };
