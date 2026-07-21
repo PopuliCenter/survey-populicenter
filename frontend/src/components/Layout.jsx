@@ -49,6 +49,10 @@ const NAV_ITEMS_BY_ROLE = {
     { label: 'Manajemen TPD', path: '/surveyors', icon: 'brief' },
     { label: 'Data Responden', path: '/responses', icon: 'clipboard' },
     { label: 'Laporan', path: '/reports', icon: 'chart' },
+    // Alat metodologi ikut supervisor (asisten mewarisi izin supervisor di
+    // backend — yang dibatasi hanya kelola survei).
+    { label: 'Random Sampling', path: '/random-sampling', icon: 'target' },
+    { label: 'Pemilihan RT', path: '/pemilihan-rt', icon: 'shuffle' },
     { label: 'Peta', path: '/map', icon: 'map' },
   ],
   surveyor: [], // TPD menggunakan layout terpisah

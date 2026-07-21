@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
-import { getMediaToken } from '../services/mediaToken';
+import { openMediaInNewTab } from '../services/mediaToken';
 import Icon from '../components/Icon';
 
 /**
@@ -39,9 +39,8 @@ function RtSelectionMonitor() {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [mediaToken, setMediaToken] = useState('');
 
-  // Muat daftar survei + token media (untuk membuka foto Form B).
+  // Muat daftar survei.
   useEffect(() => {
     let active = true;
     (async () => {
@@ -57,10 +56,6 @@ function RtSelectionMonitor() {
       } catch {
         if (active) setError('Gagal memuat daftar survei.');
       }
-      try {
-        const mt = await getMediaToken();
-        if (active) setMediaToken(mt);
-      } catch { /* foto tetap bisa dicoba tanpa token */ }
     })();
     return () => { active = false; };
   }, []);
@@ -92,15 +87,6 @@ function RtSelectionMonitor() {
     const tpd = new Set(rows.map((r) => r.surveyor_name || '-')).size;
     return { total, verified, gagal: total - verified, tanpaFoto, tpd };
   }, [rows]);
-
-  function mediaUrl(path) {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    const tokenQuery = mediaToken ? `?t=${encodeURIComponent(mediaToken)}` : '';
-    const serverUrl = localStorage.getItem('api_server_url');
-    if (serverUrl) return `${serverUrl}/${path.replace(/^\//, '')}${tokenQuery}`;
-    return `/${path.replace(/^\//, '')}${tokenQuery}`;
-  }
 
   return (
     <Layout>
@@ -206,8 +192,15 @@ function RtSelectionMonitor() {
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         {r.form_b_photo_path ? (
-                          <a href={mediaUrl(r.form_b_photo_path)} target="_blank" rel="noopener noreferrer"
-                            className="text-primary-600 hover:underline">Lihat foto</a>
+                          // Token media diambil SAAT diklik (umur 15 mnt) — tautan yang
+                          // dirakit saat mount kedaluwarsa diam-diam bila halaman lama terbuka.
+                          <button
+                            type="button"
+                            onClick={() => openMediaInNewTab(r.form_b_photo_path)}
+                            className="text-primary-600 hover:underline"
+                          >
+                            Lihat foto
+                          </button>
                         ) : (
                           <span className="text-amber-700 text-xs">tanpa foto</span>
                         )}

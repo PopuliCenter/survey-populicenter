@@ -22,6 +22,7 @@ vi.mock('../../services/api', () => ({
 
 vi.mock('../../services/mediaToken', () => ({
   getMediaToken: vi.fn().mockResolvedValue('media-token-abc'),
+  openMediaInNewTab: vi.fn().mockResolvedValue(undefined),
 }));
 
 import api from '../../services/api';
@@ -99,6 +100,20 @@ describe('RtSelectionMonitor — daftar undian', () => {
 
     expect(await screen.findByText('Lihat foto')).toBeInTheDocument();
     expect(screen.getByText('tanpa foto')).toBeInTheDocument();
+  });
+
+  test('klik "Lihat foto" membuka media dengan TOKEN SEGAR (bukan URL rakitan saat mount)', async () => {
+    // Regresi: token media berumur 15 menit; URL yang dirakit saat halaman
+    // dibuka kedaluwarsa diam-diam → klik menghasilkan JSON "Sesi telah
+    // berakhir" alih-alih foto.
+    const { openMediaInNewTab } = await import('../../services/mediaToken');
+    const { fireEvent } = await import('@testing-library/react');
+    mockApi({ selections: [baris()] });
+    renderPage();
+
+    fireEvent.click(await screen.findByText('Lihat foto'));
+
+    expect(openMediaInNewTab).toHaveBeenCalledWith('uploads/photos/formb.jpg');
   });
 
   test('menampilkan pesan kosong bila belum ada undian', async () => {

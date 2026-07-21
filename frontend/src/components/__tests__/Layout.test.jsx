@@ -106,6 +106,16 @@ describe('getNavItemsForRole', () => {
     expect(items).toHaveLength(3);
   });
 
+  test('asisten supervisor mendapat alat metodologi (Random Sampling + Pemilihan RT)', () => {
+    // Asisten mewarisi izin supervisor di backend (ROLE_INHERITS); yang
+    // dibatasi hanya kelola survei — alat metodologi harus ikut tampil.
+    const paths = getNavItemsForRole('asisten_supervisor').map((i) => i.path);
+    expect(paths).toContain('/random-sampling');
+    expect(paths).toContain('/pemilihan-rt');
+    expect(paths).not.toContain('/surveys');
+    expect(paths).not.toContain('/users');
+  });
+
   test('returns empty array for surveyor role', () => {
     const items = getNavItemsForRole('surveyor');
     expect(items).toHaveLength(0);
