@@ -20,6 +20,11 @@ vi.mock('../offlineDB', () => ({
   deleteReferenceData: vi.fn(async (key) => { store.delete(key); }),
 }));
 
+// Platform: default web; tes native mengubahnya lewat setNative().
+vi.mock('../capacitorBridge', () => ({
+  isNativePlatform: vi.fn(() => false),
+}));
+
 import {
   loadRegionData,
   downloadRegionData,
@@ -28,6 +33,12 @@ import {
   __resetRegionMemoryCache,
 } from '../regionData';
 import { putReferenceData } from '../offlineDB';
+import { isNativePlatform } from '../capacitorBridge';
+
+/** Jalankan sisa tes seolah-olah di APK native (Capacitor). */
+function setNative(on = true) {
+  isNativePlatform.mockReturnValue(on);
+}
 
 const DATA_WILAYAH = {
   provinces: [{ id: '31', name: 'DKI JAKARTA' }, { id: '32', name: 'JAWA BARAT' }],
@@ -47,6 +58,7 @@ beforeEach(() => {
   store.clear();
   __resetRegionMemoryCache();
   vi.clearAllMocks();
+  setNative(false); // default: web
 });
 
 describe('loadRegionData — unduhan pertama', () => {
@@ -172,6 +184,56 @@ describe('downloadRegionData — persiapan offline eksplisit', () => {
     await loadRegionData({ forceNetwork: true });
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('APK native — berkas ikut aset aplikasi', () => {
+  // Di native, fetch('/wilayahIndonesia.json') menunjuk server URL aplikasi
+  // sendiri sehingga dilayani asset loader WebView (bukan jaringan). Data selalu
+  // ada, jadi status offline TIDAK boleh bergantung pada IndexedDB.
+
+  test('dilaporkan SIAP OFFLINE walau IndexedDB kosong (bukan peringatan palsu)', async () => {
+    setNative(true);
+
+    expect(await isRegionDataReadyOffline()).toBe(true);
+  });
+
+  test('tidak menggandakan ~3,6 MB ke IndexedDB', async () => {
+    setNative(true);
+    mockFetchOk();
+
+    await loadRegionData();
+
+    expect(putReferenceData).not.toHaveBeenCalled();
+    expect(store.size).toBe(0);
+  });
+
+  test('downloadRegionData melaporkan persisted=true (aset permanen di APK)', async () => {
+    setNative(true);
+    mockFetchOk();
+
+    const res = await downloadRegionData();
+
+    expect(res).toEqual({ ok: true, persisted: true });
+  });
+
+  test('data tetap terbaca dari aset lokal', async () => {
+    setNative(true);
+    mockFetchOk();
+
+    const data = await loadRegionData();
+
+    expect(data.provinces).toHaveLength(2);
+  });
+
+  test('di web, perilaku lama tetap: DISIMPAN ke IndexedDB', async () => {
+    setNative(false);
+    mockFetchOk();
+
+    await loadRegionData();
+
+    expect(putReferenceData).toHaveBeenCalled();
+    expect(store.size).toBe(1);
   });
 });
 

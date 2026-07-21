@@ -20,6 +20,7 @@
  */
 
 import { getReferenceData, putReferenceData } from './offlineDB';
+import { isNativePlatform } from './capacitorBridge';
 
 export const REGION_URL = '/wilayahIndonesia.json';
 const STORE_KEY = 'wilayah-indonesia';
@@ -35,6 +36,22 @@ const EMPTY = {
 
 let memoryCache = null;
 let inFlight = null; // cegah unduhan ganda bila beberapa komponen memanggil bersamaan
+
+/**
+ * Di APK native, berkas wilayah IKUT DI-BUNDLE sebagai aset aplikasi
+ * (android/app/src/main/assets/public/wilayahIndonesia.json). Permintaan
+ * fetch('/wilayahIndonesia.json') menunjuk ke server URL aplikasi sendiri
+ * (https://localhost), dan native-bridge Capacitor MELEWATKAN URL semacam itu
+ * tanpa proksi HTTP — jadi dilayani asset loader WebView, bukan jaringan.
+ *
+ * Konsekuensinya di native: data SELALU tersedia offline, sehingga
+ *   - menyalinnya lagi ke IndexedDB hanya menggandakan ~3,6 MB tanpa guna, dan
+ *   - status "siap offline" TIDAK boleh bergantung pada isi IndexedDB (kalau
+ *     tidak, APK menampilkan peringatan palsu "data wilayah belum tersimpan").
+ */
+function isBundledWithApp() {
+  return isNativePlatform();
+}
 
 /** Data dianggap sah bila minimal daftar provinsi terisi. */
 function isUsable(data) {
@@ -53,6 +70,8 @@ async function readFromDB() {
 }
 
 async function saveToDB(data) {
+  // Native: aset sudah permanen di dalam aplikasi — jangan gandakan ke IndexedDB.
+  if (isBundledWithApp()) return true;
   try {
     await putReferenceData(STORE_KEY, data, { version: SCHEMA_VERSION, url: REGION_URL });
     return true;
@@ -136,10 +155,9 @@ export async function downloadRegionData() {
  * @returns {Promise<boolean>}
  */
 export async function isRegionDataReadyOffline() {
-  if (memoryCache && isUsable(memoryCache)) {
-    // Ada di memori belum tentu tersimpan permanen — periksa IndexedDB.
-    return !!(await readFromDB());
-  }
+  // Native: berkas ikut aset aplikasi → selalu siap, tak perlu unduhan apa pun.
+  if (isBundledWithApp()) return true;
+  // Web: ada di memori belum tentu tersimpan permanen — periksa IndexedDB.
   return !!(await readFromDB());
 }
 
