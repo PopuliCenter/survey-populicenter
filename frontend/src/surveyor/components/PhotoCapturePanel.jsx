@@ -86,7 +86,7 @@ function PhotoCapturePanel({ photoCapture, onBeforeCapture }) {
     >
       {/* Header with add button */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-700">
+        <h3 className="text-sm font-semibold text-gray-700">
           Foto ({photos.length})
         </h3>
         <button

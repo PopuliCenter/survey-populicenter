@@ -677,7 +677,7 @@ function RegionConfigEditor({ config, onChange }) {
 function FieldToolsSettingsSection({ settings, onChange }) {
   return (
     <div className="bg-white rounded-xl shadow px-6 py-4 space-y-3">
-      <p className="text-sm font-medium text-gray-700">Pengaturan Field Tools</p>
+      <h3 className="text-sm font-semibold text-gray-700">Pengaturan Field Tools</h3>
       <div className="space-y-3">
         {FIELD_TOOLS.map(({ key, label }) => (
           <div key={key} className="flex items-center gap-6 flex-wrap">
@@ -945,7 +945,7 @@ function FieldToolsSettingsSection({ settings, onChange }) {
 function DatePickerSection({ startDate, endDate, onStartDateChange, onEndDateChange, dateError }) {
   return (
     <div className="bg-white rounded-xl shadow px-6 py-4 space-y-3">
-      <p className="text-sm font-medium text-gray-700">Periode Pengisian Survei</p>
+      <h3 className="text-sm font-semibold text-gray-700">Periode Pengisian Survei</h3>
       <div className="flex items-start gap-4 flex-wrap">
         <div>
           <label htmlFor="survey-start-date" className="block text-xs font-medium text-gray-600 mb-1">
@@ -1450,7 +1450,7 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
 
           {/* Skip Logic section */}
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Skip Logic</p>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Skip Logic</h3>
             <SkipLogicEditor
               questions={questions}
               skipLogic={skipLogic}
@@ -1905,7 +1905,7 @@ function SurveyBuilder() {
 
             {/* Form Mode Toggle */}
             <div className="bg-white rounded-xl shadow px-6 py-4 space-y-3">
-              <p className="text-sm font-medium text-gray-700">Mode Tampilan Formulir TPD</p>
+              <h3 className="text-sm font-semibold text-gray-700">Mode Tampilan Formulir TPD</h3>
               <div className="flex items-center gap-3">
                 <button
                   type="button"

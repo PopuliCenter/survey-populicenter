@@ -980,7 +980,7 @@ function Surveys() {
               {surveyGroups.map((g) => (
                 <div key={g.key}>
                   <div className="flex items-center gap-2 mb-3">
-                    <h3 className="text-sm font-bold text-gray-700">{g.key}</h3>
+                    <h3 className="text-sm font-semibold text-gray-700">{g.key}</h3>
                     <span className="text-xs text-gray-500">· {g.items.length} survei</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

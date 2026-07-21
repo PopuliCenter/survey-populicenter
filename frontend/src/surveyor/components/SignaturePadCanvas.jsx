@@ -14,7 +14,7 @@ function SignaturePadCanvas({ signaturePad, required = false, hasError = false }
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4" role="region" aria-label="Tanda tangan digital">
-      <h3 className="text-sm font-medium text-gray-700 mb-2">
+      <h3 className="text-sm font-semibold text-gray-700 mb-2">
         Tanda Tangan {required && <span className="text-red-500">*</span>}
       </h3>
 

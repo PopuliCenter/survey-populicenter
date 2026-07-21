@@ -20,6 +20,13 @@ export default {
       //   lg   18px  → judul kartu/bagian
       //   xl   20px  → judul bagian besar
       //   2xl  24px  → JUDUL HALAMAN (h1) — seragam di seluruh dashboard
+      //
+      // ── Bobot huruf (hierarki) ──────────────────────────────────────────────
+      //   bold      → judul halaman (h1) & judul modal/dialog
+      //   semibold  → judul bagian di dalam kartu (h2/h3)
+      //   medium    → label formulir, header tabel, sel identitas baris
+      //   normal    → teks isi (jangan disetel; ini bawaan)
+      // Teks isi TIDAK perlu ditebalkan. Menebalkan semuanya menghapus hierarki.
       fontSize: {
         '2xs': ['0.6875rem', { lineHeight: '1rem' }],
       },

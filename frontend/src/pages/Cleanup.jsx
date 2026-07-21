@@ -189,7 +189,7 @@ function Cleanup() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Pending responses cleanup */}
             <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <h3 className="text-sm font-medium text-gray-700">Respons Pending</h3>
+              <h3 className="text-sm font-semibold text-gray-700">Respons Pending</h3>
               <p className="text-xs text-gray-500">
                 Hapus respons yang belum selesai diisi dan sudah lebih dari 24 jam.
                 Data ini tidak mempengaruhi laporan.
@@ -224,7 +224,7 @@ function Cleanup() {
 
             {/* Export jobs cleanup */}
             <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <h3 className="text-sm font-medium text-gray-700">Job Ekspor Lama</h3>
+              <h3 className="text-sm font-semibold text-gray-700">Job Ekspor Lama</h3>
               <p className="text-xs text-gray-500">
                 Hapus record job ekspor yang sudah lebih dari 7 hari.
                 File bisa di-generate ulang kapan saja.

@@ -92,6 +92,41 @@ describe('judul halaman dashboard', () => {
   });
 });
 
+describe('bobot judul bagian', () => {
+  test('h3 memakai font-semibold — bukan medium (setara label) atau bold (setara h1)', () => {
+    // Sebelumnya h3 ditulis 4 gaya berbeda: semibold (11), medium (7), bold (1),
+    // dan lg/bold (4). Yang lg/bold SENGAJA dikecualikan: itu judul modal/dialog,
+    // di mana h3 adalah judul tertinggi pada permukaan tersebut.
+    const pelanggaran = [];
+    for (const f of FILES) {
+      fs.readFileSync(f, 'utf8').split(/\r?\n/).forEach((line, i) => {
+        const m = line.match(/<h3[^>]*className="([^"]*)"/);
+        if (!m) return;
+        const cls = m[1];
+        if (/text-lg/.test(cls)) return; // judul modal
+        if (!/font-semibold/.test(cls)) {
+          pelanggaran.push(`${rel(f)}:${i + 1}  ${cls}`);
+        }
+      });
+    }
+    expect(pelanggaran).toEqual([]);
+  });
+
+  test('judul bagian tidak ditulis sebagai <p> (pembaca layar tak bisa melompatinya)', () => {
+    // Panel pengaturan di SurveyBuilder dulu memakai <p> untuk judul bagian.
+    const JUDUL = ['Pengaturan Field Tools', 'Periode Pengisian Survei', 'Mode Tampilan Formulir TPD'];
+    const pelanggaran = [];
+    for (const f of FILES) {
+      fs.readFileSync(f, 'utf8').split(/\r?\n/).forEach((line, i) => {
+        if (/<p[^>]*>/.test(line) && JUDUL.some((t) => line.includes(`>${t}<`))) {
+          pelanggaran.push(`${rel(f)}:${i + 1}  ${line.trim().slice(0, 70)}`);
+        }
+      });
+    }
+    expect(pelanggaran).toEqual([]);
+  });
+});
+
 describe('emoji sebagai elemen UI', () => {
   test('tidak ada emoji berwarna di JSX (pakai components/Icon.jsx)', () => {
     // Emoji dirender font sistem: ukuran/warnanya berbeda antar perangkat dan

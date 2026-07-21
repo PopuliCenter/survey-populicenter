@@ -478,15 +478,15 @@ function RandomSampling() {
             )}
 
             <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-2">Ringkasan</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Ringkasan</h3>
               <DataTable rows={result.ringkasan} max={50} />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-2">Alokasi per wilayah</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Alokasi per wilayah</h3>
               <DataTable rows={result.alokasi} max={100} />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-2">Sampel terpilih (pratinjau)</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Sampel terpilih (pratinjau)</h3>
               <DataTable rows={result.sample} max={200} />
             </div>
           </section>
