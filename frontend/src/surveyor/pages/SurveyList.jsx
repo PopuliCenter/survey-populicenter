@@ -5,6 +5,7 @@ import QuotaProgress from '../../components/QuotaProgress';
 import useSyncManager from '../hooks/useSyncManager';
 import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey, getDraftMedia, deleteDraftMedia } from '../../utils/storage';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
+import Icon from '../../components/Icon';
 import ConfirmSheet from '../../components/ConfirmSheet';
 import PermissionOnboarding, { permissionOnboardingDone } from '../components/PermissionOnboarding';
 import { addBackButtonListener, addResumeListener } from '../../utils/capacitorBridge';
@@ -155,7 +156,7 @@ function SurveyList() {
   }, [resetDraftTarget, refreshDrafts]);
 
   // Media tersimpan per draft (segmen rekaman & foto yang di-pending) —
-  // { `${surveyId}__${number}`: { audio: n, photo: n } }. Untuk ikon kecil 🎙️📷.
+  // { `${surveyId}__${number}`: { audio: n, photo: n } }. Untuk ikon kecil di daftar.
   const [draftMedia, setDraftMedia] = useState({});
   useEffect(() => {
     let active = true;
@@ -176,15 +177,17 @@ function SurveyList() {
     return () => { active = false; };
   }, [drafts]);
 
-  // Teks hint media untuk sebuah draft (mis. "🎙️2 · 📷1 · ✍️"). '' bila tak ada.
-  const draftMediaHint = useCallback((surveyId, draft) => {
-    if (!draft) return '';
+  // Media yang tersimpan pada sebuah draft, sebagai daftar terstruktur agar bisa
+  // dirender memakai ikon garis (bukan emoji — lihat components/Icon.jsx).
+  // [] bila tak ada media.
+  const draftMediaItems = useCallback((surveyId, draft) => {
+    if (!draft) return [];
     const m = draftMedia[`${surveyId}__${draft.number}`] || { audio: 0, photo: 0 };
-    const parts = [];
-    if (m.audio > 0) parts.push(`🎙️${m.audio > 1 ? m.audio : ''}`);
-    if (m.photo > 0) parts.push(`📷${m.photo > 1 ? m.photo : ''}`);
-    if (draft.hasSignature) parts.push('✍️');
-    return parts.join(' ');
+    const items = [];
+    if (m.audio > 0) items.push({ icon: 'mic', count: m.audio, label: 'rekaman' });
+    if (m.photo > 0) items.push({ icon: 'camera', count: m.photo, label: 'foto' });
+    if (draft.hasSignature) items.push({ icon: 'pen', count: 1, label: 'tanda tangan' });
+    return items;
   }, [draftMedia]);
 
   // ─── Offline / Sync ─────────────────────────────────────────────────────────
@@ -606,8 +609,9 @@ function SurveyList() {
                 </p>
                 {/* Status data wilayah dipisah agar TPD tahu persis apa yang kurang:
                     survei bisa terunduh lengkap tapi dropdown wilayah tetap kosong. */}
-                <p className={`text-[11px] ${regionReady ? 'text-green-700' : 'text-amber-700 font-medium'}`}>
-                  {regionReady ? '✓ Data wilayah tersimpan' : '⚠ Data wilayah belum tersimpan — tekan Perbarui'}
+                <p className={`text-[11px] inline-flex items-center gap-1 ${regionReady ? 'text-green-700' : 'text-amber-700 font-medium'}`}>
+                  <Icon name={regionReady ? 'check' : 'alert'} className="w-3 h-3 shrink-0" />
+                  {regionReady ? 'Data wilayah tersimpan' : 'Data wilayah belum tersimpan — tekan Perbarui'}
                 </p>
                 {lastDownload && (
                   <p className="text-[11px] text-gray-400 truncate">
@@ -899,12 +903,17 @@ function SurveyList() {
                                       <span className="block text-sm font-semibold text-gray-800">Kuesioner No. {num}</span>
                                       <span className="block text-xs text-gray-500">
                                         {map.label}
-                                        {status === 'draft' && draftMediaHint(survey.id, rowDraft) && (
+                                        {status === 'draft' && draftMediaItems(survey.id, rowDraft).length > 0 && (
                                           <span
-                                            className="ml-1.5"
+                                            className="inline-flex items-center gap-1.5 ml-1.5 align-middle text-gray-400"
                                             title="Rekaman/foto/tanda tangan tersimpan — ikut terkirim saat selesai"
                                           >
-                                            {draftMediaHint(survey.id, rowDraft)}
+                                            {draftMediaItems(survey.id, rowDraft).map((it) => (
+                                              <span key={it.icon} className="inline-flex items-center gap-0.5">
+                                                <Icon name={it.icon} className="w-3.5 h-3.5" />
+                                                {it.count > 1 && <span className="text-[11px] tabular-nums">{it.count}</span>}
+                                              </span>
+                                            ))}
                                           </span>
                                         )}
                                       </span>
@@ -954,9 +963,14 @@ function SurveyList() {
                                 ? `${parkedDrafts.length > 1 ? `Terakhir: No. ${latestDraft.number} · ` : ''}Pertanyaan ${Math.min((latestDraft.currentStep || 0) + 1, latestDraft.totalSteps)} dari ${latestDraft.totalSteps} · ketuk untuk lanjut`
                                 : 'ketuk untuk lanjut'}
                               {parkedDrafts.length > 1 ? ' · nomor lain di daftar' : ''}
-                              {draftMediaHint(survey.id, latestDraft) && (
-                                <span className="ml-1.5" title="Rekaman/foto/tanda tangan tersimpan">
-                                  {draftMediaHint(survey.id, latestDraft)}
+                              {draftMediaItems(survey.id, latestDraft).length > 0 && (
+                                <span className="inline-flex items-center gap-1.5 ml-1.5 align-middle text-amber-700" title="Rekaman/foto/tanda tangan tersimpan">
+                                  {draftMediaItems(survey.id, latestDraft).map((it) => (
+                                    <span key={it.icon} className="inline-flex items-center gap-0.5">
+                                      <Icon name={it.icon} className="w-3.5 h-3.5" />
+                                      {it.count > 1 && <span className="text-[11px] tabular-nums">{it.count}</span>}
+                                    </span>
+                                  ))}
                                 </span>
                               )}
                             </span>
@@ -1002,10 +1016,11 @@ function SurveyList() {
                       <button
                         type="button"
                         onClick={() => navigate(`/surveyor/survey/${survey.id}/pemilihan-rt`)}
-                        className="mt-2 w-full min-h-[48px] text-sm font-semibold px-5 rounded-xl border-2 border-accent-300 text-accent-700 bg-white hover:bg-accent-50 transition-colors"
+                        className="mt-2 w-full min-h-[48px] text-sm font-semibold px-5 rounded-xl border border-accent-300 text-accent-700 bg-white hover:bg-accent-50 transition-colors inline-flex items-center justify-center gap-2"
                         aria-label={`Buka pemilihan RT acak untuk survei ${survey.title}`}
                       >
-                        🎲 Pemilihan RT (acak)
+                        <Icon name="shuffle" className="w-4 h-4" />
+                        Pemilihan RT (acak)
                       </button>
                     )}
                   </div>

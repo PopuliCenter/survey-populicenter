@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
 import { loadRegionData } from '../../utils/regionData';
+import Icon from '../../components/Icon';
 
 /**
  * RtSelection — layar TPD untuk mengundi RT (pengganti FORM A + FORM B kertas).
@@ -144,10 +145,17 @@ function RtSelection() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-cream pb-24">
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button type="button" onClick={() => navigate(-1)} className="text-gray-500 text-sm" aria-label="Kembali">←</button>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="Kembali"
+            className="-ml-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+          >
+            <Icon name="arrowLeft" className="w-5 h-5" />
+          </button>
           <div>
             <h1 className="text-base font-semibold text-gray-800">Pemilihan RT</h1>
             <p className="text-xs text-gray-500">{survey?.title || 'Survei'}</p>
@@ -156,18 +164,21 @@ function RtSelection() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          Undian dilakukan sistem, <strong>satu kali per kelurahan/desa</strong>, dan hasilnya tidak bisa
-          diulang. Pastikan jumlah RT sudah sesuai daftar dari aparat desa sebelum menekan tombol undi.
+        <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-3 flex gap-3">
+          <Icon name="lock" className="w-5 h-5 text-accent-700 shrink-0 mt-0.5" />
+          <p className="text-sm text-accent-900 leading-relaxed">
+            Undian dilakukan sistem, <strong>satu kali per kelurahan/desa</strong>, dan hasilnya tidak bisa
+            diulang. Pastikan jumlah RT sudah sesuai daftar dari aparat desa sebelum menekan tombol undi.
+          </p>
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{error}</div>
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{error}</div>
         )}
 
         {/* Hasil undian */}
         {result && (
-          <section className="rounded-xl border-2 border-green-300 bg-green-50 p-5 space-y-3">
+          <section className="rounded-2xl border border-green-300 bg-green-50 p-5 space-y-3">
             <h2 className="text-sm font-semibold text-green-900">
               {result.already_locked ? 'Sudah pernah diundi — hasil terkunci' : 'Hasil undian RT'}
             </h2>
@@ -189,7 +200,7 @@ function RtSelection() {
         )}
 
         {/* Form input */}
-        <section className="bg-white rounded-xl shadow p-4 space-y-4">
+        <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Lokasi penugasan</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -259,20 +270,26 @@ function RtSelection() {
             <input type="file" accept="image/*" capture="environment" onChange={(e) => handlePhoto(e.target.files?.[0] || null)}
               className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-accent-50 file:text-accent-700 file:text-sm file:font-medium" />
             {uploading && <p className="text-xs text-gray-500 mt-1">Mengunggah…</p>}
-            {photoPath && <p className="text-xs text-green-700 mt-1">✓ Foto Form B terunggah</p>}
+            {photoPath && (
+              <p className="text-xs text-green-700 mt-1 inline-flex items-center gap-1">
+                <Icon name="check" className="w-3.5 h-3.5" />
+                Foto Form B terunggah
+              </p>
+            )}
             <p className="text-xs text-gray-500 mt-1">Bukti bahwa daftar RT memang sah dari aparat desa.</p>
           </div>
 
           <button type="button" onClick={handleDraw} disabled={submitting || uploading}
-            className="w-full py-3 rounded-xl bg-accent-600 hover:bg-accent-700 disabled:opacity-60 text-white text-sm font-semibold">
-            {submitting ? 'Mengundi…' : `🎲 Undi ${rtCount} RT sekarang`}
+            className="w-full min-h-[48px] rounded-xl bg-accent-600 hover:bg-accent-700 disabled:opacity-60 text-white text-sm font-semibold inline-flex items-center justify-center gap-2 transition-colors">
+            <Icon name="shuffle" className="w-4 h-4" />
+            {submitting ? 'Mengundi…' : `Undi ${rtCount} RT sekarang`}
           </button>
           <p className="text-xs text-gray-500 text-center">Hasil undian bersifat final dan tercatat di server.</p>
         </section>
 
         {/* Riwayat */}
         {history.length > 0 && (
-          <section className="bg-white rounded-xl shadow p-4">
+          <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-2">Undian sebelumnya</h2>
             <ul className="divide-y divide-gray-100">
               {history.map((h) => (

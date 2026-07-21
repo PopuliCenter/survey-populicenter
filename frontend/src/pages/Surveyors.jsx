@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { StatusBadge, QuotaPanel } from '../components/SurveyorBadges';
 import { SurveyStatusBadge } from '../components/SurveyBadges';
@@ -495,8 +496,9 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                 )}
                 {conflictNumbers().length > 0 && (
                   <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-2">
-                    <p className="text-xs text-red-700">
-                      ⚠ {conflictNumbers().length} nomor bentrok dengan TPD lain: {conflictNumbers().slice(0, 15).join(', ')}{conflictNumbers().length > 15 ? '…' : ''}
+                    <p className="text-xs text-red-700 flex items-start gap-1.5">
+                      <Icon name="alert" className="w-3.5 h-3.5 shrink-0 mt-px" />
+                      <span>{conflictNumbers().length} nomor bentrok dengan TPD lain: {conflictNumbers().slice(0, 15).join(', ')}{conflictNumbers().length > 15 ? '…' : ''}</span>
                     </p>
                     <button type="button" onClick={handleRemoveConflicts}
                       className="mt-1 text-xs font-medium text-red-700 underline hover:text-red-800 focus:outline-none">
@@ -1302,7 +1304,8 @@ function Surveyors() {
                                 className="ml-2 inline-flex items-center gap-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold align-middle"
                                 title={`Terkunci ke perangkat${tpd.device_label ? `: ${tpd.device_label}` : ''}${tpd.device_bound_at ? ` (sejak ${new Date(tpd.device_bound_at).toLocaleDateString('id-ID')})` : ''}`}
                               >
-                                🔒 HP
+                                <Icon name="lock" className="w-3 h-3" />
+                                HP
                               </span>
                             )}
                           </td>

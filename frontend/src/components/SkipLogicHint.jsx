@@ -1,4 +1,5 @@
 import React from 'react';
+import Icon from './Icon';
 import { analyzeQuestionSkipLogic } from '../utils/skipLogicHints';
 
 /**
@@ -37,7 +38,7 @@ function SkipLogicHint({ question, questions = [] }) {
             <span key={i} className="block leading-snug">
               <span className="text-gray-300">{i + 1}.</span> {r.summary}
               {r.warning && (
-                <span className="block text-amber-300 mt-0.5">⚠ {r.warning}</span>
+                <span className="block text-amber-300 mt-0.5"><Icon name="alert" className="w-3 h-3 inline shrink-0" /> {r.warning}</span>
               )}
             </span>
           ))}
@@ -64,7 +65,7 @@ function SkipLogicHint({ question, questions = [] }) {
           </span>
           <span className="pointer-events-none absolute left-0 top-full mt-1 z-30 hidden group-hover:block group-focus-within:block w-72 max-w-[18rem] rounded-lg bg-gray-900 text-white text-xs shadow-lg p-3 space-y-1">
             {analysis.warnings.map((w, i) => (
-              <span key={i} className="block leading-snug text-amber-200">⚠ {w}</span>
+              <span key={i} className="block leading-snug text-amber-200"><Icon name="alert" className="w-3 h-3 inline shrink-0" /> {w}</span>
             ))}
           </span>
         </span>

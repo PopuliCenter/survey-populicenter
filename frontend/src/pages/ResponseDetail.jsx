@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import ReviewStatusBadge from '../components/ReviewStatusBadge';
 import api from '../services/api';
 import { getMediaToken } from '../services/mediaToken';
+import Icon from '../components/Icon';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -200,7 +201,7 @@ function AnswerCard({ answer, index, mediaToken }) {
                           isSelected ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-gray-300'
                         }`}
                       >
-                        {isSelected ? '✓' : ''}
+                        {isSelected ? <Icon name="check" className="w-4 h-4 inline" /> : null}
                       </td>
                     );
                   })}
@@ -521,7 +522,7 @@ function ResponseDetail() {
                         </span>
                         {response.short_duration === true && (
                           <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-[10px] font-semibold align-middle">
-                            ⚠ terlalu singkat
+                            <Icon name="alert" className="w-3 h-3" />terlalu singkat
                           </span>
                         )}
                       </span>
@@ -532,19 +533,24 @@ function ResponseDetail() {
                 />
                 <MetaRow
                   label="Status Geolokasi"
-                  value={
-                    <span>
-                      {response.geo_status === 'available'
-                        ? '✅ Tersedia'
-                        : response.geo_status === 'lokasi_tidak_tersedia'
-                        ? '⚠️ Ditolak'
-                        : response.geo_status === 'tidak_didukung'
-                        ? '❌ Tidak Didukung'
-                        : response.geo_status === 'timeout'
-                        ? '⏱️ Timeout'
-                        : response.geo_status || '—'}
-                    </span>
-                  }
+                  value={(() => {
+                    // Status GPS: ikon + warna semantik, bukan emoji (ukurannya
+                    // tak seragam antar perangkat & tak ikut warna teks).
+                    const GEO = {
+                      available: { icon: 'checkCircle', text: 'Tersedia', tone: 'text-green-700' },
+                      lokasi_tidak_tersedia: { icon: 'alert', text: 'Ditolak', tone: 'text-amber-700' },
+                      tidak_didukung: { icon: 'xCircle', text: 'Tidak Didukung', tone: 'text-gray-600' },
+                      timeout: { icon: 'clock', text: 'Timeout', tone: 'text-amber-700' },
+                    };
+                    const g = GEO[response.geo_status];
+                    if (!g) return <span>{response.geo_status || '—'}</span>;
+                    return (
+                      <span className={`inline-flex items-center gap-1.5 ${g.tone}`}>
+                        <Icon name={g.icon} className="w-4 h-4 shrink-0" />
+                        {g.text}
+                      </span>
+                    );
+                  })()}
                 />
                 {response.geo_status === 'available' && (
                   <>
@@ -594,7 +600,7 @@ function ResponseDetail() {
                   {audioList.length > 0 && (
                     <div>
                       <p className="text-sm font-medium text-gray-600 mb-2">
-                        🎙️ Rekaman Audio{audioList.length > 1 ? ` (${audioList.length} bagian)` : ''}
+                        <Icon name="mic" className="w-4 h-4" />Rekaman Audio{audioList.length > 1 ? ` (${audioList.length} bagian)` : ''}
                       </p>
                       <div className="space-y-2">
                         {audioList.map((p, i) => (
@@ -619,7 +625,7 @@ function ResponseDetail() {
                   {/* Signature Image */}
                   {response.signature_path && (
                     <div>
-                      <p className="text-sm font-medium text-gray-600 mb-2">✍️ Tanda Tangan</p>
+                      <p className="text-sm font-medium text-gray-600 mb-2 inline-flex items-center gap-1.5"><Icon name="pen" className="w-4 h-4" />Tanda Tangan</p>
                       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 inline-block">
                         <img src={mediaUrl(response.signature_path)} alt="Tanda tangan responden"
                           className="max-w-xs max-h-32 object-contain" loading="lazy" />
@@ -630,7 +636,7 @@ function ResponseDetail() {
                   {/* Photos */}
                   {response.photo_paths && response.photo_paths.length > 0 && (
                     <div>
-                      <p className="text-sm font-medium text-gray-600 mb-2">📷 Foto Dokumentasi ({response.photo_paths.length})</p>
+                      <p className="text-sm font-medium text-gray-600 mb-2 inline-flex items-center gap-1.5"><Icon name="camera" className="w-4 h-4" />Foto Dokumentasi ({response.photo_paths.length})</p>
                       <div className="flex flex-wrap gap-3">
                         {response.photo_paths.map((path, idx) => (
                           <a key={idx} href={mediaUrl(path)} target="_blank" rel="noopener noreferrer" className="block">
@@ -714,7 +720,7 @@ function ResponseDetail() {
 
                       {saveSuccess && (
                         <span className="text-sm text-green-600 font-medium">
-                          ✓ Review berhasil disimpan
+                          <Icon name="check" className="w-4 h-4" />Review berhasil disimpan
                         </span>
                       )}
 

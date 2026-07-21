@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import Icon from './Icon';
 
 const MONTH_NAMES = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -79,7 +80,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-sm ${
           isSelected ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-500'
         }`}>
-          📋
+          <Icon name="clipboard" className="w-4 h-4" />
         </div>
         <p className={`text-xs font-medium leading-tight line-clamp-2 ${
           isSelected ? 'text-primary-700' : 'text-gray-700'
@@ -175,7 +176,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
                 className="ml-auto text-primary-400 hover:text-primary-600 focus:outline-none"
                 aria-label="Hapus pilihan survei"
               >
-                ✕
+                <Icon name="close" className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -232,7 +233,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
                       className="text-left p-3 rounded-lg border-2 border-gray-200 bg-white hover:border-amber-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-amber-400"
                     >
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-sm bg-amber-100 text-amber-600">
-                        📁
+                        <Icon name="folder" className="w-4 h-4" />
                       </div>
                       <p className="text-sm font-semibold text-gray-800">{year}</p>
                       <p className="text-[10px] text-gray-400 mt-0.5">
@@ -258,7 +259,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
                         className="text-left p-3 rounded-lg border-2 border-gray-200 bg-white hover:border-primary-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-400"
                       >
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-sm bg-primary-100 text-primary-600">
-                          📂
+                          <Icon name="folderOpen" className="w-4 h-4" />
                         </div>
                         <p className="text-xs font-semibold text-gray-800">{MONTH_NAMES[month]}</p>
                         <p className="text-[10px] text-gray-400 mt-0.5">{surveyCount} survei</p>

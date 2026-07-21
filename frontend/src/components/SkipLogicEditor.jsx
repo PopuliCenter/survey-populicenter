@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Icon from './Icon';
 
 // Tipe pertanyaan yang bisa dijadikan kondisi skip logic
 const SKIP_LOGIC_SUPPORTED_TYPES = [
@@ -124,7 +125,7 @@ function ConditionRow({ condition, questionIndex, condIndex, questions, onUpdate
           aria-label="Hapus kondisi ini"
           title="Hapus kondisi"
         >
-          ✕
+          <Icon name="close" className="w-4 h-4" />
         </button>
       )}
     </div>
@@ -371,12 +372,12 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
                   </select>
                   {targetQuestion && (
                     <p className="text-xs text-green-600">
-                      ✓ Pertanyaan antara akan dilewati, langsung ke P{targetQuestion.order_index + 1}
+                      <Icon name="check" className="w-3.5 h-3.5 inline shrink-0" /> Pertanyaan antara akan dilewati, langsung ke P{targetQuestion.order_index + 1}
                     </p>
                   )}
                   {!rule.target_question_id && conditions.some(isConditionComplete) && (
                     <p className="text-xs text-amber-600">
-                      ⚠ Tujuan lompatan belum dipilih — aturan ini belum berfungsi.
+                      <Icon name="alert" className="w-3.5 h-3.5 inline shrink-0" /> Tujuan lompatan belum dipilih — aturan ini belum berfungsi.
                     </p>
                   )}
                 </div>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import Icon from './Icon';
 import { useToast } from './Toast';
 import api from '../services/api';
 
@@ -129,7 +130,7 @@ function MonitoringPanel({ surveyId, surveyTitle }) {
                 onClick={() => copy(url, 'url')}
                 className="px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg whitespace-nowrap"
               >
-                {copied === 'url' ? 'Tersalin ✓' : 'Salin'}
+                {copied === 'url' ? <><Icon name="check" className="w-3.5 h-3.5" />Tersalin</> : 'Salin'}
               </button>
             </div>
           </div>
@@ -148,7 +149,7 @@ function MonitoringPanel({ surveyId, surveyTitle }) {
                 onClick={() => copy(snippet, 'embed')}
                 className="px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg whitespace-nowrap self-start"
               >
-                {copied === 'embed' ? 'Tersalin ✓' : 'Salin'}
+                {copied === 'embed' ? <><Icon name="check" className="w-3.5 h-3.5" />Tersalin</> : 'Salin'}
               </button>
             </div>
           </div>

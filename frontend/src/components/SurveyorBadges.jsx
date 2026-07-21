@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Icon from './Icon';
 import QuotaProgress from './QuotaProgress';
 import api from '../services/api';
 
@@ -121,7 +122,7 @@ export function QuotaPanel({ surveyorId }) {
                           }`}
                           title={isDone ? 'Sudah diisi' : 'Belum diisi'}
                         >
-                          {isDone ? '✓' : '○'} {num}
+                          <Icon name={isDone ? 'check' : 'circle'} className="w-3 h-3 mr-1 shrink-0" />{num}
                         </span>
                       );
                     })}
@@ -142,7 +143,7 @@ export function QuotaPanel({ surveyorId }) {
                         key={qn}
                         className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200"
                       >
-                        ✓ {qn}
+                        <Icon name="check" className="w-3 h-3 mr-1 shrink-0" />{qn}
                       </span>
                     ))}
                   </div>

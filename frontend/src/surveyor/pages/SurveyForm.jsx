@@ -26,6 +26,7 @@ import { validateAnswer } from '../../utils/answerValidation';
 import { cacheSurvey, getCachedSurvey, enqueueResponse, saveMediaFile, saveDraftMedia, getDraftMedia, deleteDraftMedia } from '../../utils/storage';
 import { compressIfNeeded } from '../../utils/imageCompressor';
 import { loadRegionData } from '../../utils/regionData';
+import Icon from '../../components/Icon';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import ConfirmSheet from '../../components/ConfirmSheet';
 import AudioRecorderPanel from '../components/AudioRecorderPanel';
@@ -652,8 +653,9 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
             {availableNumbers.length} dari {assignedNumbers.length} nomor tersedia
           </span>
           {!isOnline && (
-            <span className="text-xs font-medium text-accent-600 bg-accent-50 border border-accent-200 rounded-full px-2 py-0.5">
-              📱 Data offline
+            <span className="text-xs font-medium text-accent-600 bg-accent-50 border border-accent-200 rounded-full px-2 py-0.5 inline-flex items-center gap-1">
+              <Icon name="phone" className="w-3 h-3" />
+              Data offline
             </span>
           )}
         </div>
@@ -666,15 +668,15 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
             let badgeClass, icon, label;
             if (isSelected) {
               badgeClass = 'bg-accent-100 text-accent-800 border-accent-400 ring-2 ring-accent-400 shadow-sm';
-              icon = '●';
+              icon = 'dot';
               label = 'Terpilih';
             } else if (isUsed) {
               badgeClass = 'bg-green-50 text-green-700 border-green-300 cursor-not-allowed';
-              icon = '✓';
+              icon = 'check';
               label = 'Sudah diisi';
             } else {
               badgeClass = 'bg-white text-gray-700 border-gray-300 hover:bg-accent-50 hover:border-accent-300 cursor-pointer';
-              icon = '○';
+              icon = 'circle';
               label = 'Belum diisi — ketuk untuk memilih';
             }
             return (
@@ -687,7 +689,7 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
                 title={`Nomor ${num}: ${label}`}
                 aria-label={`Nomor ${num}: ${label}`}
               >
-                <span className="text-base">{icon}</span>
+                <Icon name={icon} className="w-4 h-4 shrink-0" />
                 {num}
               </button>
             );
@@ -2879,7 +2881,7 @@ function SurveyForm() {
                           <p className="text-xs text-accent-500 mt-1">Mengunggah foto…</p>
                         )}
                         {photoPaths[question.id] && !uploadingPhoto[question.id] && (
-                          <p className="text-xs text-green-600 mt-1">✓ Foto berhasil diunggah</p>
+                          <p className="text-xs text-green-600 mt-1 inline-flex items-center gap-1"><Icon name="check" className="w-3.5 h-3.5" />Foto berhasil diunggah</p>
                         )}
                       </div>
                     )
@@ -2990,14 +2992,14 @@ function SurveyForm() {
                 let statusIcon;
                 let statusColor;
                 if (answered) {
-                  statusIcon = '✓';
+                  statusIcon = 'check';
                   statusColor = 'text-green-600';
                 } else if (isRequired) {
-                  statusIcon = '⚠️';
+                  statusIcon = 'alert';
                   statusColor = 'text-red-500';
                 } else {
-                  statusIcon = '○';
-                  statusColor = 'text-gray-400';
+                  statusIcon = 'circle';
+                  statusColor = 'text-gray-300';
                 }
 
                 return (
@@ -3011,7 +3013,7 @@ function SurveyForm() {
                   >
                     <div className="flex items-start justify-between mb-1">
                       <span className="text-xs font-semibold text-gray-500">{index + 1}</span>
-                      <span className={`text-sm ${statusColor}`}>{statusIcon}</span>
+                      <Icon name={statusIcon} className={`w-4 h-4 shrink-0 ${statusColor}`} />
                     </div>
                     <p className="text-xs text-gray-700 line-clamp-2">
                       {question.text.length > 50
@@ -3079,7 +3081,7 @@ function SurveyForm() {
                           <p className="text-xs text-accent-500 mt-1">Mengunggah foto…</p>
                         )}
                         {photoPaths[question.id] && !uploadingPhoto[question.id] && (
-                          <p className="text-xs text-green-600 mt-1">✓ Foto berhasil diunggah</p>
+                          <p className="text-xs text-green-600 mt-1 inline-flex items-center gap-1"><Icon name="check" className="w-3.5 h-3.5" />Foto berhasil diunggah</p>
                         )}
                         {hasError && (
                           <p className="text-xs text-red-500 mt-1">Foto wajib diunggah</p>

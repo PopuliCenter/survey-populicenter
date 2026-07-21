@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import SurveySelector from '../components/SurveySelector';
 import PublicationPanel from '../components/PublicationPanel';
@@ -164,7 +165,7 @@ function ExportJobTracker({ job, onDone }) {
             aria-label="Tutup notifikasi ekspor"
             title="Tutup"
           >
-            ✕
+            <Icon name="close" className="w-4 h-4" />
           </button>
         )}
       </div>

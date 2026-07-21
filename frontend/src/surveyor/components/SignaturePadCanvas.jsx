@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import Icon from '../../components/Icon';
 
 function SignaturePadCanvas({ signaturePad, required = false, hasError = false }) {
   const { canvasRef, isEmpty, clear, undo } = signaturePad;
@@ -62,7 +63,7 @@ function SignaturePadCanvas({ signaturePad, required = false, hasError = false }
           Ulangi
         </button>
         {!isEmpty && (
-          <span className="text-xs text-green-600 ml-auto">✓ Tanda tangan terisi</span>
+          <span className="text-xs text-green-600 ml-auto"><Icon name="check" className="w-3.5 h-3.5" />Tanda tangan terisi</span>
         )}
       </div>
     </div>

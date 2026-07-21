@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import RtSelectionMonitor from '../RtSelectionMonitor.jsx';
 
@@ -142,7 +142,10 @@ describe('RtSelectionMonitor — ringkasan', () => {
     renderPage();
 
     await screen.findByText('TEGAL PARANG');
-    const tile = (label) => screen.getByText(label).parentElement;
+    // Dicari DI DALAM wilayah ringkasan: label kartu ("Terverifikasi") sengaja
+    // sama bunyinya dengan badge per baris, jadi pencarian global akan ambigu.
+    const ringkasan = within(screen.getByRole('group', { name: /ringkasan undian rt/i }));
+    const tile = (label) => ringkasan.getByText(label).parentElement;
     expect(tile('Kelurahan diundi')).toHaveTextContent('3');
     expect(tile('Terverifikasi')).toHaveTextContent('2');
     expect(tile('Gagal verifikasi')).toHaveTextContent('1');

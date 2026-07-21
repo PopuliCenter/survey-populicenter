@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
 import { getMediaToken } from '../services/mediaToken';
+import Icon from '../components/Icon';
 
 /**
  * RtSelectionMonitor — pengawasan undian RT (admin & supervisor).
@@ -117,7 +118,7 @@ function RtSelectionMonitor() {
         )}
 
         {/* Filter */}
-        <section className="bg-white rounded-xl shadow p-4 flex flex-wrap gap-4 items-end">
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-4 items-end">
           <label className="block flex-1 min-w-[240px]">
             <span className="text-sm text-gray-600">Survei</span>
             <select value={surveyId} onChange={(e) => setSurveyId(e.target.value)}
@@ -149,7 +150,7 @@ function RtSelectionMonitor() {
 
         {/* Ringkasan */}
         {rows.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" role="group" aria-label="Ringkasan undian RT">
             <StatTile label="Kelurahan diundi" value={stats.total} />
             <StatTile label="Terverifikasi" value={stats.verified} tone="good" />
             <StatTile label="Gagal verifikasi" value={stats.gagal} tone={stats.gagal ? 'bad' : 'default'} />
@@ -166,7 +167,7 @@ function RtSelectionMonitor() {
         )}
 
         {/* Tabel */}
-        <section className="bg-white rounded-xl shadow overflow-hidden">
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           {loading ? (
             <p className="p-6 text-sm text-gray-500">Memuat data…</p>
           ) : rows.length === 0 ? (
@@ -213,9 +214,9 @@ function RtSelectionMonitor() {
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         {r.verified ? (
-                          <span className="px-2 py-0.5 rounded-md bg-green-50 text-green-700 text-xs font-medium">✓ Terverifikasi</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-green-50 text-green-700 text-xs font-medium"><Icon name="shieldCheck" className="w-3.5 h-3.5" />Terverifikasi</span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-md bg-red-100 text-red-800 text-xs font-semibold">✗ Tidak cocok</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-100 text-red-800 text-xs font-semibold"><Icon name="alert" className="w-3.5 h-3.5" />Tidak cocok</span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-gray-500 whitespace-nowrap">

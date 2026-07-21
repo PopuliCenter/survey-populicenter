@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Icon from '../components/Icon';
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -120,12 +121,12 @@ function ServerConfig() {
         {/* Test result */}
         {testResult === 'success' && (
           <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-700">
-            ✓ Koneksi berhasil! Server merespons.
+            <Icon name="check" className="w-4 h-4 inline" /> Koneksi berhasil! Server merespons.
           </div>
         )}
         {testResult === 'error' && (
           <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700">
-            ✕ {errorMsg}
+            <Icon name="close" className="w-4 h-4 inline" /> {errorMsg}
           </div>
         )}
 

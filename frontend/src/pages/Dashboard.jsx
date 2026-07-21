@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Icon from '../components/Icon';
 import {
   ResponsiveContainer,
   BarChart,
@@ -126,7 +127,7 @@ function SurveyOverviewCard({ title, totalQuota, totalCollected, percentage, onC
               {' responden'}
             </p>
             {isComplete ? (
-              <p className="text-xs font-medium text-green-600">✓ Target tercapai</p>
+              <p className="text-xs font-medium text-green-600 inline-flex items-center gap-1"><Icon name="check" className="w-3.5 h-3.5" />Target tercapai</p>
             ) : (
               <p className="text-xs text-amber-600">Sisa {remaining.toLocaleString('id-ID')} responden</p>
             )}
@@ -372,7 +373,7 @@ function Dashboard() {
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-xs text-gray-500 mb-1">Estimasi selesai</p>
                 {paceRemaining === 0 ? (
-                  <p className="text-xl font-bold text-green-600">Tercapai ✓</p>
+                  <p className="text-xl font-bold text-green-600 inline-flex items-center gap-1.5">Tercapai<Icon name="check" className="w-5 h-5" /></p>
                 ) : projectedDate ? (
                   <p className="text-xl font-bold text-gray-800">
                     {projectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
