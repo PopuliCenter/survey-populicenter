@@ -37,6 +37,25 @@ export default defineConfig({
         // Data Responden menampilkan halaman 404 SPA walau berkasnya ada.
         navigateFallbackDenylist: [/^\/uploads\//],
         runtimeCaching: [
+          // Data wilayah (~3,6 MB): HARUS punya cache sendiri. Sebelumnya ia
+          // ikut 'api-cache' yang dibatasi 50 entri (LRU) + kedaluwarsa 1 hari,
+          // sehingga tergusur lalu lintas API biasa → dropdown wilayah kosong
+          // saat offline. Aturan ini didaftarkan PALING ATAS karena Workbox
+          // memakai rute pertama yang cocok.
+          // Catatan: sumber kebenaran offline tetap IndexedDB (utils/regionData.js);
+          // ini lapisan kedua, bukan satu-satunya pengaman.
+          {
+            urlPattern: ({ url }) => url.pathname === '/wilayahIndonesia.json',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'region-data-cache',
+              expiration: {
+                maxEntries: 2,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 tahun — data wilayah jarang berubah
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/'),
             handler: 'NetworkFirst',

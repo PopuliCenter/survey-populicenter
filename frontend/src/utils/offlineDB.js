@@ -1,7 +1,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'survey-offline-db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export async function getDB() {
   return openDB(DB_NAME, DB_VERSION, {
@@ -36,8 +36,33 @@ export async function getDB() {
         });
         draftMedia.createIndex('draftKey', 'draftKey');
       }
+      if (oldVersion < 4) {
+        // reference_data: data acuan besar & jarang berubah (mis. daftar wilayah
+        // Indonesia ~3,6 MB). WAJIB di IndexedDB, bukan cache Service Worker:
+        // cache SW dibatasi maxEntries/maxAge sehingga bisa TERGUSUR oleh lalu
+        // lintas API biasa — itulah sebab dropdown wilayah pernah kosong saat
+        // offline padahal sudah pernah terunduh.
+        db.createObjectStore('reference_data', { keyPath: 'key' });
+      }
     },
   });
+}
+
+// ─── Reference Data (data acuan besar, mis. wilayah Indonesia) ────────────────
+
+export async function putReferenceData(key, data, meta = {}) {
+  const db = await getDB();
+  await db.put('reference_data', { key, data, cachedAt: Date.now(), ...meta });
+}
+
+export async function getReferenceData(key) {
+  const db = await getDB();
+  return db.get('reference_data', key);
+}
+
+export async function deleteReferenceData(key) {
+  const db = await getDB();
+  await db.delete('reference_data', key);
 }
 
 /** Kunci draft media per nomor kuesioner. */

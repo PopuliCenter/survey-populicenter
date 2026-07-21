@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
+import { loadRegionData } from '../../utils/regionData';
 
 /**
  * RtSelection — layar TPD untuk mengundi RT (pengganti FORM A + FORM B kertas).
@@ -15,14 +16,6 @@ import api from '../../services/api';
 
 const UPLOAD_OPTS = { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 };
 
-let cachedRegionData = null;
-async function loadRegionData() {
-  if (cachedRegionData) return cachedRegionData;
-  const res = await fetch('/wilayahIndonesia.json');
-  if (!res.ok) throw new Error('Gagal memuat data wilayah');
-  cachedRegionData = await res.json();
-  return cachedRegionData;
-}
 
 const selectClass =
   'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed';
@@ -56,7 +49,7 @@ function RtSelection() {
     let active = true;
     Promise.all([
       api.get(`/surveys/${surveyId}`).then((r) => r.data.survey || r.data).catch(() => null),
-      loadRegionData().catch(() => null),
+      loadRegionData(),
       api.get('/rt-selection', { params: { survey_id: surveyId } }).then((r) => r.data.selections || []).catch(() => []),
     ]).then(([srv, region_, hist]) => {
       if (!active) return;

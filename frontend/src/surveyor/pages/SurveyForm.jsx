@@ -25,6 +25,7 @@ import { getDisplayOptions } from '../../utils/randomizeOptions';
 import { validateAnswer } from '../../utils/answerValidation';
 import { cacheSurvey, getCachedSurvey, enqueueResponse, saveMediaFile, saveDraftMedia, getDraftMedia, deleteDraftMedia } from '../../utils/storage';
 import { compressIfNeeded } from '../../utils/imageCompressor';
+import { loadRegionData } from '../../utils/regionData';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import ConfirmSheet from '../../components/ConfirmSheet';
 import AudioRecorderPanel from '../components/AudioRecorderPanel';
@@ -98,19 +99,10 @@ function InterviewTimerBadge({ startAt }) {
 
 // ─── Wilayah Indonesia ────────────────────────────────────────────────────────
 
-let cachedRegionData = null;
-/**
- * Lazy-load data wilayah Indonesia dari file JSON publik via fetch.
- * Di-cache setelah pertama kali dimuat agar tidak membebani memori.
- * File disimpan di /public/wilayahIndonesia.json (tidak di-bundle ke JS).
- */
-async function loadRegionData() {
-  if (cachedRegionData) return cachedRegionData;
-  const res = await fetch('/wilayahIndonesia.json');
-  if (!res.ok) throw new Error('Gagal memuat data wilayah');
-  cachedRegionData = await res.json();
-  return cachedRegionData;
-}
+// Data wilayah dimuat lewat utils/regionData: memori → IndexedDB → jaringan.
+// JANGAN kembali memakai fetch() langsung — berkasnya (~3,6 MB) tidak di-precache
+// Service Worker, sehingga tanpa lapisan IndexedDB dropdown akan kosong saat
+// offline begitu cache runtime tergusur/kedaluwarsa.
 
 /**
  * Komponen input untuk pertanyaan indonesia_region.
@@ -137,22 +129,26 @@ function IndonesiaRegionField({ question, answer = {}, onChange, hasError }) {
   const showDistrict = depth === 'district' || depth === 'village';
   const showVillage = depth === 'village';
 
+  const [retrying, setRetrying] = useState(false);
+
   useEffect(() => {
     let active = true;
     loadRegionData()
       .then((data) => {
-        if (!active) return;
-        setRegionData(data);
-      })
-      .catch(() => {
-        if (!active) return;
-        setRegionData({ provinces: [], regenciesByProvince: {}, districtsByRegency: {}, villagesByDistrict: {} });
+        if (active) setRegionData(data);
       })
       .finally(() => {
         if (active) setLoading(false);
       });
     return () => { active = false; };
   }, []);
+
+  async function retryLoad() {
+    setRetrying(true);
+    const data = await loadRegionData({ forceNetwork: true });
+    setRegionData(data);
+    setRetrying(false);
+  }
 
   const provinceOptions = regionData?.provinces || [];
   const regencyOptions = regionData?.regenciesByProvince?.[answer.province_id] || [];
@@ -195,6 +191,26 @@ function IndonesiaRegionField({ question, answer = {}, onChange, hasError }) {
 
   return (
     <div className={`${hasError ? 'p-2 rounded-lg border border-red-400 bg-red-50' : ''}`}>
+      {/* Dropdown kosong TANPA penjelasan adalah gejala yang membingungkan TPD di
+          lapangan. Beri tahu penyebabnya + jalan keluarnya. */}
+      {provinceOptions.length === 0 && (
+        <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="font-medium">Data wilayah belum tersedia di perangkat ini.</p>
+          <p className="text-xs mt-1">
+            Sambungkan internet sebentar lalu tekan tombol di bawah. Setelah tersimpan, daftar wilayah
+            bisa dipakai offline tanpa perlu diunduh lagi.
+          </p>
+          <button
+            type="button"
+            onClick={retryLoad}
+            disabled={retrying}
+            className="mt-2 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white text-xs font-semibold"
+          >
+            {retrying ? 'Mengunduh…' : 'Unduh data wilayah'}
+          </button>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         {/* Provinsi — selalu tampil */}
         <div>

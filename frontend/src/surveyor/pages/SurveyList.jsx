@@ -13,6 +13,7 @@ import { toastInfo, toastWarning } from '../../utils/toastBus';
 import { clearSentryUser } from '../../config/sentry';
 import { clearAuth } from '../../utils/authStorage';
 import { sessionStore } from '../../utils/safeStorage';
+import { downloadRegionData, isRegionDataReadyOffline } from '../../utils/regionData';
 import { loadAllDraftsBySurvey, clearDraft } from '../utils/surveyDraft';
 
 const LAST_SEEN_SURVEYS_KEY = 'tpd:lastSeenSurveys';
@@ -123,6 +124,8 @@ function SurveyList() {
 
   // ─── Download status per survey ─────────────────────────────────────────────
   const [downloadedSurveys, setDownloadedSurveys] = useState(new Set());
+  // Data wilayah tersimpan permanen (IndexedDB) & siap dipakai tanpa sinyal.
+  const [regionReady, setRegionReady] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
 
@@ -366,6 +369,10 @@ function SurveyList() {
       }
       setDownloadedSurveys(cached);
       setUniqueQidMap(qidMap);
+      // Periksa juga data wilayah — tanpa itu status "siap offline" menyesatkan.
+      try {
+        setRegionReady(await isRegionDataReadyOffline());
+      } catch { /* penyimpanan tak tersedia — biarkan false */ }
     }
     if (surveys.length > 0) checkCached();
   }, [surveys]);
@@ -426,6 +433,14 @@ function SurveyList() {
       localStorage.setItem('offline_quota_map', JSON.stringify(quotaMap));
     } catch { /* ignore */ }
 
+    // Data wilayah (~3,6 MB) ikut diunduh di sini — TPD menyiapkan offline dari
+    // kantor/kos, bukan saat sudah di lokasi tanpa sinyal. Tanpa ini, dropdown
+    // provinsi/kab/kec/desa kosong di lapangan.
+    try {
+      const region = await downloadRegionData();
+      setRegionReady(region.ok && region.persisted);
+    } catch { /* non-kritis — status tetap ditampilkan apa adanya */ }
+
     setDownloadedSurveys(newCached);
     setDownloading(false);
     localStorage.setItem('last_download_time', new Date().toISOString());
@@ -445,7 +460,9 @@ function SurveyList() {
 
   // ─── Last download time ─────────────────────────────────────────────────────
   const lastDownload = localStorage.getItem('last_download_time');
-  const allDownloaded = surveys.length > 0 && downloadedSurveys.size === surveys.length;
+  // "Siap offline" hanya benar bila data wilayah IKUT tersimpan — tanpa itu
+  // dropdown wilayah kosong di lapangan meski survei sudah terunduh.
+  const allDownloaded = surveys.length > 0 && downloadedSurveys.size === surveys.length && regionReady;
 
   // ─── Refresh data when navigating back from SubmitSuccess (Requirement 6.3) ─
   useEffect(() => {
@@ -586,6 +603,11 @@ function SurveyList() {
                   {allDownloaded
                     ? 'Semua survei siap dipakai offline'
                     : `${downloadedSurveys.size}/${surveys.length} survei siap offline`}
+                </p>
+                {/* Status data wilayah dipisah agar TPD tahu persis apa yang kurang:
+                    survei bisa terunduh lengkap tapi dropdown wilayah tetap kosong. */}
+                <p className={`text-[11px] ${regionReady ? 'text-green-700' : 'text-amber-700 font-medium'}`}>
+                  {regionReady ? '✓ Data wilayah tersimpan' : '⚠ Data wilayah belum tersimpan — tekan Perbarui'}
                 </p>
                 {lastDownload && (
                   <p className="text-[11px] text-gray-400 truncate">
