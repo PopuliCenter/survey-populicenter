@@ -21,7 +21,7 @@ import { saveDraft, loadDraft, clearDraft, answersHaveContent } from '../utils/s
 import useAudioRecorder from '../hooks/useAudioRecorder';
 import usePhotoCapture from '../hooks/usePhotoCapture';
 import useSignaturePad from '../hooks/useSignaturePad';
-import { getDisplayOptions } from '../../utils/randomizeOptions';
+import { computeDisplayQuestions, seededShuffle } from '../../utils/questionOrder';
 import { validateAnswer } from '../../utils/answerValidation';
 import { cacheSurvey, getCachedSurvey, enqueueResponse, saveMediaFile, saveDraftMedia, getDraftMedia, deleteDraftMedia } from '../../utils/storage';
 import { compressIfNeeded } from '../../utils/imageCompressor';
@@ -1395,10 +1395,8 @@ function SurveyForm() {
   const [draftRestored, setDraftRestored] = useState(false);
   const draftRestoredRef = useRef(false);
 
-  // ─── Randomised display options (stable per mount) ──────────────────────────
-  // We compute shuffled options once when questions load and keep them stable
-  // so the order doesn't change as the user fills in the form.
-  const [displayOptionsMap, setDisplayOptionsMap] = useState({});
+  // Peta opsi tampil per pertanyaan — dihitung di useMemo setelah nomor
+  // kuesioner diketahui (lihat blok "Randomisasi urutan & opsi" di bawah).
 
   // ─── Assigned questionnaire numbers (from admin) ────────────────────────────
   const [assignedNumbers, setAssignedNumbers] = useState(null); // string[] | null
@@ -1416,8 +1414,38 @@ function SurveyForm() {
     setUsedNumbers((prev) => (prev.includes(n) ? prev : [...prev, n]));
   }, []);
 
+  // ─── Randomisasi urutan pertanyaan (blok acak) ──────────────────────────────
+  // Pertanyaan ber-flag randomize_order yang bersebelahan dikocok per responden
+  // (seed nomor kuesioner → urutan stabil saat draft dilanjutkan & bisa
+  // direproduksi untuk audit). Server menjamin blok tak bersinggungan dengan
+  // skip logic, jadi lompatan tetap bermakna pada urutan tampil ini.
+  const seedNumber = useMemo(() => {
+    const uq = questions.find((q) => q.type === 'unique_id');
+    return uq ? String(answers[uq.id] || '').trim() : '';
+  }, [questions, answers]);
+  const displayQuestions = useMemo(
+    () => computeDisplayQuestions(questions, `${id}__${seedNumber}`),
+    [questions, id, seedNumber]
+  );
+
+  // Opsi tampil per pertanyaan — kini BER-SEED (dulu Math.random per mount:
+  // draft yang dilanjutkan mendapat urutan opsi BERBEDA dari sesi sebelumnya).
+  // Seed nomor kuesioner + id pertanyaan → stabil per responden, tetap
+  // berbeda antar-responden. Jawaban tersimpan per VALUE opsi, bukan posisi.
+  const displayOptionsMap = useMemo(() => {
+    const map = {};
+    for (const q of questions) {
+      if ((q.type === 'single_choice' || q.type === 'multiple_choice') && Array.isArray(q.options)) {
+        map[q.id] = q.randomize_options === true
+          ? seededShuffle(q.options, `${id}__${seedNumber}__opt__${q.id}`)
+          : q.options;
+      }
+    }
+    return map;
+  }, [questions, id, seedNumber]);
+
   // ─── Skip logic ─────────────────────────────────────────────────────────────
-  const { visibleQuestions } = useSkipLogic(questions, answers);
+  const { visibleQuestions } = useSkipLogic(displayQuestions, answers);
 
   // ─── Wizard navigation ────────────────────────────────────────────────────────
   const [currentStep, setCurrentStep] = useState(0); // index into visibleQuestions
@@ -1532,16 +1560,6 @@ function SurveyForm() {
           setAnswers(applyPreselectedNumber(qs, buildEmptyAnswers(qs)));
 
           // Compute stable randomised display options for choice questions
-          const optMap = {};
-          for (const q of qs) {
-            if (
-              (q.type === 'single_choice' || q.type === 'multiple_choice') &&
-              Array.isArray(q.options)
-            ) {
-              optMap[q.id] = getDisplayOptions(q.options, q.randomize_options === true);
-            }
-          }
-          setDisplayOptionsMap(optMap);
 
           // Cache survey data for offline use (termasuk assigned numbers)
           await cacheSurvey(surveyData);
@@ -1585,13 +1603,6 @@ function SurveyForm() {
                 const qs = cached.questions || [];
                 setQuestions(qs);
                 setAnswers(applyPreselectedNumber(qs, buildEmptyAnswers(qs)));
-                const optMap = {};
-                for (const q of qs) {
-                  if ((q.type === 'single_choice' || q.type === 'multiple_choice') && Array.isArray(q.options)) {
-                    optMap[q.id] = getDisplayOptions(q.options, q.randomize_options === true);
-                  }
-                }
-                setDisplayOptionsMap(optMap);
                 // Load assigned numbers dari cache
                 if (cached._assignedNumbers) {
                   setAssignedNumbers(cached._assignedNumbers);

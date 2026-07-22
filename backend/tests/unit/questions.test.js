@@ -192,6 +192,80 @@ describe('Question Management - POST /surveys/:surveyId/questions', () => {
     });
   });
 
+  test('randomize_order tersimpan dan SAMPAI DI BADAN RESPONS (kontrak klien)', async () => {
+    const token = createAdminToken();
+    Survey.findOne.mockResolvedValue(mockSurvey());
+    Question.findAll.mockResolvedValue([]);
+    Question.create.mockImplementation(async (row) => ({ ...mockQuestion({ id: 'q-ro' }), ...row, id: 'q-ro' }));
+
+    const res = await request(app)
+      .post('/surveys/survey-uuid-001/questions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Penilaian tokoh A', type: 'single_choice', order_index: 5, randomize_order: true });
+
+    expect(res.status).toBe(201);
+    // Pelajaran field_tools_settings: DUA whitelist (query & serialisasi) —
+    // yang diuji harus badan respons, bukan argumen query.
+    expect(res.body.randomize_order).toBe(true);
+    expect(Question.create.mock.calls[0][0].randomize_order).toBe(true);
+  });
+
+  test('randomize_order pada pertanyaan identitas (unique_id) DITOLAK 422', async () => {
+    const token = createAdminToken();
+    Survey.findOne.mockResolvedValue(mockSurvey());
+    Question.findAll.mockResolvedValue([]);
+
+    const res = await request(app)
+      .post('/surveys/survey-uuid-001/questions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Nomor Kuesioner', type: 'unique_id', order_index: 0, randomize_order: true });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/identitas/i);
+    expect(Question.create).not.toHaveBeenCalled();
+  });
+
+  test('randomize_order + skip_logic pada pertanyaan yang sama DITOLAK 422', async () => {
+    const token = createAdminToken();
+    Survey.findOne.mockResolvedValue(mockSurvey());
+    Question.findAll.mockResolvedValue([
+      { id: 'q-target', type: 'single_choice', order_index: 0, randomize_order: false, skip_logic: null, auto_fill: null },
+    ]);
+
+    const res = await request(app)
+      .post('/surveys/survey-uuid-001/questions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        text: 'Bercabang tapi minta diacak',
+        type: 'single_choice',
+        order_index: 1,
+        randomize_order: true,
+        skip_logic: [{ condition: { question_id: 'q-target', operator: 'equals', value: 'x' }, action: 'jump_to', target_question_id: 'q-target' }],
+      });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/lompatan/i);
+  });
+
+  test('pertanyaan baru ber-flag DI DALAM interval lompatan yang ada DITOLAK 422', async () => {
+    const token = createAdminToken();
+    Survey.findOne.mockResolvedValue(mockSurvey());
+    // a(0) --jump--> c(2); pertanyaan baru diacak di order 1 (di antara).
+    Question.findAll.mockResolvedValue([
+      { id: 'q-a', type: 'single_choice', order_index: 0, randomize_order: false, auto_fill: null,
+        skip_logic: [{ condition: { question_id: 'q-a', operator: 'equals', value: 'x' }, action: 'jump_to', target_question_id: 'q-c' }] },
+      { id: 'q-c', type: 'single_choice', order_index: 2, randomize_order: false, skip_logic: null, auto_fill: null },
+    ]);
+
+    const res = await request(app)
+      .post('/surveys/survey-uuid-001/questions')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Sisipan diacak', type: 'single_choice', order_index: 1, randomize_order: true });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/di antara/i);
+  });
+
   test('tambah pertanyaan dengan skip logic valid berhasil', async () => {
     const token = createAdminToken();
     Survey.findOne.mockResolvedValue(mockSurvey());

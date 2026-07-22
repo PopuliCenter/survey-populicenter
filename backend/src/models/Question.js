@@ -59,6 +59,15 @@ module.exports = (sequelize) => {
       allowNull: false,
       defaultValue: false,
     },
+    // Randomisasi URUTAN pertanyaan: flag true yang BERSEBELAHAN membentuk satu
+    // "blok acak" — urutan di dalamnya dikocok per responden di app TPD (seed
+    // nomor kuesioner). Rute menolak flag pada pertanyaan identitas & yang
+    // terlibat skip logic (lompatan bermakna posisi).
+    randomize_order: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
     allow_other: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

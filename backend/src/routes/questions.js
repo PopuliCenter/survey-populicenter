@@ -3,10 +3,23 @@ const { Op } = require('sequelize');
 const { Survey, Question, sequelize } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { validateSkipLogicNoCycles } = require('../utils/skipLogicValidator');
+const { validateRandomizeOrderState, EXCLUDED_TYPES: RANDOMIZE_EXCLUDED_TYPES } = require('../utils/randomizeOrderValidator');
 const { validateValidationConfig } = require('../utils/validationConfigValidator');
 const { validateDateFormat } = require('../utils/validators');
 
 const router = express.Router();
+
+/**
+ * Keadaan ringkas seluruh pertanyaan survei — bahan validasi aturan blok acak
+ * urutan vs skip logic (lihat utils/randomizeOrderValidator).
+ */
+async function loadRandomizeOrderState(surveyId) {
+  return Question.findAll({
+    where: { survey_id: surveyId },
+    attributes: ['id', 'type', 'order_index', 'randomize_order', 'skip_logic', 'auto_fill'],
+    raw: true,
+  });
+}
 
 const VALID_QUESTION_TYPES = [
   'single_choice',
@@ -235,7 +248,7 @@ router.get('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin',
       where: { survey_id: surveyId },
       attributes: [
         'id', 'survey_id', 'text', 'type', 'order_index', 'is_required',
-        'randomize_options', 'allow_other', 'options', 'skip_logic', 'auto_fill', 'created_at',
+        'randomize_options', 'randomize_order', 'allow_other', 'options', 'skip_logic', 'auto_fill', 'created_at',
       ],
       order: [['order_index', 'ASC']],
     });
@@ -254,7 +267,7 @@ router.get('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin',
 router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { surveyId } = req.params;
-    const { text, type, is_required, randomize_options, allow_other, options, skip_logic, auto_fill } = req.body;
+    const { text, type, is_required, randomize_options, randomize_order, allow_other, options, skip_logic, auto_fill } = req.body;
     let { order_index } = req.body;
 
     const survey = await Survey.findOne({ where: { id: surveyId } });
@@ -351,6 +364,24 @@ router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin'
       }
     }
 
+    // Aturan blok acak urutan vs skip logic / identitas — validasi atas calon
+    // keadaan SETELAH pertanyaan ini ditambahkan.
+    if (randomize_order === true || (Array.isArray(skip_logic) && skip_logic.length > 0)) {
+      const state = await loadRandomizeOrderState(surveyId);
+      state.push({
+        id: '__baru__',
+        type,
+        order_index,
+        randomize_order: randomize_order === true,
+        skip_logic: skip_logic || null,
+        auto_fill: auto_fill || null,
+      });
+      const roValidation = validateRandomizeOrderState(state);
+      if (!roValidation.valid) {
+        return res.status(422).json({ error: roValidation.error });
+      }
+    }
+
     const question = await Question.create({
       survey_id: surveyId,
       text,
@@ -358,6 +389,7 @@ router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin'
       order_index,
       is_required: is_required !== undefined ? is_required : false,
       randomize_options: randomize_options !== undefined ? randomize_options : false,
+      randomize_order: randomize_order === true,
       allow_other: allow_other !== undefined ? allow_other : false,
       options: options || null,
       skip_logic: skip_logic || null,
@@ -372,6 +404,7 @@ router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin'
       order_index: question.order_index,
       is_required: question.is_required,
       randomize_options: question.randomize_options,
+      randomize_order: question.randomize_order,
       allow_other: question.allow_other,
       options: question.options,
       skip_logic: question.skip_logic,
@@ -391,7 +424,7 @@ router.post('/surveys/:surveyId/questions', authMiddleware, requireRole(['admin'
 router.put('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] }), async (req, res, next) => {
   try {
     const { surveyId, qid } = req.params;
-    const { text, type, order_index, is_required, randomize_options, allow_other, options, skip_logic, auto_fill } = req.body;
+    const { text, type, order_index, is_required, randomize_options, randomize_order, allow_other, options, skip_logic, auto_fill } = req.body;
 
     const survey = await Survey.findOne({ where: { id: surveyId } });
     if (!survey) {
@@ -495,12 +528,32 @@ router.put('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['ad
       }
     }
 
+    // Aturan blok acak urutan vs skip logic / identitas — validasi atas calon
+    // keadaan SETELAH perubahan diterapkan (nilai efektif).
+    if (randomize_order !== undefined || skip_logic !== undefined || order_index !== undefined
+        || type !== undefined || auto_fill !== undefined) {
+      const state = await loadRandomizeOrderState(surveyId);
+      const candidate = state.map((q) => (q.id === qid ? {
+        ...q,
+        type: effectiveType,
+        order_index: order_index !== undefined ? order_index : q.order_index,
+        randomize_order: randomize_order !== undefined ? randomize_order === true : q.randomize_order,
+        skip_logic: skip_logic !== undefined ? skip_logic : q.skip_logic,
+        auto_fill: auto_fill !== undefined ? auto_fill : q.auto_fill,
+      } : q));
+      const roValidation = validateRandomizeOrderState(candidate);
+      if (!roValidation.valid) {
+        return res.status(422).json({ error: roValidation.error });
+      }
+    }
+
     // Apply updates
     if (text !== undefined) question.text = text;
     if (type !== undefined) question.type = type;
     if (order_index !== undefined) question.order_index = order_index;
     if (is_required !== undefined) question.is_required = is_required;
     if (randomize_options !== undefined) question.randomize_options = randomize_options;
+    if (randomize_order !== undefined) question.randomize_order = randomize_order === true;
     if (allow_other !== undefined) question.allow_other = allow_other;
     if (options !== undefined) question.options = options;
     if (skip_logic !== undefined) question.skip_logic = skip_logic;
@@ -516,6 +569,7 @@ router.put('/surveys/:surveyId/questions/:qid', authMiddleware, requireRole(['ad
       order_index: question.order_index,
       is_required: question.is_required,
       randomize_options: question.randomize_options,
+      randomize_order: question.randomize_order,
       allow_other: question.allow_other,
       options: question.options,
       skip_logic: question.skip_logic,
@@ -600,6 +654,22 @@ router.patch('/surveys/:surveyId/questions/reorder', authMiddleware, requireRole
       return res.status(422).json({ error: 'Format order tidak valid. Harus berupa array [{ id, order_index }]' });
     }
 
+    // Memindah pertanyaan ber-blok-acak ke DALAM interval lompatan sama
+    // bahayanya dengan memasang flag di sana — validasi calon urutan baru dulu.
+    {
+      const state = await loadRandomizeOrderState(surveyId);
+      const newIndex = {};
+      order.forEach(({ id, order_index }) => { newIndex[id] = order_index; });
+      const candidate = state.map((q) => ({
+        ...q,
+        order_index: newIndex[q.id] !== undefined ? newIndex[q.id] : q.order_index,
+      }));
+      const roValidation = validateRandomizeOrderState(candidate);
+      if (!roValidation.valid) {
+        return res.status(422).json({ error: roValidation.error });
+      }
+    }
+
     // Update order_index for each question in the list.
     // Two-pass approach to avoid unique constraint violations on (survey_id, order_index):
     // Pass 1: shift all to a safe temporary range (add large offset)
@@ -627,7 +697,7 @@ router.patch('/surveys/:surveyId/questions/reorder', authMiddleware, requireRole
       where: { survey_id: surveyId },
       attributes: [
         'id', 'survey_id', 'text', 'type', 'order_index', 'is_required',
-        'randomize_options', 'allow_other', 'options', 'skip_logic', 'auto_fill', 'created_at',
+        'randomize_options', 'randomize_order', 'allow_other', 'options', 'skip_logic', 'auto_fill', 'created_at',
       ],
       order: [['order_index', 'ASC']],
     });
@@ -654,7 +724,7 @@ router.get('/surveys/:surveyId/questions/export', authMiddleware, requireRole(['
 
     const questions = await Question.findAll({
       where: { survey_id: surveyId },
-      attributes: ['text', 'type', 'order_index', 'is_required', 'randomize_options', 'allow_other', 'options', 'skip_logic', 'auto_fill'],
+      attributes: ['text', 'type', 'order_index', 'is_required', 'randomize_options', 'randomize_order', 'allow_other', 'options', 'skip_logic', 'auto_fill'],
       order: [['order_index', 'ASC']],
       raw: true,
     });
@@ -669,6 +739,7 @@ router.get('/surveys/:surveyId/questions/export', authMiddleware, requireRole(['
         type: q.type,
         is_required: q.is_required,
         randomize_options: q.randomize_options,
+        randomize_order: q.randomize_order,
         allow_other: q.allow_other,
         options: q.options,
         auto_fill: q.auto_fill, // portabel: merujuk value opsi, bukan ID
@@ -734,6 +805,12 @@ router.post('/surveys/:surveyId/questions/import', authMiddleware, requireRole([
           order_index: nextOrder++,
           is_required: q.is_required ?? false,
           randomize_options: q.randomize_options ?? false,
+          // Impor ditempatkan SETELAH pertanyaan terakhir (di luar semua
+          // interval lompatan yang ada) dan skip_logic tidak diimpor, jadi
+          // cukup saring tipe identitas & isi-otomatis.
+          randomize_order: q.randomize_order === true
+            && !RANDOMIZE_EXCLUDED_TYPES.includes(q.type)
+            && !q.auto_fill,
           allow_other: q.allow_other ?? false,
           options: q.options || null,
           skip_logic: null, // Skip logic tidak di-import

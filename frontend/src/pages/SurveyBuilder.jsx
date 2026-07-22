@@ -1013,6 +1013,12 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
   const [randomizeOptions, setRandomizeOptions] = useState(
     initial?.randomize_options ?? false
   );
+  // Blok acak URUTAN pertanyaan — flag bersebelahan membentuk satu blok yang
+  // dikocok per responden di app TPD. Server menolak flag pada pertanyaan
+  // identitas / ber-skip-logic (lompatan bermakna posisi).
+  const [randomizeOrder, setRandomizeOrder] = useState(
+    initial?.randomize_order ?? false
+  );
   const [allowOther, setAllowOther] = useState(
     // Bug #2: allow_other adalah field langsung di question, bukan di dalam options
     initial?.allow_other === true ? true : false
@@ -1131,6 +1137,7 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
       text: text.trim(),
       type,
       is_required: isRequired,
+      randomize_order: randomizeOrder,
       ...(isChoiceType
         ? {
             options: options.filter((o) => o.value.trim() || o.label.trim()),
@@ -1315,6 +1322,38 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
             </button>
             <span className="text-sm text-gray-700">Pertanyaan wajib diisi</span>
           </div>
+
+          {/* Blok acak urutan pertanyaan — tidak untuk identitas/skip logic
+              (server menolak; lihat pesan error saat simpan bila bentrok) */}
+          {type !== 'unique_id' && type !== 'indonesia_region' && (
+            <div className="flex items-start gap-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={randomizeOrder}
+                onClick={() => setRandomizeOrder((v) => !v)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 ${
+                  randomizeOrder ? 'bg-primary-600' : 'bg-gray-300'
+                }`}
+                aria-label="Ikut blok acak urutan pertanyaan"
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                    randomizeOrder ? 'translate-x-4' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+              <div>
+                <span className="text-sm text-gray-700">Ikut blok acak urutan pertanyaan</span>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Pertanyaan ber-tanda ini yang <b>bersebelahan</b> membentuk satu blok — urutannya
+                  dikocok berbeda untuk tiap responden (seed nomor kuesioner, stabil saat draft
+                  dilanjutkan). Tidak bisa digabung dengan skip logic, dan jawaban tetap tersimpan
+                  per pertanyaan sehingga data/ekspor tidak berubah.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Options editor (only for choice types) */}
           {isChoiceType && (
@@ -1724,6 +1763,7 @@ function SurveyBuilder() {
         type: question.type,
         is_required: question.is_required,
         randomize_options: question.randomize_options,
+        randomize_order: question.randomize_order === true,
         allow_other: question.allow_other,
         options: question.options,
         skip_logic: null, // skip logic tidak disalin untuk menghindari referensi rusak
@@ -2012,6 +2052,14 @@ function SurveyBuilder() {
                               {question.randomize_options && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-600">
                                   Acak
+                                </span>
+                              )}
+                              {question.randomize_order && (
+                                <span
+                                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600"
+                                  title="Masuk blok acak urutan — dikocok per responden bersama pertanyaan ber-tanda sama yang bersebelahan"
+                                >
+                                  Blok acak
                                 </span>
                               )}
                             </div>
