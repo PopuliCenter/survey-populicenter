@@ -14,7 +14,7 @@
 
 import React from 'react';
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SurveyBuilder from '../SurveyBuilder.jsx';
 
@@ -87,6 +87,70 @@ afterEach(() => {
 });
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
+
+describe('SurveyBuilder — blok acak via rentang nomor', () => {
+  const q = (id, order, over = {}) => ({
+    id, survey_id: 'survey-001', text: `Pertanyaan ${order}`, type: 'single_choice',
+    order_index: order, is_required: false, randomize_options: false,
+    randomize_order: false, options: [], skip_logic: null, auto_fill: null, ...over,
+  });
+  const surveyDenganPertanyaan = {
+    ...mockSurvey,
+    questions: [
+      q('q1', 0, { type: 'unique_id', text: 'Nomor Kuesioner' }),
+      q('q2', 1),
+      q('q3', 2, { skip_logic: [{ condition: {}, action: 'jump_to', target_question_id: 'q5' }] }),
+      q('q4', 3),
+      q('q5', 4),
+    ],
+  };
+
+  test('menerapkan flag hanya ke pertanyaan yang memenuhi syarat, sisanya DILAPORKAN dilewati', async () => {
+    api.get.mockResolvedValue({ data: surveyDenganPertanyaan });
+    api.put.mockResolvedValue({ data: {} });
+    renderSurveyBuilder();
+
+    const summary = await screen.findByText(/Atur blok acak urutan/i);
+    fireEvent.click(summary);
+    // Cakup query ke panelnya saja — halaman builder punya banyak input angka lain.
+    const panel = within(summary.closest('details'));
+    fireEvent.change(panel.getAllByRole('spinbutton')[0], { target: { value: '1' } });
+    fireEvent.change(panel.getAllByRole('spinbutton')[1], { target: { value: '5' } });
+    fireEvent.click(panel.getByRole('button', { name: /jadikan blok acak/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/3 pertanyaan masuk blok acak/i)).toBeInTheDocument();
+    });
+    // Hanya q2, q4, q5 yang layak — q1 identitas, q3 punya skip logic.
+    const putIds = api.put.mock.calls
+      .filter(([url]) => url.includes('/questions/'))
+      .map(([url]) => url.split('/questions/')[1]);
+    expect(putIds.sort()).toEqual(['q2', 'q4', 'q5']);
+    api.put.mock.calls
+      .filter(([url]) => url.includes('/questions/'))
+      .forEach(([, body]) => expect(body).toEqual({ randomize_order: true }));
+    // Laporan menyebut yang dilewati beserta alasannya.
+    expect(screen.getByText(/No\.1 \(identitas\)/)).toBeInTheDocument();
+    expect(screen.getByText(/No\.3 \(skip logic\)/)).toBeInTheDocument();
+  });
+
+  test('rentang tidak valid → pesan kesalahan, tanpa panggilan API', async () => {
+    api.get.mockResolvedValue({ data: surveyDenganPertanyaan });
+    renderSurveyBuilder();
+
+    const summary = await screen.findByText(/Atur blok acak urutan/i);
+    fireEvent.click(summary);
+    const panel = within(summary.closest('details'));
+    fireEvent.change(panel.getAllByRole('spinbutton')[0], { target: { value: '4' } });
+    fireEvent.change(panel.getAllByRole('spinbutton')[1], { target: { value: '2' } });
+    fireEvent.click(panel.getByRole('button', { name: /jadikan blok acak/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Rentang tidak valid/i)).toBeInTheDocument();
+    });
+    expect(api.put).not.toHaveBeenCalled();
+  });
+});
 
 describe('SurveyBuilder — Rating Scale type option', () => {
   test('dropdown tipe menampilkan opsi "Rating Scale"', async () => {

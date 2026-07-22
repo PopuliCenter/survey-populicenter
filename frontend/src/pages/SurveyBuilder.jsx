@@ -1604,6 +1604,56 @@ function SurveyBuilder() {
     fetchSurvey();
   }, [fetchSurvey]);
 
+  // ── Blok acak via RENTANG nomor (cara cepat menandai banyak pertanyaan) ─────
+  // Penyimpanan tetap PER-PERTANYAAN (randomize_order) sehingga tahan
+  // sisip/geser/hapus — rentang di sini hanyalah CARA MENERAPKAN, bukan config
+  // tersimpan (rentang tersimpan akan basi saat urutan berubah). Pertanyaan
+  // yang tak memenuhi syarat (identitas, isi-otomatis, skip logic) otomatis
+  // DILEWATI dan dilaporkan; server tetap validator terakhir (422 → dilewati).
+  const [rbFrom, setRbFrom] = useState('');
+  const [rbTo, setRbTo] = useState('');
+  const [rbBusy, setRbBusy] = useState(false);
+  const [rbResult, setRbResult] = useState(null);
+
+  const applyRandomBlockRange = useCallback(async (flagValue) => {
+    const from = parseInt(rbFrom, 10);
+    const to = parseInt(rbTo, 10);
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to > questions.length || from > to) {
+      setRbResult({ ok: false, text: `Rentang tidak valid — isi nomor 1 sampai ${questions.length}, "dari" ≤ "sampai".` });
+      return;
+    }
+    setRbBusy(true);
+    setRbResult(null);
+    const skipped = [];
+    let changed = 0;
+    for (let i = from - 1; i < to; i++) {
+      const q = questions[i];
+      const no = i + 1;
+      if (flagValue) {
+        // Pra-saring di klien agar laporannya jelas; server tetap menolak sisanya.
+        if (q.type === 'unique_id' || q.type === 'indonesia_region') { skipped.push(`No.${no} (identitas)`); continue; }
+        if (q.auto_fill) { skipped.push(`No.${no} (isi-otomatis)`); continue; }
+        if (Array.isArray(q.skip_logic) && q.skip_logic.length > 0) { skipped.push(`No.${no} (skip logic)`); continue; }
+      }
+      if (q.randomize_order === flagValue) { changed += flagValue ? 1 : 0; continue; }
+      try {
+        await api.put(`/surveys/${id}/questions/${q.id}`, { randomize_order: flagValue });
+        changed++;
+      } catch (err) {
+        // 422 = validator server (mis. berada di dalam interval lompatan).
+        skipped.push(`No.${no} (${err.response?.data?.error ? 'ditolak server' : 'gagal'})`);
+      }
+    }
+    await fetchSurvey();
+    setRbBusy(false);
+    setRbResult({
+      ok: true,
+      text: flagValue
+        ? `${changed} pertanyaan masuk blok acak${skipped.length ? ` · dilewati: ${skipped.join(', ')}` : ''}.`
+        : `Tanda blok acak dihapus dari rentang No.${from}–${to}.`,
+    });
+  }, [rbFrom, rbTo, questions, id, fetchSurvey]);
+
   // ── Initialize date picker from survey data ─────────────────────────────────
   useEffect(() => {
     if (survey) {
@@ -2004,6 +2054,45 @@ function SurveyBuilder() {
                   Tutup
                 </button>
               </div>
+            )}
+
+            {/* Blok acak via rentang nomor — cara cepat; penyimpanan tetap per-pertanyaan */}
+            {questions.length > 1 && (
+              <details className="bg-white rounded-xl shadow px-4 py-3">
+                <summary className="cursor-pointer select-none text-sm font-semibold text-gray-700">
+                  Atur blok acak urutan (rentang nomor)
+                </summary>
+                <div className="mt-3 space-y-2">
+                  <div className="flex flex-wrap items-end gap-3">
+                    <label className="block">
+                      <span className="text-xs text-gray-500">Dari No.</span>
+                      <input type="number" min="1" max={questions.length} value={rbFrom} onChange={(e) => setRbFrom(e.target.value)}
+                        className="mt-1 block w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-gray-500">Sampai No.</span>
+                      <input type="number" min="1" max={questions.length} value={rbTo} onChange={(e) => setRbTo(e.target.value)}
+                        className="mt-1 block w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                    </label>
+                    <button type="button" disabled={rbBusy} onClick={() => applyRandomBlockRange(true)}
+                      className="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white text-sm font-medium">
+                      {rbBusy ? 'Menerapkan…' : 'Jadikan blok acak'}
+                    </button>
+                    <button type="button" disabled={rbBusy} onClick={() => applyRandomBlockRange(false)}
+                      className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60 text-sm font-medium">
+                      Hapus tanda di rentang
+                    </button>
+                  </div>
+                  {rbResult && (
+                    <p className={`text-xs ${rbResult.ok ? 'text-gray-600' : 'text-red-600'}`}>{rbResult.text}</p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Pertanyaan identitas, ber-isi-otomatis, dan ber-skip-logic otomatis <b>dilewati</b>.
+                    Tanda tersimpan di tiap pertanyaan (badge <b>Blok acak</b>), jadi tetap benar walau
+                    urutan digeser atau pertanyaan disisipkan — rentang di sini hanya cara cepat menandai.
+                  </p>
+                </div>
+              </details>
             )}
 
             {/* Questions list */}
