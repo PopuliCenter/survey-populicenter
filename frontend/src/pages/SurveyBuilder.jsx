@@ -674,11 +674,40 @@ function RegionConfigEditor({ config, onChange }) {
  *   onChange: (key: string, value: string) => void,
  * }} props
  */
-function FieldToolsSettingsSection({ settings, onChange }) {
+/**
+ * Kelompok setelan field tools yang bisa dibuka-tutup. Daftar setelannya sudah
+ * panjang (mode alat, aturan audio, kunci-kunci, RT, kualitas) — default
+ * TERTUTUP, dan ringkasan nilai aktif tampil di judul agar keadaan tetap
+ * terbaca sekilas tanpa membuka.
+ */
+function FieldToolsGroup({ title, summary, children }) {
   return (
-    <div className="bg-white rounded-xl shadow px-6 py-4 space-y-3">
+    <details className="border border-gray-100 rounded-lg px-4 py-2.5">
+      <summary className="cursor-pointer select-none text-sm">
+        <span className="font-medium text-gray-700">{title}</span>
+        {summary && <span className="ml-2 text-xs text-gray-500">— {summary}</span>}
+      </summary>
+      <div className="pt-3 space-y-3">{children}</div>
+    </details>
+  );
+}
+
+function FieldToolsSettingsSection({ settings, onChange }) {
+  const MODE_SHORT = { required: 'wajib', optional: 'opsional', disabled: 'nonaktif' };
+  const TOOL_SHORT = { signature_mode: 'TTD', audio_mode: 'Audio', photo_mode: 'Foto', gps_mode: 'GPS' };
+  const modesSummary = FIELD_TOOLS
+    .map(({ key }) => `${TOOL_SHORT[key] || key} ${MODE_SHORT[settings[key]] || '?'}`)
+    .join(' · ');
+  const audioAktif = settings.audio_mode !== 'disabled';
+  const audioSummary = `indikator ${(settings.audio_indicator || 'shown') === 'shown' ? 'tampil' : 'sembunyi'} · mulai ${((settings.audio_start_delay_sec ?? 0) / 60).toLocaleString('id-ID')} mnt · total ${((settings.audio_total_max_sec ?? 180) / 60).toLocaleString('id-ID')} mnt`;
+  const rtAktif = (settings.rt_selection || 'off') === 'enabled';
+  const durasiAmbang = settings.min_duration_sec ?? 30;
+
+  return (
+    <div className="bg-white rounded-xl shadow px-6 py-4 space-y-2">
       <h3 className="text-sm font-semibold text-gray-700">Pengaturan Field Tools</h3>
-      <div className="space-y-3">
+
+      <FieldToolsGroup title="Perangkat lapangan" summary={modesSummary}>
         {FIELD_TOOLS.map(({ key, label }) => (
           <div key={key} className="flex items-center gap-6 flex-wrap">
             <span className="text-sm text-gray-700 w-36 shrink-0">{label}</span>
@@ -704,10 +733,12 @@ function FieldToolsSettingsSection({ settings, onChange }) {
             </div>
           </div>
         ))}
+      </FieldToolsGroup>
 
-        {/* Indikator rekaman audio — opsi tampil/sembunyi (bukan mode wajib) */}
-        {settings.audio_mode !== 'disabled' && (
-          <div className="flex items-center gap-6 flex-wrap pt-3 border-t border-gray-100">
+      {audioAktif && (
+        <FieldToolsGroup title="Rekaman audio" summary={audioSummary}>
+          {/* Indikator rekaman audio — opsi tampil/sembunyi (bukan mode wajib) */}
+          <div className="flex items-center gap-6 flex-wrap">
             <span className="text-sm text-gray-700 w-36 shrink-0">Indikator Rekaman</span>
             <div className="flex items-center gap-4 flex-wrap">
               {[{ value: 'shown', label: 'Tampil' }, { value: 'hidden', label: 'Sembunyi' }].map(({ value, label: optLabel }) => (
@@ -733,11 +764,8 @@ function FieldToolsSettingsSection({ settings, onChange }) {
               Tampilkan saat uji coba; sembunyikan saat survei berlangsung (berlaku di web &amp; Android). Rekaman tetap berjalan.
             </span>
           </div>
-        )}
 
-        {/* Aturan waktu rekaman audio — fleksibel, disetel admin/SPV per survei.
-            Nilai disimpan dalam DETIK; UI memakai MENIT agar mudah dibaca. */}
-        {settings.audio_mode !== 'disabled' && (
+          {/* Aturan waktu rekaman — nilai disimpan DETIK; UI memakai MENIT. */}
           <div className="flex items-start gap-6 flex-wrap pt-3 border-t border-gray-100">
             <span className="text-sm text-gray-700 w-36 shrink-0">Aturan Rekaman</span>
             <div className="flex flex-col gap-3 flex-1 min-w-[240px]">
@@ -782,11 +810,15 @@ function FieldToolsSettingsSection({ settings, onChange }) {
               </span>
             </div>
           </div>
-        )}
+        </FieldToolsGroup>
+      )}
 
-        {/* Kunci Perangkat — 1 akun TPD = 1 perangkat (cegah double user / salah akun) */}
-        <div className="flex items-center gap-6 flex-wrap pt-3 border-t border-gray-100">
-          <span className="text-sm text-gray-700 w-36 shrink-0">Kunci Perangkat</span>
+      {/* Kunci Perangkat — 1 akun TPD = 1 perangkat (cegah double user / salah akun) */}
+      <FieldToolsGroup
+        title="Kunci Perangkat"
+        summary={(settings.device_lock || 'off') === 'enforced' ? 'aktif — 1 akun = 1 HP' : 'nonaktif'}
+      >
+        <div className="flex items-center gap-6 flex-wrap">
           <div className="flex items-center gap-4 flex-wrap">
             {[{ value: 'enforced', label: 'Aktif' }, { value: 'off', label: 'Nonaktif' }].map(({ value, label: optLabel }) => (
               <label
@@ -813,11 +845,15 @@ function FieldToolsSettingsSection({ settings, onChange }) {
             Nonaktifkan saat uji coba.
           </span>
         </div>
+      </FieldToolsGroup>
 
-        {/* Kunci Gender-Paritas — jenis kelamin TERKUNCI mengikuti nomor ganjil/genap.
-            Berlaku pada pertanyaan ber-"isi otomatis jenis kelamin" (paritas). */}
-        <div className="flex items-center gap-6 flex-wrap pt-3 border-t border-gray-100">
-          <span className="text-sm text-gray-700 w-36 shrink-0">Kunci Gender</span>
+      {/* Kunci Gender-Paritas — jenis kelamin TERKUNCI mengikuti nomor ganjil/genap.
+          Berlaku pada pertanyaan ber-"isi otomatis jenis kelamin" (paritas). */}
+      <FieldToolsGroup
+        title="Kunci Gender"
+        summary={(settings.gender_parity_lock || 'off') === 'locked' ? 'terkunci — ikut paritas nomor' : 'bebas (isi-otomatis saja)'}
+      >
+        <div className="flex items-center gap-6 flex-wrap">
           <div className="flex items-center gap-4 flex-wrap">
             {[{ value: 'locked', label: 'Terkunci' }, { value: 'off', label: 'Bebas (isi-otomatis saja)' }].map(({ value, label: optLabel }) => (
               <label
@@ -845,11 +881,15 @@ function FieldToolsSettingsSection({ settings, onChange }) {
             Butuh pertanyaan dengan "isi otomatis jenis kelamin" aktif. Nomor non-angka tidak terkunci.
           </span>
         </div>
+      </FieldToolsGroup>
 
-        {/* Pemilihan RT acak — menggantikan Lembar Angka Acak (Form A) + Form B kertas.
-            Server yang mengundi & hasilnya terkunci (tak bisa diacak ulang oleh TPD). */}
-        <div className="flex items-start gap-6 flex-wrap pt-3 border-t border-gray-100">
-          <span className="text-sm text-gray-700 w-36 shrink-0">Pemilihan RT</span>
+      {/* Pemilihan RT acak — menggantikan Lembar Angka Acak (Form A) + Form B kertas.
+          Server yang mengundi & hasilnya terkunci (tak bisa diacak ulang oleh TPD). */}
+      <FieldToolsGroup
+        title="Pemilihan RT"
+        summary={rtAktif ? `aktif — undi ${settings.rt_selection_count ?? 2} RT/kelurahan` : 'nonaktif'}
+      >
+        <div className="flex items-start gap-6 flex-wrap">
           <div className="flex flex-col gap-2 flex-1 min-w-[240px]">
             <div className="flex items-center gap-4 flex-wrap">
               {[{ value: 'enabled', label: 'Aktif' }, { value: 'off', label: 'Nonaktif' }].map(({ value, label: optLabel }) => (
@@ -894,14 +934,19 @@ function FieldToolsSettingsSection({ settings, onChange }) {
             dari aparat desa + foto Form B ber-stempel, lalu <b>server</b> yang mengundi — TPD tidak
             bisa memengaruhi hasil. Undian <b>terkunci satu kali per kelurahan</b> (tidak bisa diacak
             ulang), dan tersimpan lengkap dengan seed sehingga supervisor bisa menghitung ulang untuk
-            membuktikan hasilnya bukan karangan. Langkah ini <b>butuh koneksi internet</b>.
+            membuktikan hasilnya bukan karangan. Bila tanpa sinyal, tiket undian offline yang
+            sudah diunduh (tombol Perbarui) tetap bisa dipakai.
           </span>
         </div>
+      </FieldToolsGroup>
 
-        {/* Kualitas Data — tandai durasi pengisian mencurigakan (terlalu singkat).
-            Nilai disimpan dalam DETIK; 0 = penanda nonaktif. */}
-        <div className="flex items-start gap-6 flex-wrap pt-3 border-t border-gray-100">
-          <span className="text-sm text-gray-700 w-36 shrink-0">Kualitas Data</span>
+      {/* Kualitas Data — tandai durasi pengisian mencurigakan (terlalu singkat).
+          Nilai disimpan dalam DETIK; 0 = penanda nonaktif. */}
+      <FieldToolsGroup
+        title="Kualitas Data"
+        summary={durasiAmbang > 0 ? `tandai durasi < ${durasiAmbang} dtk` : 'penanda durasi nonaktif'}
+      >
+        <div className="flex items-start gap-6 flex-wrap">
           <div className="flex flex-col gap-2 flex-1 min-w-[240px]">
             <label className="inline-flex items-center gap-2 text-sm text-gray-700">
               <span className="shrink-0">Tandai bila durasi di bawah</span>
@@ -925,7 +970,7 @@ function FieldToolsSettingsSection({ settings, onChange }) {
             </span>
           </div>
         </div>
-      </div>
+      </FieldToolsGroup>
     </div>
   );
 }
