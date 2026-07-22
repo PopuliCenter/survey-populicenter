@@ -609,6 +609,11 @@ function Surveyors() {
   const [assignPickMode, setAssignPickMode] = useState(false);
   const [addPickIds, setAddPickIds] = useState(new Set());
   const [addPickSearch, setAddPickSearch] = useState('');
+  // Kirim pesan (pemberitahuan lonceng app TPD) ke TPD terpilih.
+  const [msgOpen, setMsgOpen] = useState(false);
+  const [msgTitle, setMsgTitle] = useState('');
+  const [msgBody, setMsgBody] = useState('');
+  const [msgBusy, setMsgBusy] = useState(false);
   const [assignQuota, setAssignQuota] = useState('');
   // Bagi nomor kuesioner otomatis saat penugasan massal: tiap TPD mendapat blok
   // berurutan sebesar kuota (TPD1: 001–010, TPD2: 011–020, …).
@@ -784,6 +789,26 @@ function Surveyors() {
       !(Array.isArray(t.quotas) && t.quotas.some((q) => q.survey_id === filterSurveyId))
     );
   }, [tpdList, filterSurveyId]);
+
+  async function submitMessage() {
+    if (!msgTitle.trim() || !msgBody.trim()) { toast.error('Judul dan isi pesan wajib diisi.'); return; }
+    setMsgBusy(true);
+    try {
+      const res = await api.post('/notifications', {
+        surveyor_ids: [...selectedIds],
+        survey_id: filterSurveyId || null,
+        title: msgTitle.trim(),
+        body: msgBody.trim(),
+      });
+      toast.success(`Pesan terkirim ke ${res.data.sent} TPD (muncul di lonceng aplikasinya).`);
+      setMsgOpen(false);
+      clearSelection();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal mengirim pesan.');
+    } finally {
+      setMsgBusy(false);
+    }
+  }
 
   function openAddTpdPicker() {
     setAssignSurveyId(filterSurveyId);
@@ -1270,6 +1295,14 @@ function Surveyors() {
                 >
                   Tugaskan ke Survei
                 </button>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => { setMsgTitle(''); setMsgBody(''); setMsgOpen(true); }}
+                  className="px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                >
+                  Kirim Pesan
+                </button>
                 {filterSurveyId ? (
                   <button
                     type="button"
@@ -1638,6 +1671,54 @@ function Surveyors() {
         }}
         onCancel={() => setBulkConfirm(null)}
       />
+
+      {/* Kirim pesan ke TPD terpilih → lonceng aplikasi mereka */}
+      {msgOpen && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Kirim pesan ke TPD">
+          <button type="button" aria-label="Tutup" onClick={() => setMsgOpen(false)} className="absolute inset-0 bg-black/50 cursor-default" />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Kirim Pesan ke {selectedIds.size} TPD</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Muncul di lonceng aplikasi TPD saat mereka online — mis. &quot;data Anda belum masuk&quot;,
+              teguran, atau instruksi lapangan.
+            </p>
+
+            <label htmlFor="msg-title" className="block text-sm font-medium text-gray-700 mb-1">Judul</label>
+            <input
+              id="msg-title"
+              type="text"
+              maxLength={150}
+              value={msgTitle}
+              onChange={(e) => setMsgTitle(e.target.value)}
+              placeholder="mis. Data Anda belum masuk"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            />
+
+            <label htmlFor="msg-body" className="block text-sm font-medium text-gray-700 mb-1">Isi pesan</label>
+            <textarea
+              id="msg-body"
+              rows={4}
+              maxLength={2000}
+              value={msgBody}
+              onChange={(e) => setMsgBody(e.target.value)}
+              placeholder="Tulis pesan untuk TPD…"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            />
+            <p className="text-2xs text-gray-500 text-right mb-4">{msgBody.length}/2000</p>
+
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setMsgOpen(false)} disabled={msgBusy}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50">
+                Batal
+              </button>
+              <button type="button" onClick={submitMessage} disabled={msgBusy}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-60">
+                {msgBusy ? 'Mengirim…' : 'Kirim'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tugaskan massal ke survei (pilih survei + kuota, lalu loop /quota) */}
       {assignPickerOpen && (

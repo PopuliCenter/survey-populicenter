@@ -26,6 +26,7 @@ const PublishedResult = require('./PublishedResult')(sequelize);
 const MonitoringReport = require('./MonitoringReport')(sequelize);
 const RtSelection = require('./RtSelection')(sequelize);
 const RtSeedTicket = require('./RtSeedTicket')(sequelize);
+const TpdNotification = require('./TpdNotification')(sequelize);
 
 // ─── Associations ─────────────────────────────────────────────────────────────
 
@@ -56,6 +57,11 @@ Survey.hasMany(RtSeedTicket, { foreignKey: 'survey_id', as: 'rtSeedTickets', onD
 RtSeedTicket.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
 User.hasMany(RtSeedTicket, { foreignKey: 'surveyor_id', as: 'rtSeedTickets', onDelete: 'CASCADE' });
 RtSeedTicket.belongsTo(User, { foreignKey: 'surveyor_id', as: 'surveyor' });
+
+// User (TPD) → TpdNotification (pemberitahuan dashboard → app TPD)
+User.hasMany(TpdNotification, { foreignKey: 'surveyor_id', as: 'tpdNotifications', onDelete: 'CASCADE' });
+TpdNotification.belongsTo(User, { foreignKey: 'surveyor_id', as: 'surveyor' });
+TpdNotification.belongsTo(User, { foreignKey: 'created_by', as: 'sender' });
 
 // Survey + User → Response
 Survey.hasMany(Response, { foreignKey: 'survey_id', as: 'responses' });
@@ -113,4 +119,5 @@ module.exports = {
   MonitoringReport,
   RtSelection,
   RtSeedTicket,
+  TpdNotification,
 };

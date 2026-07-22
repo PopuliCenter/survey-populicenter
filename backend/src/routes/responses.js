@@ -1,7 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const { Response, Answer, Question, Survey, User, SurveyorQuota, Sequelize, sequelize } = require('../models');
+const { Response, Answer, Question, Survey, User, SurveyorQuota, TpdNotification, Sequelize, sequelize } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { createAuditLog } = require('../middleware/auditLog');
 const { validateAllAnswers } = require('../utils/answerValidator');
@@ -648,6 +648,21 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
       markStatsDirty(survey_id);
     });
 
+    // Pemberitahuan otomatis "kualitas": wawancara lebih singkat dari ambang
+    // min_duration_sec survei → TPD ditegur sistem lewat lonceng aplikasinya
+    // (fire-and-forget — kegagalan tidak boleh mengganggu submit).
+    if (isShortDuration(duration_seconds, survey.field_tools_settings)) {
+      TpdNotification.create({
+        surveyor_id,
+        survey_id,
+        response_id,
+        type: 'quality',
+        title: `Wawancara No. ${questionnaire_number} tercatat sangat singkat`,
+        body: `Durasi pengisian hanya ${duration_seconds} detik — di bawah ambang wajar survei ini. `
+          + 'Respons ini ditandai untuk ditinjau supervisor. Pastikan wawancara dilakukan lengkap sesuai kuesioner.',
+      }).catch((err) => console.error('[Notif] Gagal membuat notifikasi kualitas:', err.message));
+    }
+
     res.status(201).json({
       questionnaire_number,
       end_time: end_time_iso,
@@ -1198,6 +1213,23 @@ router.patch('/:id/review', authMiddleware, requireRole(['admin', 'supervisor'])
       },
       ipAddress: req.ip,
     });
+
+    // Pemberitahuan otomatis "review": respons DITANDAI bermasalah → TPD
+    // langsung tahu lewat lonceng aplikasinya, lengkap dengan catatan reviewer
+    // (fire-and-forget; verified/unreviewed tidak memberi tahu).
+    if (review_status === 'flagged') {
+      TpdNotification.create({
+        surveyor_id: response.surveyor_id,
+        survey_id: response.survey_id,
+        response_id: response.id,
+        type: 'review',
+        title: `Respons No. ${response.questionnaire_number} ditandai bermasalah`,
+        body: review_note
+          ? `Catatan supervisor: ${review_note}`
+          : 'Supervisor menandai respons ini bermasalah. Hubungi supervisor Anda untuk tindak lanjut.',
+        created_by: req.user.id,
+      }).catch((err) => console.error('[Notif] Gagal membuat notifikasi review:', err.message));
+    }
 
     // Fetch reviewer name
     const reviewer = await User.findByPk(req.user.id, { attributes: ['name'] });

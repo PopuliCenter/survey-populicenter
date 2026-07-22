@@ -47,6 +47,9 @@ jest.mock('../../src/models', () => {
   };
 
   return {
+    TpdNotification: {
+      create: jest.fn().mockResolvedValue({}),
+    },
     Response: {
       findAll: jest.fn(),
       findOne: jest.fn(),

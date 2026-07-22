@@ -127,6 +127,33 @@ function SurveyList() {
   const [downloadedSurveys, setDownloadedSurveys] = useState(new Set());
   // Data wilayah tersimpan permanen (IndexedDB) & siap dipakai tanpa sinyal.
   const [regionReady, setRegionReady] = useState(false);
+
+  // ─── Pemberitahuan (lonceng) — pesan dashboard/otomatis untuk TPD ini ───────
+  // Diambil saat online; di-cache agar tetap terbaca offline. Sumber: kiriman
+  // manual admin/SPV, respons ditandai bermasalah, dan teguran durasi singkat.
+  const [notifItems, setNotifItems] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('tpd_notifications') || '[]'); } catch { return []; }
+  });
+  const [notifUnread, setNotifUnread] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await api.get('/notifications');
+      const items = res.data.notifications || [];
+      const unread = res.data.unread_count || 0;
+      setNotifItems(items);
+      setNotifUnread(unread);
+      try { localStorage.setItem('tpd_notifications', JSON.stringify(items.slice(0, 50))); } catch { /* penuh */ }
+      if (unread > 0) toastInfo(`Anda punya ${unread} pemberitahuan baru — ketuk lonceng.`);
+    } catch { /* offline — pakai cache */ }
+  }, []);
+  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+
+  async function markAllNotifRead() {
+    setNotifUnread(0);
+    setNotifItems((prev) => prev.map((n) => ({ ...n, read_at: n.read_at || new Date().toISOString() })));
+    try { await api.patch('/notifications/read-all'); } catch { /* offline — server menyusul saat online */ }
+  }
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
 
@@ -589,6 +616,21 @@ function SurveyList() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <OfflineStatusBar isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
+              {/* Lonceng pemberitahuan (pesan SPV/admin + peringatan otomatis) */}
+              <button
+                onClick={() => setNotifOpen(true)}
+                aria-label={notifUnread > 0 ? `Pemberitahuan, ${notifUnread} belum dibaca` : 'Pemberitahuan'}
+                className="relative min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-500 hover:text-accent-700 hover:bg-accent-50 rounded-xl transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                </svg>
+                {notifUnread > 0 && (
+                  <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-2xs font-bold flex items-center justify-center tabular-nums">
+                    {notifUnread > 9 ? '9+' : notifUnread}
+                  </span>
+                )}
+              </button>
               <button
                 onClick={handleLogoutClick}
                 aria-label="Keluar"
@@ -1145,6 +1187,55 @@ function SurveyList() {
           </span>
         </p>
       </ConfirmSheet>
+
+      {/* Panel pemberitahuan (lonceng) */}
+      {notifOpen && (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Pemberitahuan">
+          <button type="button" aria-label="Tutup" onClick={() => setNotifOpen(false)} className="absolute inset-0 bg-black/40 animate-backdrop-in cursor-default" />
+          <div className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[80vh] flex flex-col animate-sheet-up">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <h2 className="text-base font-semibold text-gray-800">Pemberitahuan</h2>
+              <div className="flex items-center gap-2">
+                {notifUnread > 0 && (
+                  <button onClick={markAllNotifRead} className="text-xs font-medium text-accent-700 hover:underline">
+                    Tandai semua dibaca
+                  </button>
+                )}
+                <button onClick={() => setNotifOpen(false)} aria-label="Tutup panel"
+                  className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center text-gray-500 hover:text-gray-700 rounded-lg">
+                  <Icon name="close" className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="overflow-y-auto divide-y divide-gray-100">
+              {notifItems.length === 0 ? (
+                <p className="p-6 text-sm text-gray-500 text-center">Belum ada pemberitahuan.</p>
+              ) : notifItems.map((n) => {
+                const belum = !n.read_at;
+                const TIPE = {
+                  review: { label: 'Ditandai SPV', cls: 'bg-red-50 text-red-700' },
+                  quality: { label: 'Durasi singkat', cls: 'bg-amber-50 text-amber-700' },
+                  manual: { label: 'Pesan', cls: 'bg-accent-50 text-accent-700' },
+                };
+                const t = TIPE[n.type] || TIPE.manual;
+                return (
+                  <div key={n.id} className={`px-4 py-3 ${belum ? 'bg-accent-50/40' : ''}`}>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className={`px-1.5 py-0.5 rounded text-2xs font-semibold ${t.cls}`}>{t.label}</span>
+                      {belum && <span className="w-2 h-2 rounded-full bg-accent-500" aria-label="Belum dibaca" />}
+                      <span className="ml-auto text-2xs text-gray-500">
+                        {n.created_at ? new Date(n.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : ''}
+                      </span>
+                    </div>
+                    <p className={`text-sm ${belum ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>{n.title}</p>
+                    <p className="text-xs text-gray-600 mt-0.5 whitespace-pre-line">{n.body}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
