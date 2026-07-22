@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { StatusBadge, QuotaPanel } from '../components/SurveyorBadges';
@@ -603,6 +603,12 @@ function Surveyors() {
   const [bulkConfirm, setBulkConfirm] = useState(null); // { type: 'deactivate'|'delete'|'unassign', ids: string[] }
   const [assignPickerOpen, setAssignPickerOpen] = useState(false);
   const [assignSurveyId, setAssignSurveyId] = useState('');
+  // Mode "Tambah TPD" dari tampilan per-survei: survei sudah tertentu, TPD-nya
+  // dipilih dari daftar centang di dalam modal (di tampilan itu tak ada baris
+  // TPD belum-tertugas yang bisa diseleksi).
+  const [assignPickMode, setAssignPickMode] = useState(false);
+  const [addPickIds, setAddPickIds] = useState(new Set());
+  const [addPickSearch, setAddPickSearch] = useState('');
   const [assignQuota, setAssignQuota] = useState('');
   // Bagi nomor kuesioner otomatis saat penugasan massal: tiap TPD mendapat blok
   // berurutan sebesar kuota (TPD1: 001–010, TPD2: 011–020, …).
@@ -770,13 +776,37 @@ function Surveyors() {
     return { byTpd };
   }
 
+  // Kandidat utk mode "Tambah TPD": akun aktif yang BELUM tertugas di survei ini.
+  const addPickCandidates = useMemo(() => {
+    if (!filterSurveyId) return [];
+    return tpdList.filter((t) =>
+      t.is_active !== false &&
+      !(Array.isArray(t.quotas) && t.quotas.some((q) => q.survey_id === filterSurveyId))
+    );
+  }, [tpdList, filterSurveyId]);
+
+  function openAddTpdPicker() {
+    setAssignSurveyId(filterSurveyId);
+    setAssignPickMode(true);
+    setAddPickIds(new Set());
+    setAddPickSearch('');
+    setAssignPickerOpen(true);
+  }
+
   function submitBulkAssign() {
     const quotaNum = Number(assignQuota);
     if (!assignSurveyId) { toast.error('Pilih survei tujuan dulu.'); return; }
     if (!Number.isInteger(quotaNum) || quotaNum < 1) { toast.error('Kuota harus bilangan bulat ≥ 1.'); return; }
-    // Urutan TPD sesuai daftar yang tampil (fallback: urutan pilih).
-    const orderedIds = filteredSurveyors.filter((t) => selectedIds.has(t.id)).map((t) => t.id);
-    const ids = orderedIds.length ? orderedIds : [...selectedIds];
+    let ids;
+    if (assignPickMode) {
+      // Urutan mengikuti daftar kandidat (stabil & mudah ditebak utk blok nomor).
+      ids = addPickCandidates.filter((t) => addPickIds.has(t.id)).map((t) => t.id);
+      if (ids.length === 0) { toast.error('Centang minimal satu TPD dulu.'); return; }
+    } else {
+      // Urutan TPD sesuai daftar yang tampil (fallback: urutan pilih).
+      const orderedIds = filteredSurveyors.filter((t) => selectedIds.has(t.id)).map((t) => t.id);
+      ids = orderedIds.length ? orderedIds : [...selectedIds];
+    }
 
     let numbersByTpd = null;
     if (assignAutoNumbers) {
@@ -799,6 +829,8 @@ function Surveyors() {
     setAssignQuota('');
     setAssignAutoNumbers(false);
     setAssignStartNumber('1');
+    setAssignPickMode(false);
+    setAddPickIds(new Set());
   }
 
   // ── Lepas TPD dari survei terpilih (hapus penugasan, akun tetap ada) ─────────
@@ -962,6 +994,14 @@ function Surveyors() {
             <span className="text-gray-300" aria-hidden="true">/</span>
             <span className="text-sm font-semibold text-gray-800">{selectedSurvey.title}</span>
             <SurveyStatusBadge status={selectedSurvey.status} />
+            {/* "Tugaskan", BUKAN "Tambah TPD" — label itu sudah dipakai tombol
+                buat-akun-baru di header; dua tombol seragam beda aksi = jebakan. */}
+            <button
+              onClick={openAddTpdPicker}
+              className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
+            >
+              <span aria-hidden="true">+</span> Tugaskan TPD
+            </button>
           </div>
         )}
         {!projectView && (
@@ -1602,23 +1642,111 @@ function Surveyors() {
       {/* Tugaskan massal ke survei (pilih survei + kuota, lalu loop /quota) */}
       {assignPickerOpen && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Tugaskan ke survei">
-          <button type="button" aria-label="Tutup" onClick={() => setAssignPickerOpen(false)} className="absolute inset-0 bg-black/50 cursor-default" />
+          <button type="button" aria-label="Tutup" onClick={() => { setAssignPickerOpen(false); setAssignPickMode(false); }} className="absolute inset-0 bg-black/50 cursor-default" />
           <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Tugaskan {selectedIds.size} TPD ke Survei</h3>
-            <p className="text-sm text-gray-500 mb-4">Pilih survei tujuan dan kuota responden untuk tiap TPD terpilih.</p>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">
+              {assignPickMode ? 'Tambah TPD ke Survei Ini' : `Tugaskan ${selectedIds.size} TPD ke Survei`}
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {assignPickMode
+                ? 'Centang TPD yang akan ditugaskan, lalu tentukan kuota respondennya.'
+                : 'Pilih survei tujuan dan kuota responden untuk tiap TPD terpilih.'}
+            </p>
 
-            <label htmlFor="bulk-assign-survey-pick" className="block text-sm font-medium text-gray-700 mb-1">Survei</label>
-            <select
-              id="bulk-assign-survey-pick"
-              value={assignSurveyId}
-              onChange={(e) => setAssignSurveyId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-primary-400"
-            >
-              <option value="">— Pilih survei —</option>
-              {surveys.map((s) => (
-                <option key={s.id} value={s.id}>{s.title} ({s.status})</option>
-              ))}
-            </select>
+            {assignPickMode ? (
+              /* Survei sudah tertentu dari tampilan per-survei — tampilkan terkunci. */
+              <div className="mb-4">
+                <span className="block text-sm font-medium text-gray-700 mb-1">Survei</span>
+                <p className="text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                  {selectedSurvey?.title || '—'}
+                </p>
+              </div>
+            ) : (
+              <>
+                <label htmlFor="bulk-assign-survey-pick" className="block text-sm font-medium text-gray-700 mb-1">Survei</label>
+                <select
+                  id="bulk-assign-survey-pick"
+                  value={assignSurveyId}
+                  onChange={(e) => setAssignSurveyId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-primary-400"
+                >
+                  <option value="">— Pilih survei —</option>
+                  {surveys.map((s) => (
+                    <option key={s.id} value={s.id}>{s.title} ({s.status})</option>
+                  ))}
+                </select>
+              </>
+            )}
+
+            {assignPickMode && (() => {
+              const q = addPickSearch.trim().toLowerCase();
+              const shown = addPickCandidates.filter((t) =>
+                !q || `${t.name} ${t.email || ''}`.toLowerCase().includes(q)
+              );
+              const allShownPicked = shown.length > 0 && shown.every((t) => addPickIds.has(t.id));
+              const togglePick = (tpdId) => setAddPickIds((prev) => {
+                const next = new Set(prev);
+                if (next.has(tpdId)) next.delete(tpdId); else next.add(tpdId);
+                return next;
+              });
+              return (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="block text-sm font-medium text-gray-700">
+                      Pilih TPD <span className="font-normal text-gray-500">({addPickIds.size} dipilih)</span>
+                    </span>
+                    {shown.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setAddPickIds((prev) => {
+                          const next = new Set(prev);
+                          shown.forEach((t) => { if (allShownPicked) next.delete(t.id); else next.add(t.id); });
+                          return next;
+                        })}
+                        className="text-xs font-medium text-primary-600 hover:text-primary-800"
+                      >
+                        {allShownPicked ? 'Batalkan semua' : `Pilih semua (${shown.length})`}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={addPickSearch}
+                    onChange={(e) => setAddPickSearch(e.target.value)}
+                    placeholder="Cari nama / email…"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-primary-400"
+                    aria-label="Cari TPD"
+                  />
+                  {addPickCandidates.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic px-1 py-2">
+                      Semua akun TPD aktif sudah tertugas di survei ini.
+                    </p>
+                  ) : (
+                    <ul className="max-h-52 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                      {shown.map((t) => (
+                        <li key={t.id}>
+                          <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50">
+                            <input
+                              type="checkbox"
+                              checked={addPickIds.has(t.id)}
+                              onChange={() => togglePick(t.id)}
+                              className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-400"
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-sm text-gray-800 truncate">{t.name}</span>
+                              <span className="block text-xs text-gray-500 truncate">{t.email}</span>
+                            </span>
+                          </label>
+                        </li>
+                      ))}
+                      {shown.length === 0 && (
+                        <li className="px-3 py-2 text-sm text-gray-500 italic">Tidak ada yang cocok dengan pencarian.</li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              );
+            })()}
 
             <label htmlFor="bulk-assign-quota" className="block text-sm font-medium text-gray-700 mb-1">Kuota per TPD</label>
             <input
@@ -1648,7 +1776,7 @@ function Surveyors() {
             {assignAutoNumbers && (() => {
               const quotaNum = Number(assignQuota);
               const start = Number(assignStartNumber);
-              const n = selectedIds.size;
+              const n = assignPickMode ? addPickIds.size : selectedIds.size;
               const valid = Number.isInteger(quotaNum) && quotaNum >= 1 && Number.isInteger(start) && start >= 1 && n > 0;
               const last = valid ? start + n * quotaNum - 1 : 0;
               const width = valid ? Math.max(3, String(last).length) : 3;
@@ -1678,13 +1806,13 @@ function Surveyors() {
             })()}
 
             <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setAssignPickerOpen(false)} disabled={bulkBusy}
+              <button type="button" onClick={() => { setAssignPickerOpen(false); setAssignPickMode(false); }} disabled={bulkBusy}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50">
                 Batal
               </button>
               <button type="button" onClick={submitBulkAssign} disabled={bulkBusy}
                 className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-60">
-                {bulkBusy ? 'Memproses…' : 'Tugaskan'}
+                {bulkBusy ? 'Memproses…' : (assignPickMode ? 'Tambahkan' : 'Tugaskan')}
               </button>
             </div>
           </div>

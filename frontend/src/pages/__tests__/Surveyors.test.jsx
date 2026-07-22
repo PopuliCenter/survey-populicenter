@@ -79,6 +79,80 @@ afterEach(() => {
   localStorage.clear();
 });
 
+// ─── Tambah TPD ke survei (dari tampilan per-survei) ─────────────────────────
+describe('Tambah TPD ke survei ini', () => {
+  const survei = { id: 'srv-1', title: 'Survei Uji 2026', status: 'active', type: 'nasional', created_at: '2026-01-01T00:00:00Z' };
+  const tpdDenganKuota = [
+    // Sudah tertugas di srv-1 → TIDAK boleh muncul di daftar pilih.
+    { id: 't1', name: 'Sudah Tertugas', email: 'sudah@test.com', is_active: true, response_count: 0, created_at: '2026-01-01T00:00:00Z', quotas: [{ survey_id: 'srv-1', quota: 20 }] },
+    // Kandidat sah.
+    { id: 't2', name: 'Budi Kandidat', email: 'budi@test.com', is_active: true, response_count: 0, created_at: '2026-01-01T00:00:00Z', quotas: [] },
+    { id: 't3', name: 'Sari Kandidat', email: 'sari@test.com', is_active: true, response_count: 0, created_at: '2026-01-01T00:00:00Z', quotas: [] },
+    // Nonaktif → tidak ditawarkan.
+    { id: 't4', name: 'Nonaktif', email: 'off@test.com', is_active: false, response_count: 0, created_at: '2026-01-01T00:00:00Z', quotas: [] },
+  ];
+
+  async function bukaTampilanSurvei() {
+    setUser('admin');
+    api.get.mockImplementation((url) =>
+      Promise.resolve({ data: url === '/surveys' ? [survei] : tpdDenganKuota })
+    );
+    render(
+      <MemoryRouter>
+        <ToastProvider>
+          <Surveyors />
+        </ToastProvider>
+      </MemoryRouter>
+    );
+    // Landing per-survei → klik kartu survei → masuk tampilan per-survei.
+    fireEvent.click(await screen.findByRole('button', { name: /Survei Uji 2026/i }));
+    return screen.findByRole('button', { name: /tugaskan tpd/i });
+  }
+
+  test('daftar pilih hanya berisi TPD aktif yang BELUM tertugas di survei ini', async () => {
+    const tombol = await bukaTampilanSurvei();
+    fireEvent.click(tombol);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Budi Kandidat')).toBeInTheDocument();
+    expect(within(dialog).getByText('Sari Kandidat')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Sudah Tertugas')).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('Nonaktif')).not.toBeInTheDocument();
+    // Survei terkunci (bukan dropdown) — menampilkan judulnya.
+    expect(within(dialog).getByText('Survei Uji 2026')).toBeInTheDocument();
+  });
+
+  test('centang TPD + kuota → POST /surveyors/:id/quota dengan survey_id survei ini', async () => {
+    const tombol = await bukaTampilanSurvei();
+    api.post.mockResolvedValue({ data: {} });
+    fireEvent.click(tombol);
+
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByText('Budi Kandidat'));
+    fireEvent.change(within(dialog).getByLabelText(/kuota per tpd/i), { target: { value: '25' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^tambahkan$/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/surveyors/t2/quota', { survey_id: 'srv-1', quota: 25 });
+    });
+    expect(api.post).toHaveBeenCalledTimes(1); // hanya yang dicentang
+  });
+
+  test('tanpa centang → ditolak dengan pesan, tanpa panggilan API', async () => {
+    const tombol = await bukaTampilanSurvei();
+    fireEvent.click(tombol);
+
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText(/kuota per tpd/i), { target: { value: '25' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^tambahkan$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/centang minimal satu tpd/i)).toBeInTheDocument();
+    });
+    expect(api.post).not.toHaveBeenCalled();
+  });
+});
+
 // ─── Delete surveyor functionality ───────────────────────────────────────────
 
 describe('Delete surveyor functionality', () => {
