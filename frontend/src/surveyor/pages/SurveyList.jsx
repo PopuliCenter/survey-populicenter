@@ -633,7 +633,7 @@ function SurveyList() {
                   <p className="text-xs text-gray-500 mt-0.5 truncate">
                     Halo, <span className="font-medium text-gray-700">{user.name || user.email}</span>
                     <span className="text-gray-300"> · </span>
-                    Diisi sesi ini: <span className="font-semibold text-accent-700">{sessionCount}</span>
+                    Sesi: <span className="font-semibold text-accent-700">{sessionCount}</span>
                   </p>
                 )}
               </div>
@@ -673,96 +673,78 @@ function SurveyList() {
             </div>
           </div>
 
-          {/* ── Baris status offline + tombol unduh (ringkas) ── */}
+          {/* ── SATU kartu status offline: ringkasan + Perbarui + checklist ──
+              Dulu dua blok bertumpuk (kotak "Semua survei siap offline" +
+              checklist terpisah) yang isinya dobel dan membuat header sesak
+              (masukan lapangan 2026-07-23). Ringkasannya kini satu baris; semua
+              rincian (survei terunduh, data wilayah, tiket RT, kebaruan,
+              antrean) ada di checklist yang dibuka lewat ketukan. */}
           {surveys.length > 0 && (
-            <div className={`mt-3 flex items-center gap-2 rounded-xl p-2.5 border ${
-              allDownloaded ? 'bg-green-50 border-green-200' : 'bg-accent-50 border-accent-200'
+            <div className={`mt-3 rounded-xl border ${
+              offlineChecklist.ready ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-300'
             }`}>
-              {allDownloaded ? (
-                <svg className="w-5 h-5 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12.75l1.5 1.5 3-3.75M7 18a4 4 0 01-.88-7.903A5 5 0 1115.9 8.616 3.5 3.5 0 0117 15.5H7z" /></svg>
-              ) : (
-                <svg className="w-5 h-5 text-accent-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 17v-6m0 6l-2.5-2.5M12 17l2.5-2.5M7 18a4 4 0 01-.88-7.903A5 5 0 1115.9 8.616 3.5 3.5 0 0117 15.5" /></svg>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className={`text-xs font-medium ${allDownloaded ? 'text-green-800' : 'text-accent-800'}`}>
-                  {allDownloaded
-                    ? 'Semua survei siap dipakai offline'
-                    : `${downloadedSurveys.size}/${surveys.length} survei siap offline`}
-                </p>
-                {/* Status data wilayah dipisah agar TPD tahu persis apa yang kurang:
-                    survei bisa terunduh lengkap tapi dropdown wilayah tetap kosong. */}
-                <p className={`text-2xs inline-flex items-center gap-1 ${regionReady ? 'text-green-700' : 'text-amber-700 font-medium'}`}>
-                  <Icon name={regionReady ? 'check' : 'alert'} className="w-3 h-3 shrink-0" />
-                  {regionReady ? 'Data wilayah tersimpan' : 'Data wilayah belum tersimpan — tekan Perbarui'}
-                </p>
-                {lastDownload && (
-                  <p className="text-2xs text-gray-500 truncate">
-                    Terakhir diunduh: {new Date(lastDownload).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={handleRefreshAll}
-                disabled={downloading}
-                className="min-h-[44px] shrink-0 inline-flex items-center gap-1.5 px-4 text-sm font-semibold text-white bg-accent-600 hover:bg-accent-700 rounded-xl disabled:opacity-50 transition-colors"
-              >
-                {downloading ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    {downloadProgress.current}/{downloadProgress.total}
-                  </>
-                ) : (
-                  <>
-                    {allDownloaded ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    )}
-                    {allDownloaded ? 'Perbarui' : 'Unduh'}
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* ── Checklist pra-lapangan "siap offline" ── */}
-          {surveys.length > 0 && (
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => setChecklistOpen((o) => !o)}
-                aria-expanded={checklistOpen}
-                className={`w-full min-h-[44px] flex items-center justify-between gap-2 rounded-xl border px-3 py-2 transition-colors ${
-                  offlineChecklist.ready ? 'bg-white border-gray-200 hover:bg-gray-50' : 'bg-red-50 border-red-200 hover:bg-red-100'
-                }`}
-              >
-                <span className={`inline-flex items-center gap-2 text-xs font-semibold ${offlineChecklist.ready ? 'text-gray-700' : 'text-red-700'}`}>
+              <div className="flex items-center gap-2 p-2">
+                <button
+                  type="button"
+                  onClick={() => setChecklistOpen((o) => !o)}
+                  aria-expanded={checklistOpen}
+                  className="flex-1 min-w-0 min-h-[44px] flex items-center gap-2.5 px-1.5 text-left"
+                >
                   <Icon
                     name={offlineChecklist.ready ? 'check' : 'alert'}
-                    className={`w-4 h-4 shrink-0 ${offlineChecklist.ready ? 'text-green-600' : 'text-red-600'}`}
+                    className={`w-5 h-5 shrink-0 ${offlineChecklist.ready ? 'text-green-600' : 'text-amber-600'}`}
                   />
-                  {offlineChecklist.ready
-                    ? (offlineChecklist.warnCount > 0
-                        ? `Checklist siap offline: lengkap, ${offlineChecklist.warnCount} catatan`
-                        : 'Checklist siap offline: lengkap')
-                    : `Checklist siap offline: ${offlineChecklist.failCount} hal harus dibereskan`}
-                </span>
-                <svg
-                  className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${checklistOpen ? 'rotate-180' : ''}`}
-                  fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"
+                  <span className="min-w-0">
+                    <span className={`block text-xs font-semibold ${offlineChecklist.ready ? 'text-green-800' : 'text-amber-800'}`}>
+                      {offlineChecklist.ready
+                        ? 'Siap dipakai offline'
+                        : `Belum siap offline — ${offlineChecklist.failCount} hal`}
+                    </span>
+                    <span className="block text-2xs text-gray-600 truncate">
+                      {lastDownload
+                        ? `Diperbarui ${new Date(lastDownload).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}`
+                        : 'Belum pernah diperbarui'}
+                      {offlineChecklist.warnCount > 0 ? ` · ${offlineChecklist.warnCount} catatan` : ''}
+                    </span>
+                  </span>
+                  <svg
+                    className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${checklistOpen ? 'rotate-180' : ''}`}
+                    fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleRefreshAll}
+                  disabled={downloading}
+                  className="min-h-[44px] shrink-0 inline-flex items-center gap-1.5 px-4 text-sm font-semibold text-white bg-accent-600 hover:bg-accent-700 rounded-xl disabled:opacity-50 transition-colors"
                 >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </button>
+                  {downloading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      {downloadProgress.current}/{downloadProgress.total}
+                    </>
+                  ) : (
+                    <>
+                      {allDownloaded ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      )}
+                      {allDownloaded ? 'Perbarui' : 'Unduh'}
+                    </>
+                  )}
+                </button>
+              </div>
               {checklistOpen && (
-                <ul className="mt-1.5 rounded-xl border border-gray-200 bg-white divide-y divide-gray-100">
+                <ul className="border-t border-gray-200 bg-white rounded-b-xl divide-y divide-gray-100">
                   {offlineChecklist.items.map((it) => (
                     <li key={it.key} className="flex items-start gap-2.5 px-3 py-2.5">
                       <Icon

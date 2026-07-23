@@ -1335,6 +1335,22 @@ function SurveyForm() {
   // ─── Field tools settings (derived from survey, with backward-compat fallback) ─
   const fieldToolsSettings = survey?.field_tools_settings || DEFAULT_FIELD_TOOLS;
 
+  // ─── Tampilan huruf per survei (disetel admin di builder → Field Tools) ─────
+  // Ukuran: lewat font-size ROOT html — semua kelas Tailwind berbasis rem ikut
+  // membesar proporsional tanpa menyentuh tiap komponen. WAJIB dipulihkan saat
+  // keluar formulir agar halaman lain tak ikut membesar. Jenis huruf: cukup
+  // fontFamily di container (di-inherit ke semua anak).
+  const fontScale = fieldToolsSettings.form_font_scale || 'normal';
+  const fontFamily = fieldToolsSettings.form_font_family || 'default';
+  useEffect(() => {
+    const px = { normal: '', large: '18px', xlarge: '20px' }[fontScale] || '';
+    document.documentElement.style.fontSize = px;
+    return () => { document.documentElement.style.fontSize = ''; };
+  }, [fontScale]);
+  const formFontStyle = fontFamily === 'serif'
+    ? { fontFamily: "Georgia, 'Times New Roman', serif" }
+    : undefined;
+
   // ─── Field tools hooks ──────────────────────────────────────────────────────
   // Aturan rekaman audio bisa disetel admin/SPV per survei (dalam DETIK):
   //   audio_start_delay_sec : jeda sebelum rekaman pembukaan auto-mulai (0 = langsung)
@@ -2706,7 +2722,7 @@ function SurveyForm() {
   const isLastStep = currentStep === totalSteps - 1;
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen bg-cream" style={formFontStyle}>
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10 pt-[env(safe-area-inset-top)]">
         <div className="max-w-2xl mx-auto px-screen py-4 flex items-center gap-3">

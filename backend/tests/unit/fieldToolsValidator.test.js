@@ -196,6 +196,21 @@ describe('fieldToolsValidator', () => {
       expect(frac.valid).toBe(false);
       expect(frac.error).toContain('min_duration_sec');
     });
+
+    it('menerima tampilan huruf (form_font_scale/family); menolak nilai lain', () => {
+      for (const scale of ['normal', 'large', 'xlarge']) {
+        expect(validateFieldToolsSettings({ ...baseModes, form_font_scale: scale })).toEqual({ valid: true });
+      }
+      for (const family of ['default', 'serif']) {
+        expect(validateFieldToolsSettings({ ...baseModes, form_font_family: family })).toEqual({ valid: true });
+      }
+      const badScale = validateFieldToolsSettings({ ...baseModes, form_font_scale: 'raksasa' });
+      expect(badScale.valid).toBe(false);
+      expect(badScale.error).toContain('form_font_scale');
+      const badFamily = validateFieldToolsSettings({ ...baseModes, form_font_family: 'comic-sans' });
+      expect(badFamily.valid).toBe(false);
+      expect(badFamily.error).toContain('form_font_family');
+    });
   });
 
   describe('validateFieldToolsSubmission', () => {

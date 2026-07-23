@@ -20,6 +20,11 @@ const OPTIONAL_ENUMS = {
   // hasilnya TERKUNCI (tak bisa diacak ulang). 'off'/absen = alur kertas seperti
   // biasa. Lihat utils/rtDraw.js dan routes/rtSelection.js.
   rt_selection: ['enabled', 'off'],
+  // Tampilan huruf formulir TPD — disetel admin per survei (keterbacaan di
+  // lapangan: layar kecil, terik, usia TPD beragam). Murni visual, diterapkan
+  // di perangkat; absen = normal/default.
+  form_font_scale: ['normal', 'large', 'xlarge'],
+  form_font_family: ['default', 'serif'],
 };
 
 // Properti OPSIONAL numerik (detik) — ATURAN WAKTU REKAMAN AUDIO yang bisa

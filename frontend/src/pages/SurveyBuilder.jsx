@@ -971,6 +971,47 @@ function FieldToolsSettingsSection({ settings, onChange }) {
           </div>
         </div>
       </FieldToolsGroup>
+
+      {/* Tampilan Huruf — keterbacaan formulir di lapangan (layar kecil, terik,
+          usia TPD beragam). Murni visual; diterapkan di perangkat TPD. */}
+      <FieldToolsGroup
+        title="Tampilan Huruf"
+        summary={[
+          { normal: 'ukuran normal', large: 'ukuran besar', xlarge: 'ukuran sangat besar' }[settings.form_font_scale || 'normal'],
+          (settings.form_font_family || 'default') === 'serif' ? 'serif' : null,
+        ].filter(Boolean).join(' · ')}
+      >
+        <div className="flex items-start gap-6 flex-wrap">
+          <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <span className="text-xs font-medium text-gray-600">Ukuran huruf formulir TPD</span>
+            <select
+              value={settings.form_font_scale || 'normal'}
+              onChange={(e) => onChange('form_font_scale', e.target.value)}
+              className="w-56 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+            >
+              <option value="normal">Normal</option>
+              <option value="large">Besar (+12%)</option>
+              <option value="xlarge">Sangat besar (+25%)</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <span className="text-xs font-medium text-gray-600">Jenis huruf</span>
+            <select
+              value={settings.form_font_family || 'default'}
+              onChange={(e) => onChange('form_font_family', e.target.value)}
+              className="w-56 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+            >
+              <option value="default">Bawaan (tanpa kait)</option>
+              <option value="serif">Serif (berkait)</option>
+            </select>
+          </label>
+          <span className="text-xs text-gray-500 basis-full">
+            Berlaku pada <b>formulir pengisian di aplikasi TPD</b> untuk survei ini — membantu
+            keterbacaan di layar kecil/terik atau untuk TPD berusia. Perubahan terasa di HP setelah
+            TPD menekan <b>Perbarui</b> saat online.
+          </span>
+        </div>
+      </FieldToolsGroup>
     </div>
   );
 }
