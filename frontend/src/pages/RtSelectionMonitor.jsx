@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import api from '../services/api';
 import { openMediaInNewTab } from '../services/mediaToken';
 import Icon from '../components/Icon';
+import FormAGrid, { computeFormAGridView } from '../components/FormAGrid';
 
 /**
  * RtSelectionMonitor — pengawasan undian RT (admin & supervisor).
@@ -79,6 +80,21 @@ function RtSelectionMonitor() {
 
   const survey = surveys.find((s) => s.id === surveyId);
   const rtEnabled = survey?.field_tools_settings?.rt_selection === 'enabled';
+
+  // ── Grid Form A per baris (verifikasi VISUAL, bukan hanya badge) ────────────
+  // Dihitung ulang dari seed DI BROWSER pengawas — angka yang tampil bukan
+  // kiriman server, melainkan hasil hitung ulang independen. Kalau kotak hijau
+  // tidak sama dengan kolom "RT terpilih", ada yang salah.
+  const [gridModal, setGridModal] = useState(null); // { row, view?, error? }
+  async function openGrid(row) {
+    setGridModal({ row });
+    try {
+      const view = await computeFormAGridView(row);
+      setGridModal((cur) => (cur && cur.row.id === row.id ? { row, view } : cur));
+    } catch {
+      setGridModal((cur) => (cur && cur.row.id === row.id ? { row, error: 'Gagal menghitung grid dari seed.' } : cur));
+    }
+  }
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -165,7 +181,7 @@ function RtSelectionMonitor() {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    {['Kelurahan/Desa', 'Kecamatan', 'TPD', 'Total RT', 'RT terpilih', 'Aparat desa', 'Form B', 'Verifikasi', 'Waktu'].map((h) => (
+                    {['Kelurahan/Desa', 'Kecamatan', 'TPD', 'Total RT', 'RT terpilih', 'Grid', 'Aparat desa', 'Form B', 'Verifikasi', 'Waktu'].map((h) => (
                       <th key={h} className="px-3 py-2 text-left font-medium text-gray-600 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -185,6 +201,20 @@ function RtSelectionMonitor() {
                             </span>
                           ))}
                         </span>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        {(!r.algo_version || r.algo_version >= 2) ? (
+                          <button
+                            type="button"
+                            onClick={() => openGrid(r)}
+                            title="Lihat Lembar Angka Acak (Form A digital) — dihitung ulang dari seed di browser Anda"
+                            className="text-primary-600 hover:underline"
+                          >
+                            Lihat grid
+                          </button>
+                        ) : (
+                          <span className="text-gray-500 text-xs" title="Undian lama (algoritma v1) — belum berbentuk grid Form A">v1</span>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
                         {r.official_name || '—'}
@@ -226,8 +256,60 @@ function RtSelectionMonitor() {
         <p className="text-xs text-gray-500">
           &quot;Terverifikasi&quot; berarti nomor RT yang tersimpan sama persis dengan hasil hitung ulang
           dari seed undian — bukti hasil tidak dikarang. Undian terkunci satu kali per kelurahan dan
-          tidak dapat diulang oleh TPD.
+          tidak dapat diulang oleh TPD. Klik <strong>Lihat grid</strong> untuk memeriksa Lembar Angka
+          Acak-nya secara visual, persis seperti mencocokkan Form A kertas.
         </p>
+
+        {/* Modal: grid Form A — verifikasi visual undian */}
+        {gridModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="grid-modal-title">
+            <div className="w-full max-w-lg bg-white rounded-xl shadow-xl p-5 space-y-3 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 id="grid-modal-title" className="text-base font-semibold text-gray-800">
+                    {gridModal.row.village}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    {gridModal.row.district} · {gridModal.row.total_rt} RT · TPD: {gridModal.row.surveyor_name || '—'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setGridModal(null)}
+                  aria-label="Tutup"
+                  className="shrink-0 p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
+                >
+                  <Icon name="close" className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-sm text-gray-600 mr-1">Tercatat di server:</span>
+                {(gridModal.row.selected || []).map((n) => (
+                  <span key={n} className="px-2 py-0.5 rounded-md bg-primary-50 text-primary-700 text-xs font-semibold tabular-nums">
+                    RT {n}
+                  </span>
+                ))}
+              </div>
+
+              {gridModal.error ? (
+                <p className="text-sm text-red-600" role="alert">{gridModal.error}</p>
+              ) : !gridModal.view ? (
+                <p className="text-sm text-gray-500">Menghitung ulang grid dari seed…</p>
+              ) : (
+                <div className="bg-white border border-green-200 rounded-xl p-3">
+                  <FormAGrid grid={gridModal.view.grid} picks={gridModal.view.picks} totalRt={gridModal.view.totalRt} />
+                </div>
+              )}
+
+              <p className="text-2xs text-gray-500">
+                Grid ini dihitung ulang dari seed <span className="font-mono">{String(gridModal.row.seed || '').slice(0, 12)}…</span> di
+                browser Anda — bukan gambar kiriman server. Kotak hijau harus sama persis dengan
+                daftar &quot;Tercatat di server&quot; di atas; bila berbeda, undian tidak sah.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
