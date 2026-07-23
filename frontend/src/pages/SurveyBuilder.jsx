@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import SkipLogicEditor from '../components/SkipLogicEditor';
@@ -1660,13 +1660,9 @@ function SurveyBuilder() {
   const [rbBusy, setRbBusy] = useState(false);
   const [rbResult, setRbResult] = useState(null);
 
-  const applyRandomBlockRange = useCallback(async (flagValue) => {
-    const from = parseInt(rbFrom, 10);
-    const to = parseInt(rbTo, 10);
-    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to > questions.length || from > to) {
-      setRbResult({ ok: false, text: `Rentang tidak valid — isi nomor 1 sampai ${questions.length}, "dari" ≤ "sampai".` });
-      return;
-    }
+  // Inti penerapan rentang — dipakai tombol rentang manual DAN "Hapus blok ini"
+  // di rekap (from/to 1-based inklusif).
+  const applyRange = useCallback(async (from, to, flagValue) => {
     setRbBusy(true);
     setRbResult(null);
     const skipped = [];
@@ -1695,9 +1691,38 @@ function SurveyBuilder() {
       ok: true,
       text: flagValue
         ? `${changed} pertanyaan masuk blok acak${skipped.length ? ` · dilewati: ${skipped.join(', ')}` : ''}.`
-        : `Tanda blok acak dihapus dari rentang No.${from}–${to}.`,
+        : `Blok acak No.${from}–${to} dihapus — urutan kembali normal.`,
     });
-  }, [rbFrom, rbTo, questions, id, fetchSurvey]);
+  }, [questions, id, fetchSurvey]);
+
+  const applyRandomBlockRange = useCallback(async (flagValue) => {
+    const from = parseInt(rbFrom, 10);
+    const to = parseInt(rbTo, 10);
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to > questions.length || from > to) {
+      setRbResult({ ok: false, text: `Rentang tidak valid — isi nomor 1 sampai ${questions.length}, "dari" ≤ "sampai".` });
+      return;
+    }
+    await applyRange(from, to, flagValue);
+  }, [rbFrom, rbTo, questions.length, applyRange]);
+
+  // Rekap blok terbentuk: deretan pertanyaan bertanda randomize_order yang
+  // BERSEBELAHAN = satu blok (persis definisi yang dipakai saat mengocok di
+  // aplikasi TPD). Diturunkan langsung dari data — selalu akurat walau tanda
+  // dipasang lewat rentang, per-pertanyaan, atau urutan digeser.
+  const randomBlocks = useMemo(() => {
+    const blocks = [];
+    let start = null;
+    questions.forEach((q, i) => {
+      if (q.randomize_order === true) {
+        if (start === null) start = i + 1;
+      } else if (start !== null) {
+        blocks.push({ from: start, to: i, count: i - start + 1 });
+        start = null;
+      }
+    });
+    if (start !== null) blocks.push({ from: start, to: questions.length, count: questions.length - start + 1 });
+    return blocks;
+  }, [questions]);
 
   // ── Initialize date picker from survey data ─────────────────────────────────
   useEffect(() => {
@@ -2106,8 +2131,42 @@ function SurveyBuilder() {
               <details className="bg-white rounded-xl shadow px-4 py-3">
                 <summary className="cursor-pointer select-none text-sm font-semibold text-gray-700">
                   Atur blok acak urutan (rentang nomor)
+                  {randomBlocks.length > 0 && (
+                    <span className="ml-2 font-normal text-gray-500">
+                      — {randomBlocks.length} blok aktif ({randomBlocks.map((b) => `${b.from}–${b.to}`).join(', ')})
+                    </span>
+                  )}
                 </summary>
                 <div className="mt-3 space-y-2">
+                  {/* Rekap blok terbentuk — jelas mana yang sudah, sisanya normal */}
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                    {randomBlocks.length === 0 ? (
+                      <p className="text-xs text-gray-500">
+                        Belum ada blok acak — semua pertanyaan tampil urut normal.
+                      </p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {randomBlocks.map((b, i) => (
+                          <li key={`${b.from}-${b.to}`} className="flex items-center justify-between gap-3">
+                            <span className="text-xs text-gray-700">
+                              <span className="font-semibold">Blok {i + 1}:</span>{' '}
+                              No. {b.from}{b.to !== b.from ? `–${b.to}` : ''} · {b.count} pertanyaan
+                              dikocok urutannya per responden
+                            </span>
+                            <button
+                              type="button"
+                              disabled={rbBusy}
+                              onClick={() => applyRange(b.from, b.to, false)}
+                              title={`Hapus blok No.${b.from}–${b.to} — urutan pertanyaan kembali normal`}
+                              className="shrink-0 px-2 py-1 rounded-lg border border-red-200 bg-white text-red-600 hover:bg-red-50 disabled:opacity-50 text-xs font-medium"
+                            >
+                              Hapus blok ini
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   <div className="flex flex-wrap items-end gap-3">
                     <label className="block">
                       <span className="text-xs text-gray-500">Dari No.</span>

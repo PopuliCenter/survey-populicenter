@@ -134,6 +134,53 @@ describe('SurveyBuilder — blok acak via rentang nomor', () => {
     expect(screen.getByText(/No\.3 \(skip logic\)/)).toBeInTheDocument();
   });
 
+  test('rekap menampilkan blok terbentuk + "Hapus blok ini" membersihkan rentang blok itu saja', async () => {
+    // q2 bertanda sendirian (Blok 1: No.2), q4+q5 bersebelahan (Blok 2: No.4–5).
+    const surveyDenganBlok = {
+      ...mockSurvey,
+      questions: [
+        q('q1', 0, { type: 'unique_id', text: 'Nomor Kuesioner' }),
+        q('q2', 1, { randomize_order: true }),
+        q('q3', 2),
+        q('q4', 3, { randomize_order: true }),
+        q('q5', 4, { randomize_order: true }),
+      ],
+    };
+    api.get.mockResolvedValue({ data: surveyDenganBlok });
+    api.put.mockResolvedValue({ data: {} });
+    renderSurveyBuilder();
+
+    const summary = await screen.findByText(/Atur blok acak urutan/i);
+    fireEvent.click(summary);
+    const panel = within(summary.closest('details'));
+
+    // Rekap: dua blok, lengkap dengan rentang nomornya.
+    expect(panel.getByText(/Blok 1:/)).toBeInTheDocument();
+    expect(panel.getByText(/No\. 2 · 1 pertanyaan/)).toBeInTheDocument();
+    expect(panel.getByText(/Blok 2:/)).toBeInTheDocument();
+    expect(panel.getByText(/No\. 4–5 · 2 pertanyaan/)).toBeInTheDocument();
+
+    // Hapus Blok 2 → hanya q4 & q5 yang di-PUT false; q2 (Blok 1) tak tersentuh.
+    fireEvent.click(panel.getAllByRole('button', { name: /hapus blok ini/i })[1]);
+    await waitFor(() => {
+      expect(screen.getByText(/Blok acak No\.4–5 dihapus/i)).toBeInTheDocument();
+    });
+    const putCalls = api.put.mock.calls.filter(([url]) => url.includes('/questions/'));
+    expect(putCalls.map(([url]) => url.split('/questions/')[1]).sort()).toEqual(['q4', 'q5']);
+    putCalls.forEach(([, body]) => expect(body).toEqual({ randomize_order: false }));
+  });
+
+  test('tanpa blok: rekap menyatakan semua pertanyaan urut normal', async () => {
+    api.get.mockResolvedValue({ data: surveyDenganPertanyaan });
+    renderSurveyBuilder();
+
+    const summary = await screen.findByText(/Atur blok acak urutan/i);
+    fireEvent.click(summary);
+    const panel = within(summary.closest('details'));
+    expect(panel.getByText(/Belum ada blok acak/i)).toBeInTheDocument();
+    expect(panel.queryByRole('button', { name: /hapus blok ini/i })).toBeNull();
+  });
+
   test('rentang tidak valid → pesan kesalahan, tanpa panggilan API', async () => {
     api.get.mockResolvedValue({ data: surveyDenganPertanyaan });
     renderSurveyBuilder();
