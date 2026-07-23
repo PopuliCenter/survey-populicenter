@@ -10,7 +10,7 @@ import OfflineStatusBar from '../../components/OfflineStatusBar';
 import Icon from '../../components/Icon';
 import ConfirmSheet from '../../components/ConfirmSheet';
 import PermissionOnboarding, { permissionOnboardingDone } from '../components/PermissionOnboarding';
-import { addBackButtonListener, addResumeListener } from '../../utils/capacitorBridge';
+import { addBackButtonListener, addResumeListener, isNativePlatform } from '../../utils/capacitorBridge';
 import { diffSurveyAvailability, toSurveyStubs } from '../../utils/surveyNotify';
 import { toastInfo, toastWarning } from '../../utils/toastBus';
 import { clearSentryUser } from '../../config/sentry';
@@ -382,11 +382,14 @@ function SurveyList() {
     let cleanup = () => {};
     let active = true;
     (async () => {
-      const unsub = await addResumeListener(() => { if (active) { fetchData(); refreshDrafts(); } });
+      // fetchNotifications ikut di sini: tanpanya, lonceng hanya dimuat saat
+      // cold start — push yang tiba selagi aplikasi di latar belakang tak
+      // terlihat di panel meski notifikasi sistemnya masuk (lapangan 2026-07-23).
+      const unsub = await addResumeListener(() => { if (active) { fetchData(); refreshDrafts(); fetchNotifications(); } });
       if (active) cleanup = unsub; else unsub();
     })();
     return () => { active = false; if (typeof cleanup === 'function') cleanup(); };
-  }, [fetchData, refreshDrafts]);
+  }, [fetchData, refreshDrafts, fetchNotifications]);
 
   // ─── Check which surveys are already cached + cari pertanyaan unique_id ──────
   useEffect(() => {
@@ -639,7 +642,7 @@ function SurveyList() {
               <OfflineStatusBar isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
               {/* Lonceng pemberitahuan (pesan SPV/admin + peringatan otomatis) */}
               <button
-                onClick={() => setNotifOpen(true)}
+                onClick={() => { setNotifOpen(true); fetchNotifications(); }}
                 aria-label={notifUnread > 0 ? `Pemberitahuan, ${notifUnread} belum dibaca` : 'Pemberitahuan'}
                 className="relative min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-500 hover:text-accent-700 hover:bg-accent-50 rounded-xl transition-colors"
               >
@@ -652,15 +655,21 @@ function SurveyList() {
                   </span>
                 )}
               </button>
-              <button
-                onClick={handleLogoutClick}
-                aria-label="Keluar"
-                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl px-3 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </button>
+              {/* Android: ikon keluar disembunyikan (masukan lapangan — rawan
+                  terpencet, dan logout tetap tersedia lewat tombol Kembali
+                  perangkat yang memunculkan dialog konfirmasi). Web tidak punya
+                  tombol Kembali, jadi ikonnya tetap tampil. */}
+              {!isNativePlatform() && (
+                <button
+                  onClick={handleLogoutClick}
+                  aria-label="Keluar"
+                  className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl px-3 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
 

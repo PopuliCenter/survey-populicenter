@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 
 /**
  * Komponen status bar yang menampilkan status koneksi dan sinkronisasi.
@@ -10,27 +10,12 @@ import React, { useEffect, useRef, useState } from 'react';
  * }} props
  */
 function OfflineStatusBar({ isOnline, isSyncing, pendingCount }) {
-  const [showSyncSuccess, setShowSyncSuccess] = useState(false);
-  const prevSyncingRef = useRef(isSyncing);
-  const timerRef = useRef(null);
-
-  // Detect transition: isSyncing true → false with pendingCount === 0
-  useEffect(() => {
-    if (prevSyncingRef.current === true && isSyncing === false && pendingCount === 0) {
-      setShowSyncSuccess(true);
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        setShowSyncSuccess(false);
-      }, 3000);
-    }
-    prevSyncingRef.current = isSyncing;
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [isSyncing, pendingCount]);
-
   // ─── Render ─────────────────────────────────────────────────────────────────
+  // Catatan: pesan "berhasil disinkronkan" TIDAK lagi ditampilkan di pill ini —
+  // teksnya panjang dan menabrak judul header di layar sempit (masukan lapangan
+  // 2026-07-23). Umpan balik hasil sinkron sudah lewat toast di BAWAH layar
+  // (useSyncManager: "X data berhasil terkirim"), sama seperti notifikasi
+  // online/offline. Pill cukup kembali ke "Online".
 
   if (isSyncing) {
     return (
@@ -50,21 +35,6 @@ function OfflineStatusBar({ isOnline, isSyncing, pendingCount }) {
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
         </svg>
         Menyinkronkan data...
-      </div>
-    );
-  }
-
-  if (showSyncSuccess) {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="flex items-center gap-1.5 text-xs font-medium text-accent-700 bg-accent-50 border border-accent-200 rounded-full px-3 py-1"
-      >
-        <svg className="h-3.5 w-3.5 text-accent-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-        Semua data berhasil disinkronkan
       </div>
     );
   }
