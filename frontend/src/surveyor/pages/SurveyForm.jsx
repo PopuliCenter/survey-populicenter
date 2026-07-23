@@ -28,6 +28,10 @@ import { compressIfNeeded } from '../../utils/imageCompressor';
 import { loadRegionData } from '../../utils/regionData';
 import Icon from '../../components/Icon';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
+// Font Atkinson Hyperlegible (pilihan "Tampilan Huruf" di Field Tools) —
+// dibundel ke aplikasi via @fontsource sehingga tetap tampil saat offline.
+import '@fontsource/atkinson-hyperlegible/400.css';
+import '@fontsource/atkinson-hyperlegible/700.css';
 import ConfirmSheet from '../../components/ConfirmSheet';
 import AudioRecorderPanel from '../components/AudioRecorderPanel';
 import PhotoCapturePanel from '../components/PhotoCapturePanel';
@@ -1347,8 +1351,16 @@ function SurveyForm() {
     document.documentElement.style.fontSize = px;
     return () => { document.documentElement.style.fontSize = ''; };
   }, [fontScale]);
-  const formFontStyle = fontFamily === 'serif'
-    ? { fontFamily: "Georgia, 'Times New Roman', serif" }
+  // hyperlegible: Atkinson Hyperlegible (dibundel via @fontsource — offline-safe).
+  // condensed: font sistem Android (sans-serif-condensed); di desktop jatuh ke
+  // Roboto Condensed bila ada, lalu sans-serif biasa.
+  const FONT_FAMILY_CSS = {
+    serif: "Georgia, 'Times New Roman', serif",
+    hyperlegible: "'Atkinson Hyperlegible', system-ui, sans-serif",
+    condensed: "'Roboto Condensed', 'sans-serif-condensed', 'Arial Narrow', sans-serif",
+  };
+  const formFontStyle = FONT_FAMILY_CSS[fontFamily]
+    ? { fontFamily: FONT_FAMILY_CSS[fontFamily] }
     : undefined;
 
   // ─── Field tools hooks ──────────────────────────────────────────────────────

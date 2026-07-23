@@ -24,7 +24,9 @@ const OPTIONAL_ENUMS = {
   // lapangan: layar kecil, terik, usia TPD beragam). Murni visual, diterapkan
   // di perangkat; absen = normal/default.
   form_font_scale: ['normal', 'large', 'xlarge'],
-  form_font_family: ['default', 'serif'],
+  // 'hyperlegible' = Atkinson Hyperlegible (dibundel ke aplikasi — dirancang
+  // untuk keterbacaan maksimal); 'condensed' = font sistem ringkas Android.
+  form_font_family: ['default', 'serif', 'hyperlegible', 'condensed'],
 };
 
 // Properti OPSIONAL numerik (detik) — ATURAN WAKTU REKAMAN AUDIO yang bisa

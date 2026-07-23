@@ -201,7 +201,7 @@ describe('fieldToolsValidator', () => {
       for (const scale of ['normal', 'large', 'xlarge']) {
         expect(validateFieldToolsSettings({ ...baseModes, form_font_scale: scale })).toEqual({ valid: true });
       }
-      for (const family of ['default', 'serif']) {
+      for (const family of ['default', 'serif', 'hyperlegible', 'condensed']) {
         expect(validateFieldToolsSettings({ ...baseModes, form_font_family: family })).toEqual({ valid: true });
       }
       const badScale = validateFieldToolsSettings({ ...baseModes, form_font_scale: 'raksasa' });

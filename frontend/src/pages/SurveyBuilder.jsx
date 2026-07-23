@@ -978,7 +978,7 @@ function FieldToolsSettingsSection({ settings, onChange }) {
         title="Tampilan Huruf"
         summary={[
           { normal: 'ukuran normal', large: 'ukuran besar', xlarge: 'ukuran sangat besar' }[settings.form_font_scale || 'normal'],
-          (settings.form_font_family || 'default') === 'serif' ? 'serif' : null,
+          { serif: 'serif', hyperlegible: 'Atkinson Hyperlegible', condensed: 'ringkas' }[settings.form_font_family || 'default'] || null,
         ].filter(Boolean).join(' · ')}
       >
         <div className="flex items-start gap-6 flex-wrap">
@@ -1003,6 +1003,8 @@ function FieldToolsSettingsSection({ settings, onChange }) {
             >
               <option value="default">Bawaan (tanpa kait)</option>
               <option value="serif">Serif (berkait)</option>
+              <option value="hyperlegible">Atkinson Hyperlegible (keterbacaan maksimal)</option>
+              <option value="condensed">Ringkas (Condensed — muat lebih banyak teks)</option>
             </select>
           </label>
           <span className="text-xs text-gray-500 basis-full">
