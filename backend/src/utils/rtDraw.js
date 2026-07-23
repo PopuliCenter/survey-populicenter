@@ -19,8 +19,13 @@
 
 const crypto = require('crypto');
 
-const ALGO_VERSION = 1;
-const MAX_RT = 100000; // batas wajar jumlah RT dalam satu kelurahan/desa
+// v2 = replika digital FORM A (grid 10x10 angka 1-100, scan baris, ambil yang
+// <= jumlah RT). v1 (Fisher-Yates) dipertahankan HANYA untuk memverifikasi
+// undian lama yang tersimpan dengan algo_version 1.
+const ALGO_VERSION = 2;
+const MAX_RT = 100; // Form A memakai angka 1-100 — jumlah RT per kelurahan maks 100
+const GRID_COLS = 10;
+const GRID_ROWS = 10;
 
 /**
  * PRNG mulberry32 — kecil, cepat, distribusi seragam, dan hasilnya identik di
@@ -56,20 +61,7 @@ function generateSeed() {
   return crypto.randomBytes(16).toString('hex');
 }
 
-/**
- * Undi `count` nomor RT berbeda dari 1..totalRt.
- *
- * Memakai Fisher-Yates parsial pada larik 1..totalRt sehingga setiap kombinasi
- * punya peluang sama (tanpa bias modulo, tanpa perlu tolak-ulang).
- *
- * @param {object} params
- * @param {string} params.seed - seed undian (disimpan untuk audit)
- * @param {number} params.totalRt - jumlah RT di kelurahan/desa
- * @param {number} params.count - berapa RT yang dipilih
- * @returns {number[]} nomor urut RT terpilih, terurut menaik
- * @throws {Error} bila input tidak masuk akal
- */
-function drawRt({ seed, totalRt, count }) {
+function validateParams({ seed, totalRt, count }) {
   if (!Number.isInteger(totalRt) || totalRt < 1 || totalRt > MAX_RT) {
     throw new Error(`Jumlah RT harus bilangan bulat 1–${MAX_RT}`);
   }
@@ -82,25 +74,97 @@ function drawRt({ seed, totalRt, count }) {
   if (!seed) {
     throw new Error('Seed undian wajib ada');
   }
+}
 
+/**
+ * v1 (LEGACY) — Fisher-Yates parsial. Jangan dipakai untuk undian baru;
+ * dipertahankan hanya agar undian lama (algo_version 1) tetap terverifikasi.
+ */
+function drawRtV1({ seed, totalRt, count }) {
+  validateParams({ seed, totalRt, count });
   const rand = mulberry32(seedToUint32(seed));
   const pool = Array.from({ length: totalRt }, (_, i) => i + 1);
-
   for (let i = 0; i < count; i++) {
     const j = i + Math.floor(rand() * (totalRt - i));
     const tmp = pool[i];
     pool[i] = pool[j];
     pool[j] = tmp;
   }
-
   return pool.slice(0, count).sort((a, b) => a - b);
 }
 
 /**
- * Verifikasi bahwa hasil tersimpan memang keluaran algoritma ini.
- * Dipakai supervisor/audit untuk membuktikan undian tidak dikarang.
+ * Grid angka acak ala FORM A: deretan sel berisi angka 1–100 (persis rumus
+ * Excel resmi `=INT(RAND()*100)+1`), dibangkitkan deterministik dari seed.
+ * Sel ke-0..99 = grid 10x10 yang DITAMPILKAN; bila belum cukup angka lolos,
+ * deret dilanjutkan (baris ke-11, 12, …) dengan aliran acak yang sama.
+ *
+ * @param {string} seed
+ * @param {number} cells - berapa sel yang dibangkitkan
+ * @returns {number[]}
+ */
+function generateFormAGrid(seed, cells = GRID_ROWS * GRID_COLS) {
+  const rand = mulberry32(seedToUint32(seed));
+  const out = new Array(cells);
+  for (let i = 0; i < cells; i++) out[i] = Math.floor(rand() * 100) + 1;
+  return out;
+}
+
+/**
+ * Undi `count` nomor RT — REPLIKA DIGITAL FORM A (metodologi resmi Populi):
+ * scan grid dari baris 1 kolom 1 ke kanan lalu turun; angka yang LEBIH KECIL
+ * ATAU SAMA DENGAN jumlah RT terpilih; duplikat angka yang sudah terpilih
+ * dilewati (satu RT tak mungkin diundi dua kali). Bila 100 sel belum
+ * menghasilkan cukup angka (jumlah RT sangat kecil), deret dilanjutkan —
+ * setara TPD mengambil lembar angka acak berikutnya.
+ *
+ * Hasil TERURUT SESUAI DITEMUKAN (bukan menaik) — sama seperti di kertas:
+ * "RT pertama" adalah angka lolos pertama. Ini juga yang ditampilkan UI
+ * beserta gridnya sehingga TPD/SPV bisa mencocokkan dengan mata.
  *
  * @param {object} params - { seed, totalRt, count }
+ * @returns {{ selected: number[], picks: Array<{cell: number, value: number}>, gridCells: number }}
+ *   picks.cell = indeks sel (0-based, baris = floor(cell/10), kolom = cell%10)
+ */
+function drawRtFormA({ seed, totalRt, count }) {
+  validateParams({ seed, totalRt, count });
+  const selected = [];
+  const picks = [];
+  const seen = new Set();
+  let cells = GRID_ROWS * GRID_COLS;
+  let grid = generateFormAGrid(seed, cells);
+  let i = 0;
+  while (selected.length < count) {
+    if (i >= grid.length) {
+      // Lanjutkan deret (baris tambahan) — deterministik dari seed yang sama.
+      cells += GRID_COLS;
+      grid = generateFormAGrid(seed, cells);
+    }
+    const value = grid[i];
+    if (value <= totalRt && !seen.has(value)) {
+      seen.add(value);
+      selected.push(value);
+      picks.push({ cell: i, value });
+    }
+    i += 1;
+  }
+  return { selected, picks, gridCells: cells };
+}
+
+/**
+ * Undian RT untuk pemakaian BARU (v2, metodologi Form A).
+ * @param {object} params - { seed, totalRt, count }
+ * @returns {number[]} nomor RT terpilih, urutan sesuai ditemukan di grid
+ */
+function drawRt(params) {
+  return drawRtFormA(params).selected;
+}
+
+/**
+ * Verifikasi bahwa hasil tersimpan memang keluaran algoritma versinya.
+ * Dipakai supervisor/audit untuk membuktikan undian tidak dikarang.
+ *
+ * @param {object} params - { seed, totalRt, count, algoVersion? } (default v2)
  * @param {number[]} selected - nomor RT yang tersimpan
  * @returns {boolean}
  */
@@ -108,12 +172,21 @@ function verifyDraw(params, selected) {
   if (!Array.isArray(selected)) return false;
   let expected;
   try {
-    expected = drawRt(params);
+    expected = (params.algoVersion === 1 ? drawRtV1 : drawRt)(params);
   } catch {
     return false;
   }
   if (expected.length !== selected.length) return false;
-  return expected.every((v, i) => v === Number(selected[i]));
+  // v1 tersimpan terurut menaik; v2 sesuai urutan ditemukan. Bandingkan sebagai
+  // himpunan TERURUT SAMA: samakan cara banding dengan cara simpan per versi.
+  const a = params.algoVersion === 1 ? [...expected] : expected;
+  const b = params.algoVersion === 1
+    ? [...selected].map(Number).sort((x, y) => x - y)
+    : selected.map(Number);
+  return a.every((v, i) => v === b[i]);
 }
 
-module.exports = { drawRt, verifyDraw, generateSeed, ALGO_VERSION, MAX_RT };
+module.exports = {
+  drawRt, drawRtFormA, drawRtV1, generateFormAGrid,
+  verifyDraw, generateSeed, ALGO_VERSION, MAX_RT, GRID_COLS, GRID_ROWS,
+};

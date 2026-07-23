@@ -1,18 +1,25 @@
 /**
- * rtDrawClient.js — undian RT di PERANGKAT untuk mode offline.
+ * rtDrawClient.js — undian RT di PERANGKAT (mode offline) + grid Form A utk UI.
  *
- * WAJIB identik bit-per-bit dengan backend/src/utils/rtDraw.js:
- * SHA-256(seed) → 4 byte pertama (big-endian) → mulberry32 → Fisher-Yates
- * parsial → urut menaik. Seed berasal dari TIKET yang dijatah server di muka,
- * sehingga saat sinkron server bisa MENGHITUNG ULANG dan membuktikan hasil
- * offline tidak dimanipulasi.
+ * REPLIKA DIGITAL FORM A (metodologi resmi Populi, FORM A - SURNAS.xlsx):
+ * grid 10x10 berisi angka 1–100 (persis rumus Excel `=INT(RAND()*100)+1`),
+ * discan dari baris 1 kolom 1 ke kanan lalu turun; angka <= jumlah RT
+ * terpilih; duplikat dilewati. Bila 100 sel belum cukup, deret dilanjutkan
+ * (setara mengambil lembar berikutnya).
  *
- * Kesamaan dijaga tes vektor di __tests__/rtDrawClient.test.js — vektornya
- * dibangkitkan langsung dari implementasi backend. JANGAN mengubah salah satu
- * sisi tanpa memperbarui keduanya + vektornya.
+ * WAJIB identik bit-per-bit dengan backend/src/utils/rtDraw.js (v2):
+ * SHA-256(seed) → 4 byte pertama (big-endian) → mulberry32 → INT(rand*100)+1.
+ * Kesamaan dijaga tes vektor yang DIBANGKITKAN dari backend — jangan mengubah
+ * salah satu sisi tanpa meregenerasi vektornya.
+ *
+ * Grid + posisi sel terpilih (picks) juga dipakai UI untuk MENAMPILKAN
+ * kotak-kotak angka acak seperti lembar kertasnya — TPD/SPV bisa mencocokkan
+ * hasil dengan mata, bukan sekadar percaya.
  */
 
-const MAX_RT = 100000;
+const MAX_RT = 100; // Form A memakai angka 1-100
+export const GRID_COLS = 10;
+export const GRID_ROWS = 10;
 
 function mulberry32(a) {
   let t = a >>> 0;
@@ -27,9 +34,6 @@ function mulberry32(a) {
 async function seedToUint32(seed) {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) {
-    // WebView/browser modern selalu punya WebCrypto pada origin aman
-    // (https://localhost di APK). Kalau sampai tidak ada, lebih baik gagal
-    // eksplisit daripada mengundi dengan cara yang tak bisa diverifikasi server.
     throw new Error('Perangkat tidak mendukung perhitungan undian offline.');
   }
   const digest = await subtle.digest('SHA-256', new TextEncoder().encode(String(seed)));
@@ -37,11 +41,24 @@ async function seedToUint32(seed) {
 }
 
 /**
- * Undi `count` nomor RT berbeda dari 1..totalRt — padanan drawRt() backend.
- * @param {{ seed: string, totalRt: number, count: number }} params
- * @returns {Promise<number[]>} nomor urut RT terpilih, terurut menaik
+ * Grid angka acak ala Form A — deterministik dari seed.
+ * @param {string} seed
+ * @param {number} cells
+ * @returns {Promise<number[]>}
  */
-export async function drawRtClient({ seed, totalRt, count }) {
+export async function generateFormAGridClient(seed, cells = GRID_ROWS * GRID_COLS) {
+  const rand = mulberry32(await seedToUint32(seed));
+  const out = new Array(cells);
+  for (let i = 0; i < cells; i++) out[i] = Math.floor(rand() * 100) + 1;
+  return out;
+}
+
+/**
+ * Undian Form A lengkap — padanan drawRtFormA() backend.
+ * @param {{ seed: string, totalRt: number, count: number }} params
+ * @returns {Promise<{ selected: number[], picks: Array<{cell:number,value:number}>, gridCells: number }>}
+ */
+export async function drawRtFormAClient({ seed, totalRt, count }) {
   if (!Number.isInteger(totalRt) || totalRt < 1 || totalRt > MAX_RT) {
     throw new Error(`Jumlah RT harus bilangan bulat 1–${MAX_RT}`);
   }
@@ -53,13 +70,33 @@ export async function drawRtClient({ seed, totalRt, count }) {
   }
   if (!seed) throw new Error('Seed undian wajib ada');
 
-  const rand = mulberry32(await seedToUint32(seed));
-  const pool = Array.from({ length: totalRt }, (_, i) => i + 1);
-  for (let i = 0; i < count; i++) {
-    const j = i + Math.floor(rand() * (totalRt - i));
-    const tmp = pool[i];
-    pool[i] = pool[j];
-    pool[j] = tmp;
+  const selected = [];
+  const picks = [];
+  const seen = new Set();
+  let cells = GRID_ROWS * GRID_COLS;
+  let grid = await generateFormAGridClient(seed, cells);
+  let i = 0;
+  while (selected.length < count) {
+    if (i >= grid.length) {
+      cells += GRID_COLS;
+      grid = await generateFormAGridClient(seed, cells);
+    }
+    const value = grid[i];
+    if (value <= totalRt && !seen.has(value)) {
+      seen.add(value);
+      selected.push(value);
+      picks.push({ cell: i, value });
+    }
+    i += 1;
   }
-  return pool.slice(0, count).sort((a, b) => a - b);
+  return { selected, picks, gridCells: cells };
+}
+
+/**
+ * Undi `count` nomor RT — dipakai jalur offline. Urutan sesuai ditemukan.
+ * @param {{ seed: string, totalRt: number, count: number }} params
+ * @returns {Promise<number[]>}
+ */
+export async function drawRtClient(params) {
+  return (await drawRtFormAClient(params)).selected;
 }

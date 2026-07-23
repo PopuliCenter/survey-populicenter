@@ -241,6 +241,18 @@ describe('POST /rt-selection/offline-sync — setor undian offline', () => {
     expect(TIKET.update).toHaveBeenCalledWith({ used_village: LOKASI.village, used_at: expect.any(Date) });
   });
 
+  test('APK LAMA (hitung v1) tetap verified — disimpan dengan algo_version 1', async () => {
+    const { drawRtV1 } = require('../../src/utils/rtDraw');
+    const v1Selected = drawRtV1({ seed: TIKET.seed, totalRt: 25, count: 2 });
+
+    const res = await request(makeApp()).post('/rt-selection/offline-sync')
+      .send(offlineBody({ selected: v1Selected }));
+
+    expect(res.status).toBe(201);
+    expect(res.body.verified).toBe(true);
+    expect(RtSelection.create.mock.calls[0][0].algo_version).toBe(1);
+  });
+
   test('hasil DIMANIPULASI: tetap disimpan apa adanya tetapi verified=false (pengawasan menandai merah)', async () => {
     const palsu = [1, 2]; // hampir pasti beda dari hitung-ulang seed
     const asli = drawRt({ seed: TIKET.seed, totalRt: 25, count: 2 });
@@ -287,12 +299,12 @@ describe('POST /rt-selection/offline-sync — setor undian offline', () => {
 });
 
 describe('GET /rt-selection/survey/:id — pengawasan', () => {
-  test('menandai hasil yang cocok sebagai verified', async () => {
+  test('menandai hasil yang cocok sebagai verified (v2 Form A)', async () => {
     const { drawRt } = require('../../src/utils/rtDraw');
     const seed = 'audit-seed';
     const selected = drawRt({ seed, totalRt: 25, count: 2 });
     RtSelection.findAll.mockResolvedValue([
-      { id: 'a', survey_id: 'srv-1', ...LOKASI, total_rt: 25, selected, seed, algo_version: 1,
+      { id: 'a', survey_id: 'srv-1', ...LOKASI, total_rt: 25, selected, seed, algo_version: 2,
         locked_at: new Date(), surveyor: { id: 'tpd-1', name: 'SAEFUDIN' } },
     ]);
 
@@ -301,6 +313,20 @@ describe('GET /rt-selection/survey/:id — pengawasan', () => {
     expect(res.status).toBe(200);
     expect(res.body.selections[0].verified).toBe(true);
     expect(res.body.selections[0].surveyor_name).toBe('SAEFUDIN');
+  });
+
+  test('baris WARISAN algo v1 tetap terverifikasi dengan algoritma lamanya', async () => {
+    const { drawRtV1 } = require('../../src/utils/rtDraw');
+    const seed = 'audit-warisan';
+    const selected = drawRtV1({ seed, totalRt: 32, count: 2 });
+    RtSelection.findAll.mockResolvedValue([
+      { id: 'b', survey_id: 'srv-1', ...LOKASI, total_rt: 32, selected, seed, algo_version: 1,
+        locked_at: new Date(), surveyor: null },
+    ]);
+
+    const res = await request(makeApp()).get('/rt-selection/survey/srv-1');
+
+    expect(res.body.selections[0].verified).toBe(true);
   });
 
   test('menandai hasil yang dimanipulasi sebagai TIDAK verified', async () => {

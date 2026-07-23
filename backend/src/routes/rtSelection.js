@@ -293,21 +293,32 @@ router.post('/offline-sync', authMiddleware, async (req, res) => {
   }
 
   const count = rtCountOf(survey);
-  let serverSelected;
+  const clientArr = Array.isArray(clientSelected) ? clientSelected.map(Number) : null;
+
+  // Hitung-ulang server vs hasil klien. APK lama menghitung dengan algoritma
+  // v1 — kenali juga (verifyDraw sadar-versi) supaya undian offline dari APK
+  // yang belum diperbarui tidak salah dicap "tidak terverifikasi"; baris
+  // disimpan dengan algo_version sesuai algoritma yang benar-benar dipakai.
+  let storedAlgoVersion = ALGO_VERSION;
+  let matches = false;
   try {
-    serverSelected = drawRt({ seed: ticket.seed, totalRt, count });
+    if (clientArr && verifyDraw({ seed: ticket.seed, totalRt, count }, clientArr)) {
+      matches = true;
+    } else if (clientArr && verifyDraw({ seed: ticket.seed, totalRt, count, algoVersion: 1 }, clientArr)) {
+      matches = true;
+      storedAlgoVersion = 1;
+    }
   } catch (err) {
     return res.status(422).json({ error: err.message });
   }
-
-  // Hasil klien vs hitung-ulang server. Bila beda, simpan MILIK KLIEN (itulah
-  // yang dilihat TPD di lapangan) — verifyDraw di pengawasan otomatis menandai
-  // baris ini merah karena tak cocok dengan seed.
-  const clientArr = Array.isArray(clientSelected) ? clientSelected.map(Number) : null;
-  const matches = !!clientArr
-    && clientArr.length === serverSelected.length
-    && clientArr.every((v, i) => v === serverSelected[i]);
-  const selected = clientArr || serverSelected;
+  let selected = clientArr;
+  if (!selected) {
+    try {
+      selected = drawRt({ seed: ticket.seed, totalRt, count });
+    } catch (err) {
+      return res.status(422).json({ error: err.message });
+    }
+  }
 
   try {
     const row = await RtSelection.create({
@@ -321,7 +332,7 @@ router.post('/offline-sync', authMiddleware, async (req, res) => {
       rt_list: null,
       selected,
       seed: ticket.seed,
-      algo_version: ALGO_VERSION,
+      algo_version: storedAlgoVersion,
       official_name: clean(officialName, 150),
       official_position: clean(officialPosition, 150),
       official_phone: clean(officialPhone, 40),
@@ -381,8 +392,9 @@ router.get('/survey/:surveyId', authMiddleware, requireRole(['admin', 'superviso
       ...serialize(row),
       surveyor_name: row.surveyor?.name || null,
       // true = hasil cocok dengan hitung ulang dari seed → tidak dimanipulasi.
+      // algoVersion menentukan algoritma pembanding (v1 lama / v2 Form A).
       verified: verifyDraw(
-        { seed: row.seed, totalRt: row.total_rt, count: (row.selected || []).length },
+        { seed: row.seed, totalRt: row.total_rt, count: (row.selected || []).length, algoVersion: row.algo_version },
         row.selected
       ),
     }));
