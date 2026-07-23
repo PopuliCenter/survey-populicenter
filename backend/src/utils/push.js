@@ -29,15 +29,19 @@ function getMessaging() {
 
   try {
     const serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
-    // Lazy require: firebase-admin hanya dimuat bila benar-benar dipakai.
-    const admin = require('firebase-admin');
-    if (admin.apps.length === 0) {
-      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-    }
-    messagingInstance = admin.messaging();
+    // API MODULAR (firebase-admin ≥ v14): namespace lama (admin.apps /
+    // admin.messaging()) sudah dihapus — memakainya membuat init tumbang
+    // dengan "Cannot read properties of undefined" (insiden 2026-07-23).
+    // Lazy require: hanya dimuat bila kunci benar-benar tersedia.
+    const { initializeApp, cert, getApps } = require('firebase-admin/app');
+    const { getMessaging } = require('firebase-admin/messaging');
+    const app = getApps().length > 0
+      ? getApps()[0]
+      : initializeApp({ credential: cert(serviceAccount) });
+    messagingInstance = getMessaging(app);
     console.log('[Push] FCM aktif (service account terbaca).');
   } catch (err) {
-    console.warn(`[Push] FCM NONAKTIF — kunci di ${keyPath} tidak terbaca: ${err.message}`);
+    console.warn(`[Push] FCM NONAKTIF — inisialisasi gagal (kunci: ${keyPath}): ${err.message}`);
     messagingInstance = null;
   }
   return messagingInstance;
