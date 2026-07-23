@@ -9,7 +9,9 @@ const { isGenderParityMismatch, parityExpectedGender } = require('../utils/gende
 const { readDeviceHeaders, lockedToOtherDeviceMessage } = require('../utils/deviceLock');
 const { validateDateFormat, validateTimeFormat, validateDateAnswer, validateMatrixAnswer } = require('../utils/validators');
 const { validateFieldToolsSubmission } = require('../utils/fieldToolsValidator');
-const { incrementResponseStats, markStatsDirty } = require('../utils/statisticsUpdater');
+const { incrementResponseStats, markStatsDirty, recomputeSurveyStats } = require('../utils/statisticsUpdater');
+const { collectMediaPaths, deleteMediaFiles } = require('../utils/mediaFiles');
+const { cacheDelPattern } = require('../utils/cache');
 const { computeHiddenQuestions, buildAnswerMap } = require('../utils/skipLogicEvaluator');
 const { isSafeSqlIdent } = require('../utils/uuid');
 
@@ -124,12 +126,15 @@ router.post('/start', authMiddleware, requireRole('surveyor'), async (req, res, 
       return res.status(403).json({ error: 'Anda tidak memiliki akses untuk survei ini' });
     }
 
-    // Count committed responses (exclude PENDING-* records)
+    // Count committed responses (exclude PENDING-* records). Respons yang
+    // DIKECUALIKAN dari laporan (excluded — fraud yang ditambal oversampling)
+    // tidak memakan kuota, agar TPD/penambal bisa mengisi penggantinya.
     const committedCount = await Response.count({
       where: {
         survey_id,
         surveyor_id,
         questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+        excluded: false,
       },
     });
     if (committedCount >= quotaRecord.quota) {
@@ -514,11 +519,13 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
         transaction,
       });
       if (quotaRecord) {
+        // Sinkron dgn /start: baris excluded tidak memakan kuota (oversampling).
         const committedCount = await Response.count({
           where: {
             survey_id,
             surveyor_id,
             questionnaire_number: { [Op.notLike]: 'PENDING-%' },
+            excluded: false,
           },
           transaction,
         });
@@ -814,6 +821,12 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
       // Invalid filter values are silently ignored (return all)
     }
 
+    // Filter pengecualian laporan (chip "Dikecualikan"). Tanpa parameter =
+    // tampilkan semua (baris excluded tetap terlihat, ditandai badge).
+    if (role !== 'surveyor' && (req.query.excluded === 'true' || req.query.excluded === 'false')) {
+      whereClause.excluded = req.query.excluded === 'true';
+    }
+
     // Filter QC "durasi singkat" (server-side, akurat lintas halaman): respons dengan
     // durasi di bawah ambang survei (field_tools_settings.min_duration_sec; default 30,
     // 0 = nonaktif). Subquery terkorelasi ke surveys → tak bergantung alias join, aman
@@ -851,6 +864,7 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
     // Include review fields for non-surveyor roles
     if (!isSurveyor) {
       attributes.push('review_status', 'review_note', 'reviewed_by', 'reviewed_at');
+      attributes.push('excluded', 'exclude_reason', 'excluded_by', 'excluded_at');
     }
 
     const includeAssociations = [
@@ -871,6 +885,11 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
       includeAssociations.push({
         model: User,
         as: 'reviewer',
+        attributes: ['id', 'name'],
+      });
+      includeAssociations.push({
+        model: User,
+        as: 'excluder',
         attributes: ['id', 'name'],
       });
     }
@@ -969,6 +988,11 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
         item.reviewed_by = r.reviewed_by;
         item.reviewed_at = r.reviewed_at;
         item.reviewer_name = r.reviewer ? r.reviewer.name : null;
+        // Pengecualian laporan (oversampling menambal fraud) — badge & tooltip.
+        item.excluded = r.excluded === true;
+        item.exclude_reason = r.exclude_reason;
+        item.excluded_at = r.excluded_at;
+        item.excluder_name = r.excluder ? r.excluder.name : null;
       }
 
       return item;
@@ -1003,12 +1027,13 @@ router.get('/quality-summary', authMiddleware, requireRole(['admin', 'supervisor
          COUNT(*) FILTER (WHERE r.review_status = 'verified')::int AS verified,
          COUNT(*) FILTER (WHERE r.review_status = 'flagged')::int AS flagged,
          COUNT(*) FILTER (WHERE r.latitude IS NOT NULL)::int AS gps_with,
-         COUNT(*) FILTER (WHERE r.duration_seconds IS NOT NULL AND ${thr} > 0 AND r.duration_seconds < ${thr})::int AS short_duration
+         COUNT(*) FILTER (WHERE r.duration_seconds IS NOT NULL AND ${thr} > 0 AND r.duration_seconds < ${thr})::int AS short_duration,
+         COUNT(*) FILTER (WHERE r.excluded)::int AS excluded
        FROM responses r LEFT JOIN surveys s ON s.id = r.survey_id
        WHERE ${whereSql}`,
       { replacements, type: sequelize.QueryTypes.SELECT }
     );
-    res.json(rows[0] || { total: 0, unreviewed: 0, verified: 0, flagged: 0, gps_with: 0, short_duration: 0 });
+    res.json(rows[0] || { total: 0, unreviewed: 0, verified: 0, flagged: 0, gps_with: 0, short_duration: 0, excluded: 0 });
   } catch (error) {
     next(error);
   }
@@ -1058,6 +1083,7 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
     // Include review fields for non-surveyor roles
     if (!isSurveyor) {
       attributes.push('review_status', 'review_note', 'reviewed_by', 'reviewed_at');
+      attributes.push('excluded', 'exclude_reason', 'excluded_by', 'excluded_at');
     }
 
     const includeAssociations = [
@@ -1090,6 +1116,11 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
       includeAssociations.push({
         model: User,
         as: 'reviewer',
+        attributes: ['id', 'name'],
+      });
+      includeAssociations.push({
+        model: User,
+        as: 'excluder',
         attributes: ['id', 'name'],
       });
     }
@@ -1150,6 +1181,10 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
       result.reviewed_by = response.reviewed_by;
       result.reviewed_at = response.reviewed_at;
       result.reviewer_name = response.reviewer ? response.reviewer.name : null;
+      result.excluded = response.excluded === true;
+      result.exclude_reason = response.exclude_reason;
+      result.excluded_at = response.excluded_at;
+      result.excluder_name = response.excluder ? response.excluder.name : null;
     }
 
     res.json(result);
@@ -1241,6 +1276,135 @@ router.patch('/:id/review', authMiddleware, requireRole(['admin', 'supervisor'])
       reviewed_by: response.reviewed_by,
       reviewed_at: response.reviewed_at,
       reviewer_name: reviewer ? reviewer.name : null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /responses/:id/exclude
+ * Kecualikan / batalkan pengecualian sebuah respons dari SEMUA laporan klien
+ * (snapshot publik/embed, PPTX, ekspor XLSX/CSV). Untuk kasus oversampling
+ * menambal data fraud: baris TIDAK dihapus (bukti audit tetap ada), kuota TPD
+ * dibebaskan agar penambal bisa disubmit.
+ * Body: { excluded: boolean, reason?: string } — reason WAJIB saat mengecualikan.
+ * Requires: admin atau supervisor (asisten supervisor ikut lewat pewarisan role).
+ */
+router.patch('/:id/exclude', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { excluded, reason } = req.body || {};
+
+    if (typeof excluded !== 'boolean') {
+      return res.status(422).json({ error: 'Field excluded (true/false) wajib diisi' });
+    }
+
+    const response = await Response.findByPk(id);
+    if (!response) {
+      return res.status(404).json({ error: 'Data responden tidak ditemukan' });
+    }
+
+    // Shell PENDING tidak pernah masuk laporan — tak ada artinya dikecualikan.
+    if (String(response.questionnaire_number || '').startsWith('PENDING')) {
+      return res.status(409).json({ error: 'Respons pending tidak bisa dikecualikan' });
+    }
+
+    const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+    if (excluded && !trimmedReason) {
+      return res.status(422).json({ error: 'Alasan pengecualian wajib diisi (mis. "terindikasi fraud, diganti oversample")' });
+    }
+
+    const oldValue = {
+      excluded: response.excluded === true,
+      exclude_reason: response.exclude_reason,
+    };
+
+    await response.update(
+      excluded
+        ? { excluded: true, exclude_reason: trimmedReason, excluded_by: req.user.id, excluded_at: new Date() }
+        : { excluded: false, exclude_reason: null, excluded_by: null, excluded_at: null }
+    );
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: excluded ? 'EXCLUDE_RESPONSE' : 'INCLUDE_RESPONSE',
+      entityType: 'response',
+      entityId: id,
+      oldValue,
+      newValue: { excluded, exclude_reason: excluded ? trimmedReason : null },
+      ipAddress: req.ip,
+    });
+
+    // Snapshot publik & statistik pra-hitung berbasis data lama → tandai kotor
+    // agar dashboard menghitung ulang (snapshot publik tetap manual: admin perlu
+    // klik "Perbarui Snapshot" di Laporan agar embed di website ikut bersih).
+    markStatsDirty(response.survey_id);
+    await cacheDelPattern('dash:*');
+
+    const excluder = await User.findByPk(req.user.id, { attributes: ['name'] });
+
+    res.json({
+      id: response.id,
+      excluded: response.excluded === true,
+      exclude_reason: response.exclude_reason,
+      excluded_at: response.excluded_at,
+      excluder_name: excluded && excluder ? excluder.name : null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * DELETE /responses/:id
+ * HAPUS PERMANEN satu respons + jawaban + seluruh file medianya (foto, audio,
+ * tanda tangan). KHUSUS ADMIN — supervisor/asisten/viewer ditolak. Untuk data
+ * sampah/uji coba; untuk data fraud gunakan pengecualian agar bukti tersimpan.
+ */
+router.delete('/:id', authMiddleware, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const response = await Response.findByPk(id, {
+      attributes: ['id', 'survey_id', 'surveyor_id', 'questionnaire_number'],
+    });
+    if (!response) {
+      return res.status(404).json({ error: 'Data responden tidak ditemukan' });
+    }
+
+    // Kumpulkan path media SEBELUM baris dihapus (pola cleanup.js).
+    const mediaPaths = await collectMediaPaths(sequelize, [id]);
+
+    await sequelize.transaction(async (t) => {
+      await Answer.destroy({ where: { response_id: id }, transaction: t });
+      await Response.destroy({ where: { id }, transaction: t });
+    });
+
+    const filesDeleted = await deleteMediaFiles(mediaPaths);
+    await cacheDelPattern('dash:*');
+    // Best-effort: statistik pra-hitung survei terdampak dihitung ulang.
+    await recomputeSurveyStats(response.survey_id).catch(() => {});
+
+    await createAuditLog({
+      userId: req.user.id,
+      action: 'DELETE_RESPONSE',
+      entityType: 'response',
+      entityId: id,
+      oldValue: {
+        questionnaire_number: response.questionnaire_number,
+        survey_id: response.survey_id,
+        surveyor_id: response.surveyor_id,
+        files_deleted: filesDeleted,
+      },
+      newValue: null,
+      ipAddress: req.ip,
+    });
+
+    res.json({
+      deleted: true,
+      files_deleted: filesDeleted,
+      message: `Respons ${response.questionnaire_number} dihapus permanen (${filesDeleted} file media dibersihkan)`,
     });
   } catch (error) {
     next(error);

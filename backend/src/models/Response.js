@@ -133,6 +133,30 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(255),
       allowNull: true,
     },
+    // Pengecualian dari laporan (oversampling menambal fraud): baris tetap ada
+    // sebagai bukti audit, tapi tidak dihitung di snapshot publik/PPTX/ekspor
+    // dan tidak memakan kuota TPD (agar penambal bisa disubmit).
+    excluded: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    exclude_reason: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    excluded_by: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    excluded_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   }, {
     tableName: 'responses',
     underscored: true,

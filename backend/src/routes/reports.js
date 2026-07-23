@@ -16,10 +16,16 @@ const router = express.Router();
 // ---------------------------------------------------------------------------
 // Shared helper: build the where clause for Response queries
 // ---------------------------------------------------------------------------
-function buildResponseWhereClause(survey_id, { start_date, end_date, surveyor_id, geo_status, response_status }) {
+function buildResponseWhereClause(survey_id, { start_date, end_date, surveyor_id, geo_status, response_status, include_excluded }) {
   const whereClause = {
     survey_id,
   };
+
+  // Default: respons yang DIKECUALIKAN dari laporan (excluded — penambal fraud)
+  // tidak ikut diekspor. Saklar include_excluded=1 menyertakannya untuk audit.
+  if (include_excluded !== '1' && include_excluded !== 'true' && include_excluded !== true) {
+    whereClause.excluded = false;
+  }
 
   // Filter by response status (committed vs pending)
   if (response_status === 'committed') {
@@ -339,7 +345,11 @@ router.post('/surveys/:id/export/xlsx', authMiddleware, requireRole(['admin', 's
       return res.status(404).json({ error: 'Survei tidak ditemukan' });
     }
 
-    const whereResult = buildResponseWhereClause(survey_id, req.query);
+    // Frontend mengirim filter lewat BODY (axios.post), konsumen lama mungkin
+    // lewat query — terima keduanya (body menang). Sebelumnya hanya req.query
+    // dibaca sehingga filter TPD/tanggal dari dashboard diam-diam terabaikan.
+    const filters = { ...req.query, ...(req.body || {}) };
+    const whereResult = buildResponseWhereClause(survey_id, filters);
     if (whereResult.error) {
       return res.status(422).json({ error: whereResult.error });
     }
@@ -354,7 +364,7 @@ router.post('/surveys/:id/export/xlsx', authMiddleware, requireRole(['admin', 's
         requested_by: req.user.id,
         status: 'pending',
         format: 'xlsx',
-        filters: req.query,
+        filters,
       });
 
       // Add job to BullMQ queue
@@ -362,7 +372,7 @@ router.post('/surveys/:id/export/xlsx', authMiddleware, requireRole(['admin', 's
         jobId: exportJob.id,
         survey_id,
         format: 'xlsx',
-        filters: req.query,
+        filters,
       });
 
       return res.status(202).json({
@@ -449,7 +459,9 @@ router.post('/surveys/:id/export/csv', authMiddleware, requireRole(['admin', 'su
       return res.status(404).json({ error: 'Survei tidak ditemukan' });
     }
 
-    const whereResult = buildResponseWhereClause(survey_id, req.query);
+    // Terima filter dari body maupun query (lihat catatan pada rute xlsx).
+    const filters = { ...req.query, ...(req.body || {}) };
+    const whereResult = buildResponseWhereClause(survey_id, filters);
     if (whereResult.error) {
       return res.status(422).json({ error: whereResult.error });
     }
@@ -464,7 +476,7 @@ router.post('/surveys/:id/export/csv', authMiddleware, requireRole(['admin', 'su
         requested_by: req.user.id,
         status: 'pending',
         format: 'csv',
-        filters: req.query,
+        filters,
       });
 
       // Add job to BullMQ queue
@@ -472,7 +484,7 @@ router.post('/surveys/:id/export/csv', authMiddleware, requireRole(['admin', 'su
         jobId: exportJob.id,
         survey_id,
         format: 'csv',
-        filters: req.query,
+        filters,
       });
 
       return res.status(202).json({

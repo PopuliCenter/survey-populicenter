@@ -57,6 +57,10 @@ function Responses() {
   })();
   const isSurveyor = currentUser.role === 'surveyor';
   const isViewer = ['viewer', 'partner_lokal'].includes(currentUser.role);
+  // Kecualikan dari laporan: admin + supervisor (+ asisten via pewarisan role).
+  const canExclude = ['admin', 'supervisor', 'asisten_supervisor'].includes(currentUser.role);
+  // Hapus permanen: KHUSUS admin.
+  const isAdmin = currentUser.role === 'admin';
 
   // ── Dropdown data ───────────────────────────────────────────────────────────
   const [surveys, setSurveys] = useState([]);
@@ -70,6 +74,7 @@ function Responses() {
   const [geoStatusFilter, setGeoStatusFilter] = useState('');
   const [reviewStatusFilter, setReviewStatusFilter] = useState('');
   const [qualityFilter, setQualityFilter] = useState(''); // '' | 'short_duration' — chip QC
+  const [excludedFilter, setExcludedFilter] = useState(''); // '' | 'true' — chip Dikecualikan
   const [searchQuery, setSearchQuery] = useState('');
 
   // ── Table data ──────────────────────────────────────────────────────────────
@@ -136,6 +141,7 @@ function Responses() {
       if (filters.q && filters.q.trim()) params.q = filters.q.trim();
       if (filters.review_status && !isSurveyor) params.review_status = filters.review_status;
       if (filters.quality && !isSurveyor) params.quality = filters.quality; // chip QC (server-side)
+      if (filters.excluded && !isSurveyor) params.excluded = filters.excluded; // chip Dikecualikan
 
       const res = await api.get('/responses', { params });
       setResponses(res.data || []);
@@ -308,6 +314,7 @@ function Responses() {
       geo_status: geoStatusFilter,
       review_status: reviewStatusFilter,
       quality: qualityFilter,
+      excluded: excludedFilter,
       q: searchQuery,
     });
   }
@@ -320,6 +327,7 @@ function Responses() {
     setGeoStatusFilter('');
     setReviewStatusFilter('');
     setQualityFilter('');
+    setExcludedFilter('');
     setSearchQuery('');
     setPage(1);
     setAppliedFilters(null);
@@ -334,18 +342,22 @@ function Responses() {
     if (!appliedFilters) return; // chip hanya aktif setelah filter dijalankan
     const review = chip === 'unreviewed' || chip === 'verified' || chip === 'flagged' ? chip : '';
     const quality = chip === 'short_duration' ? 'short_duration' : '';
+    const excluded = chip === 'excluded' ? 'true' : '';
     setReviewStatusFilter(review);
     setQualityFilter(quality);
+    setExcludedFilter(excluded);
     setPage(1);
-    setAppliedFilters({ ...appliedFilters, review_status: review, quality });
+    setAppliedFilters({ ...appliedFilters, review_status: review, quality, excluded });
   }
 
   // Chip aktif diturunkan dari state filter — tak perlu state terpisah.
-  const activeChip = qualityFilter === 'short_duration'
-    ? 'short_duration'
-    : ['unreviewed', 'verified', 'flagged'].includes(reviewStatusFilter)
-      ? reviewStatusFilter
-      : 'all';
+  const activeChip = excludedFilter === 'true'
+    ? 'excluded'
+    : qualityFilter === 'short_duration'
+      ? 'short_duration'
+      : ['unreviewed', 'verified', 'flagged'].includes(reviewStatusFilter)
+        ? reviewStatusFilter
+        : 'all';
 
   // Verifikasi/tandai cepat dari baris (tanpa buka detail). Pakai endpoint review
   // yang sudah ada; perbarui baris & segarkan ringkasan setelah sukses.
@@ -360,6 +372,81 @@ function Responses() {
       setFetchError(err.response?.data?.error || err.message || 'Gagal memperbarui status review.');
     } finally {
       setReviewingId(null);
+    }
+  }
+
+  // ── Pengecualian dari laporan (oversampling menambal fraud) ────────────────
+  // Data TIDAK dihapus: hanya ditandai agar tidak ikut snapshot publik/embed,
+  // PPTX, dan ekspor. Alasan wajib — jejak audit untuk klien/auditor.
+  const [excludeTarget, setExcludeTarget] = useState(null); // respons yang akan dikecualikan
+  const [excludeReason, setExcludeReason] = useState('');
+  const [excludeSaving, setExcludeSaving] = useState(false);
+  const [excludeError, setExcludeError] = useState(null);
+
+  async function submitExclude(e) {
+    e.preventDefault();
+    if (!excludeTarget) return;
+    if (!excludeReason.trim()) {
+      setExcludeError('Alasan pengecualian wajib diisi.');
+      return;
+    }
+    setExcludeSaving(true);
+    setExcludeError(null);
+    try {
+      const res = await api.patch(`/responses/${excludeTarget.id}/exclude`, {
+        excluded: true,
+        reason: excludeReason.trim(),
+      });
+      setResponses((prev) => prev.map((r) => (r.id === excludeTarget.id
+        ? { ...r, excluded: true, exclude_reason: res.data.exclude_reason, excluded_at: res.data.excluded_at, excluder_name: res.data.excluder_name }
+        : r)));
+      setExcludeTarget(null);
+      setExcludeReason('');
+      if (appliedFilters) fetchSummary(appliedFilters);
+    } catch (err) {
+      setExcludeError(err.response?.data?.error || err.message || 'Gagal mengecualikan respons.');
+    } finally {
+      setExcludeSaving(false);
+    }
+  }
+
+  const [unexcludingId, setUnexcludingId] = useState(null);
+  async function unexclude(id) {
+    setUnexcludingId(id);
+    try {
+      await api.patch(`/responses/${id}/exclude`, { excluded: false });
+      setResponses((prev) => prev.map((r) => (r.id === id
+        ? { ...r, excluded: false, exclude_reason: null, excluded_at: null, excluder_name: null }
+        : r)));
+      if (appliedFilters) fetchSummary(appliedFilters);
+    } catch (err) {
+      setFetchError(err.response?.data?.error || err.message || 'Gagal membatalkan pengecualian.');
+    } finally {
+      setUnexcludingId(null);
+    }
+  }
+
+  // ── Hapus permanen (KHUSUS admin) — untuk data sampah/uji coba ─────────────
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  async function submitDelete() {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
+    setDeleteError(null);
+    try {
+      await api.delete(`/responses/${deleteTarget.id}`);
+      setDeleteTarget(null);
+      // Baris hilang dari DB — muat ulang halaman & ringkasan agar total akurat.
+      if (appliedFilters) {
+        fetchResponses(appliedFilters, page);
+        fetchSummary(appliedFilters);
+      }
+    } catch (err) {
+      setDeleteError(err.response?.data?.error || err.message || 'Gagal menghapus respons.');
+    } finally {
+      setDeleteSaving(false);
     }
   }
 
@@ -559,12 +646,13 @@ function Responses() {
 
         {/* Ringkasan kualitas data — agregasi server, AKURAT lintas halaman */}
         {!isSurveyor && !fetchError && appliedFilters && summary && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
               { label: 'Total responden', value: summary.total, cls: 'text-gray-800' },
               { label: 'Durasi singkat', value: summary.short_duration, cls: 'text-amber-600' },
               { label: 'Belum direview', value: summary.unreviewed, cls: 'text-gray-800' },
               { label: 'Terverifikasi', value: summary.verified, cls: 'text-green-600' },
+              { label: 'Dikecualikan', value: summary.excluded ?? 0, cls: 'text-gray-500' },
               { label: 'Cakupan GPS', value: `${summary.total ? Math.round((summary.gps_with / summary.total) * 100) : 0}%`, cls: 'text-blue-600' },
             ].map((t) => (
               <div key={t.label} className="rounded-xl border border-gray-100 bg-white px-4 py-3">
@@ -583,6 +671,7 @@ function Responses() {
               { key: 'short_duration', label: 'Durasi singkat', count: summary.short_duration, dot: 'bg-amber-500' },
               { key: 'unreviewed', label: 'Belum direview', count: summary.unreviewed, dot: 'bg-gray-400' },
               { key: 'verified', label: 'Terverifikasi', count: summary.verified, dot: 'bg-green-500' },
+              { key: 'excluded', label: 'Dikecualikan', count: summary.excluded ?? 0, dot: 'bg-gray-600' },
             ].map((c) => {
               const active = activeChip === c.key;
               return (
@@ -681,11 +770,13 @@ function Responses() {
                     <tr
                       key={response.id}
                       className={`group transition-colors ${
-                        response.gender_parity_mismatch === true
-                          ? 'bg-red-50 hover:bg-red-100'
-                          : response.short_duration === true
-                            ? 'bg-amber-50 hover:bg-amber-100'
-                            : 'hover:bg-gray-50'
+                        response.excluded === true
+                          ? 'bg-gray-100 hover:bg-gray-200 text-gray-500'
+                          : response.gender_parity_mismatch === true
+                            ? 'bg-red-50 hover:bg-red-100'
+                            : response.short_duration === true
+                              ? 'bg-amber-50 hover:bg-amber-100'
+                              : 'hover:bg-gray-50'
                       }`}
                     >
                       {/* Questionnaire Number */}
@@ -712,6 +803,17 @@ function Responses() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               Durasi
+                            </span>
+                          )}
+                          {response.excluded === true && (
+                            <span
+                              title={`Dikecualikan dari laporan${response.exclude_reason ? ` — ${response.exclude_reason}` : ''}${response.excluder_name ? ` (oleh ${response.excluder_name})` : ''}`}
+                              className="inline-flex items-center gap-0.5 rounded-full bg-gray-200 text-gray-600 px-1.5 py-0.5 text-2xs font-semibold"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                              </svg>
+                              Dikecualikan
                             </span>
                           )}
                         </span>
@@ -794,6 +896,40 @@ function Responses() {
                                   Tandai
                                 </button>
                               )}
+                              {canExclude && response.excluded !== true && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setExcludeTarget(response); setExcludeReason(''); setExcludeError(null); }}
+                                  title="Kecualikan dari laporan klien (embed, PPTX, ekspor) — data tetap tersimpan"
+                                  aria-label={`Kecualikan responden ${response.questionnaire_number} dari laporan`}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100 px-2 py-1 text-xs font-medium transition-colors"
+                                >
+                                  Kecualikan
+                                </button>
+                              )}
+                              {canExclude && response.excluded === true && (
+                                <button
+                                  type="button"
+                                  onClick={() => unexclude(response.id)}
+                                  disabled={unexcludingId === response.id}
+                                  title="Batalkan pengecualian — respons kembali dihitung di laporan"
+                                  aria-label={`Batalkan pengecualian responden ${response.questionnaire_number}`}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 disabled:opacity-50 px-2 py-1 text-xs font-medium transition-colors"
+                                >
+                                  Batalkan
+                                </button>
+                              )}
+                              {isAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setDeleteTarget(response); setDeleteError(null); }}
+                                  title="Hapus permanen respons + seluruh medianya (khusus admin)"
+                                  aria-label={`Hapus permanen responden ${response.questionnaire_number}`}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 text-xs font-medium transition-colors"
+                                >
+                                  Hapus
+                                </button>
+                              )}
                             </div>
                           )}
                           <IconButton
@@ -837,6 +973,96 @@ function Responses() {
               >
                 Berikutnya ›
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: kecualikan dari laporan (alasan wajib — jejak audit) */}
+        {excludeTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="exclude-modal-title">
+            <form onSubmit={submitExclude} className="w-full max-w-md bg-white rounded-xl shadow-xl p-5 space-y-4">
+              <div>
+                <h2 id="exclude-modal-title" className="text-base font-semibold text-gray-800">
+                  Kecualikan dari Laporan
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Responden <span className="font-mono text-xs text-gray-700">{excludeTarget.questionnaire_number}</span> tidak
+                  akan dihitung di hasil publik (embed website), laporan PPTX, dan ekspor XLSX/CSV.
+                  Data <strong>tetap tersimpan</strong> sebagai bukti audit dan kuota TPD dibebaskan
+                  untuk pengganti (oversample). Bila hasil sudah tayang publik, klik
+                  {' '}<strong>Perbarui Snapshot</strong> di halaman Laporan setelah ini.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="exclude-reason" className="block text-xs font-medium text-gray-600 mb-1">
+                  Alasan pengecualian <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  id="exclude-reason"
+                  value={excludeReason}
+                  onChange={(e) => setExcludeReason(e.target.value)}
+                  rows={3}
+                  placeholder="mis. Terindikasi fraud (durasi 15 detik, GPS di luar wilayah) — diganti oversample"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+                />
+              </div>
+              {excludeError && <p className="text-sm text-red-600" role="alert">{excludeError}</p>}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExcludeTarget(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={excludeSaving}
+                  className="px-4 py-2 text-sm font-medium text-white bg-gray-700 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {excludeSaving ? 'Menyimpan…' : 'Kecualikan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Modal: hapus permanen (khusus admin) */}
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+            <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-5 space-y-4">
+              <div>
+                <h2 id="delete-modal-title" className="text-base font-semibold text-red-700">
+                  Hapus Permanen?
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Responden <span className="font-mono text-xs text-gray-700">{deleteTarget.questionnaire_number}</span> beserta
+                  {' '}<strong>seluruh jawaban, foto, rekaman audio, dan tanda tangannya</strong> akan
+                  dihapus dari server dan <strong>tidak bisa dikembalikan</strong>.
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Untuk data terindikasi fraud, gunakan <strong>Kecualikan</strong> agar bukti tetap
+                  tersimpan. Hapus permanen hanya untuk data sampah/uji coba.
+                </p>
+              </div>
+              {deleteError && <p className="text-sm text-red-600" role="alert">{deleteError}</p>}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={submitDelete}
+                  disabled={deleteSaving}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {deleteSaving ? 'Menghapus…' : 'Ya, Hapus Permanen'}
+                </button>
+              </div>
             </div>
           </div>
         )}

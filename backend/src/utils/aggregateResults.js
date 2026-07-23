@@ -28,11 +28,14 @@ const AGGREGATABLE_TYPES = new Set([
   'indonesia_region',
 ]);
 
-// Filter response committed (mengabaikan shell PENDING).
+// Filter response committed (mengabaikan shell PENDING) DAN yang tidak
+// dikecualikan dari laporan (excluded — oversampling menambal data fraud).
+// Semua konsumen (snapshot publik/embed & PPTX) otomatis bersih lewat sini.
 const COMMITTED_FILTER = {
   questionnaire_number: {
     [Op.and]: [{ [Op.ne]: 'PENDING' }, { [Op.notLike]: 'PENDING-%' }],
   },
+  excluded: false,
 };
 
 const OTHER_BUCKET = '__other__';

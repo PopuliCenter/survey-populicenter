@@ -16,6 +16,13 @@ function buildResponseWhereClause(survey_id, filters = {}) {
     questionnaire_number: { [Op.notLike]: 'PENDING-%' },
   };
 
+  // Selaras dengan routes/reports.js: respons yang dikecualikan dari laporan
+  // (excluded) tidak ikut diekspor, kecuali saklar include_excluded aktif.
+  const inc = filters.include_excluded;
+  if (inc !== '1' && inc !== 'true' && inc !== true) {
+    whereClause.excluded = false;
+  }
+
   if (filters.start_date || filters.end_date) {
     whereClause.created_at = {};
 

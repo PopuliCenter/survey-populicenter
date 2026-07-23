@@ -208,6 +208,7 @@ function Reports() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [responseStatus, setResponseStatus] = useState('committed');
+  const [includeExcluded, setIncludeExcluded] = useState(false); // audit: ikutkan data dikecualikan
 
   // ── Export state ────────────────────────────────────────────────────────────
   const [exportingXlsx, setExportingXlsx] = useState(false);
@@ -248,6 +249,7 @@ function Reports() {
     if (startDate) params.start_date = startDate;
     if (endDate) params.end_date = endDate;
     if (responseStatus) params.response_status = responseStatus;
+    if (includeExcluded) params.include_excluded = '1';
     return params;
   }
 
@@ -499,6 +501,20 @@ function Reports() {
               </select>
             </div>
           </div>
+
+          {/* Data yang DIKECUALIKAN (penambal fraud/oversampling) tidak ikut
+              diekspor secara default — saklar ini menyertakannya untuk audit. */}
+          {!isViewer && (
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={includeExcluded}
+                onChange={(e) => setIncludeExcluded(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-400"
+              />
+              Sertakan data yang dikecualikan dari laporan (untuk audit internal)
+            </label>
+          )}
 
           {/* Export error */}
           {exportError && (

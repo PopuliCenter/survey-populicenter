@@ -74,6 +74,9 @@ Response.belongsTo(User, { foreignKey: 'surveyor_id', as: 'surveyor' });
 User.hasMany(Response, { foreignKey: 'reviewed_by', as: 'reviewedResponses' });
 Response.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
 
+// User → Response (excluded_by) — siapa yang mengecualikan dari laporan
+Response.belongsTo(User, { foreignKey: 'excluded_by', as: 'excluder' });
+
 // Response → Answer
 Response.hasMany(Answer, { foreignKey: 'response_id', as: 'answers', onDelete: 'CASCADE' });
 Answer.belongsTo(Response, { foreignKey: 'response_id', as: 'response' });
