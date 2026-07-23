@@ -54,59 +54,16 @@ module.exports = (sequelize) => {
         gps_mode: 'required',
       },
       validate: {
+        // SATU sumber kebenaran: utils/fieldToolsValidator. Dulu daftar kunci
+        // DIDUPLIKASI di sini dan tak ikut diperbarui saat form_font_* lahir →
+        // rute lolos validasi tapi survey.save() melempar → 500 "kesalahan
+        // internal" saat admin menyimpan (insiden 2026-07-23). Jangan pernah
+        // menyalin daftarnya lagi — delegasikan.
         isValidFieldToolsSettings(value) {
-          const requiredProperties = ['signature_mode', 'audio_mode', 'photo_mode', 'gps_mode'];
-          const validModes = ['required', 'optional', 'disabled'];
-          // Properti opsional (kompatibel mundur).
-          const optionalEnums = {
-            audio_indicator: ['shown', 'hidden'],
-            device_lock: ['enforced', 'off'],
-            gender_parity_lock: ['locked', 'off'],
-            rt_selection: ['enabled', 'off'],
-          };
-          // Aturan waktu rekaman audio (detik) — disetel admin/SPV per survei.
-          const optionalNumerics = {
-            audio_start_delay_sec: { min: 0, max: 1800 },
-            audio_total_max_sec: { min: 30, max: 900 },
-            min_duration_sec: { min: 0, max: 3600 },
-            rt_selection_count: { min: 1, max: 10 },
-          };
-          const allowedProperties = [
-            ...requiredProperties,
-            ...Object.keys(optionalEnums),
-            ...Object.keys(optionalNumerics),
-          ];
-
-          if (!value || typeof value !== 'object') {
-            throw new Error('Field tools settings harus memiliki properti: signature_mode, audio_mode, photo_mode, gps_mode');
-          }
-
-          const keys = Object.keys(value);
-          const hasAllRequired = requiredProperties.every((prop) => keys.includes(prop));
-          const hasExtraProps = keys.some((key) => !allowedProperties.includes(key));
-
-          if (!hasAllRequired || hasExtraProps) {
-            throw new Error('Field tools settings harus memiliki properti: signature_mode, audio_mode, photo_mode, gps_mode');
-          }
-
-          for (const prop of requiredProperties) {
-            if (!validModes.includes(value[prop])) {
-              throw new Error('Nilai field tool mode tidak valid. Gunakan: required, optional, atau disabled');
-            }
-          }
-
-          for (const [prop, allowed] of Object.entries(optionalEnums)) {
-            if (value[prop] !== undefined && !allowed.includes(value[prop])) {
-              throw new Error(`Nilai ${prop} tidak valid. Gunakan: ${allowed.join(', ')}`);
-            }
-          }
-
-          for (const [prop, range] of Object.entries(optionalNumerics)) {
-            const v = value[prop];
-            if (v !== undefined && (typeof v !== 'number' || !Number.isInteger(v) || v < range.min || v > range.max)) {
-              throw new Error(`Nilai ${prop} harus bilangan bulat ${range.min}–${range.max} (detik)`);
-            }
-          }
+          // Lazy require di dalam fungsi: aman dari urutan muat modul.
+          const { validateFieldToolsSettings } = require('../utils/fieldToolsValidator');
+          const result = validateFieldToolsSettings(value);
+          if (!result.valid) throw new Error(result.error);
         },
       },
     },
