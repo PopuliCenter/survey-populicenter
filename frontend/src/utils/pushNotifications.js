@@ -20,6 +20,29 @@ import { toastInfo } from './toastBus';
 
 let initialized = false;
 
+// Channel Android ber-importance TINGGI — dipakai notifikasi lokal "cermin"
+// saat push tiba ketika aplikasi SEDANG DI DEPAN (Android tidak menampilkan
+// notifikasi sistem untuk kondisi itu; toast saja terbukti kurang terlihat —
+// masukan lapangan 2026-07-23). Importance 5 = heads-up banner + suara.
+const CHANNEL_ID = 'populi-pesan';
+
+async function mirrorToTray(title, body) {
+  try {
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    await LocalNotifications.schedule({
+      notifications: [{
+        // id int 32-bit unik per notifikasi (detik epoch cukup unik untuk ini).
+        id: Math.floor(Date.now() / 1000) % 2147483647,
+        channelId: CHANNEL_ID,
+        title: String(title || 'Populi Survey').slice(0, 200),
+        body: String(body || '').slice(0, 1000),
+      }],
+    });
+  } catch {
+    // Plugin absen / izin dicabut — toast + lonceng tetap jalan.
+  }
+}
+
 /**
  * Inisialisasi push di perangkat native. Aman dipanggil berulang (sekali per
  * masa hidup aplikasi yang benar-benar jalan).
@@ -41,6 +64,18 @@ export async function initPushNotifications(opts = {}) {
     }
     if (perm.receive !== 'granted') return; // TPD menolak — lonceng tetap jalan
 
+    // Channel untuk notifikasi cermin-foreground — dibuat di muka (schedule ke
+    // channel yang belum ada = notifikasi dibuang diam-diam oleh Android 8+).
+    try {
+      const { LocalNotifications } = await import('@capacitor/local-notifications');
+      await LocalNotifications.createChannel({
+        id: CHANNEL_ID,
+        name: 'Pesan & Peringatan',
+        description: 'Pesan supervisor/admin dan peringatan kualitas data',
+        importance: 5,
+      });
+    } catch { /* non-kritis */ }
+
     await PushNotifications.removeAllListeners();
 
     PushNotifications.addListener('registration', async ({ value }) => {
@@ -52,9 +87,13 @@ export async function initPushNotifications(opts = {}) {
     });
 
     PushNotifications.addListener('pushNotificationReceived', (notif) => {
-      // Aplikasi sedang di depan → Android tak menampilkan notifikasi sistem;
-      // tampilkan toast singkat + segarkan lonceng.
+      // Aplikasi sedang di depan → Android tak menampilkan notifikasi sistem.
+      // Terbitkan notifikasi LOKAL ke tray (pola aplikasi chat) supaya
+      // perilakunya konsisten dengan saat aplikasi tertutup, plus toast +
+      // segarkan lonceng.
       const title = notif?.title || notif?.data?.title;
+      const body = notif?.body || notif?.data?.body;
+      mirrorToTray(title, body);
       if (title) toastInfo(title, { duration: 5000 });
       try { opts.onNotificationReceived?.(); } catch { /* abaikan */ }
     });
