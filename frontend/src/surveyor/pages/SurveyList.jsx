@@ -4,6 +4,7 @@ import api from '../../services/api';
 import QuotaProgress from '../../components/QuotaProgress';
 import useSyncManager from '../hooks/useSyncManager';
 import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey, getDraftMedia, deleteDraftMedia } from '../../utils/storage';
+import { buildOfflineChecklist } from '../../utils/offlineReadiness';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import Icon from '../../components/Icon';
 import ConfirmSheet from '../../components/ConfirmSheet';
@@ -504,6 +505,19 @@ function SurveyList() {
   // dropdown wilayah kosong di lapangan meski survei sudah terunduh.
   const allDownloaded = surveys.length > 0 && downloadedSurveys.size === surveys.length && regionReady;
 
+  // ─── Checklist pra-lapangan "siap offline" ──────────────────────────────────
+  // Dihitung tiap render (murah: beberapa baca localStorage) agar selalu segar
+  // setelah Perbarui, mengundi RT, atau sinkron — tanpa akrobat dependensi memo.
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const offlineChecklist = buildOfflineChecklist({
+    surveys,
+    downloadedIds: downloadedSurveys,
+    regionReady,
+    lastDownloadIso: lastDownload,
+    pendingCount,
+    failedCount: (failedItems || []).length,
+  });
+
   // ─── Refresh data when navigating back from SubmitSuccess (Requirement 6.3) ─
   useEffect(() => {
     if (location.state?.refreshQuota) {
@@ -699,6 +713,56 @@ function SurveyList() {
                   </>
                 )}
               </button>
+            </div>
+          )}
+
+          {/* ── Checklist pra-lapangan "siap offline" ── */}
+          {surveys.length > 0 && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setChecklistOpen((o) => !o)}
+                aria-expanded={checklistOpen}
+                className={`w-full min-h-[44px] flex items-center justify-between gap-2 rounded-xl border px-3 py-2 transition-colors ${
+                  offlineChecklist.ready ? 'bg-white border-gray-200 hover:bg-gray-50' : 'bg-red-50 border-red-200 hover:bg-red-100'
+                }`}
+              >
+                <span className={`inline-flex items-center gap-2 text-xs font-semibold ${offlineChecklist.ready ? 'text-gray-700' : 'text-red-700'}`}>
+                  <Icon
+                    name={offlineChecklist.ready ? 'check' : 'alert'}
+                    className={`w-4 h-4 shrink-0 ${offlineChecklist.ready ? 'text-green-600' : 'text-red-600'}`}
+                  />
+                  {offlineChecklist.ready
+                    ? (offlineChecklist.warnCount > 0
+                        ? `Checklist siap offline: lengkap, ${offlineChecklist.warnCount} catatan`
+                        : 'Checklist siap offline: lengkap')
+                    : `Checklist siap offline: ${offlineChecklist.failCount} hal harus dibereskan`}
+                </span>
+                <svg
+                  className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${checklistOpen ? 'rotate-180' : ''}`}
+                  fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              {checklistOpen && (
+                <ul className="mt-1.5 rounded-xl border border-gray-200 bg-white divide-y divide-gray-100">
+                  {offlineChecklist.items.map((it) => (
+                    <li key={it.key} className="flex items-start gap-2.5 px-3 py-2.5">
+                      <Icon
+                        name={it.status === 'ok' ? 'check' : it.status === 'warn' ? 'alert' : 'close'}
+                        className={`w-4 h-4 mt-0.5 shrink-0 ${
+                          it.status === 'ok' ? 'text-green-600' : it.status === 'warn' ? 'text-amber-600' : 'text-red-600'
+                        }`}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-800">{it.label}</p>
+                        <p className="text-2xs text-gray-600">{it.detail}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
