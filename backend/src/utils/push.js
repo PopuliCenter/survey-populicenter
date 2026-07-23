@@ -71,7 +71,12 @@ async function sendPushToUser(userId, { title, body, data = {} }) {
       raw: true,
     });
     const tokens = rows.map((r) => r.token).filter(Boolean);
-    if (tokens.length === 0) return { sent: 0, pruned: 0 };
+    if (tokens.length === 0) {
+      // Jejak diagnosa: TPD ini belum/tidak lagi punya token (izin ditolak,
+      // token dibersihkan, atau perangkat pindah akun).
+      console.log(`[Push] user ${userId}: 0 token terdaftar — tidak ada yang dikirim.`);
+      return { sent: 0, pruned: 0 };
+    }
 
     const resp = await messaging.sendEachForMulticast({
       tokens,
@@ -101,6 +106,13 @@ async function sendPushToUser(userId, { title, body, data = {} }) {
     if (deadTokens.length > 0) {
       await FcmToken.destroy({ where: { token: deadTokens } }).catch(() => {});
     }
+
+    // Jejak per-kiriman — tanpa ini "push tidak sampai" mustahil didiagnosa
+    // dari server (insiden 2026-07-23: sampai sekali lalu 'hilang' tanpa jejak).
+    const gagal = resp.failureCount - deadTokens.length;
+    console.log(`[Push] user ${userId}: terkirim ${resp.successCount}/${tokens.length}`
+      + `${deadTokens.length ? `, ${deadTokens.length} token hangus dibersihkan` : ''}`
+      + `${gagal > 0 ? `, ${gagal} gagal (${resp.responses.filter((r) => r.error).map((r) => r.error.code).join(', ')})` : ''}`);
 
     return { sent: resp.successCount, pruned: deadTokens.length };
   } catch (err) {
