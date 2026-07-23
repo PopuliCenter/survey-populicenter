@@ -493,6 +493,24 @@ function ResponseDetail() {
               </div>
             )}
 
+            {/* QC: GPS wajib tapi koordinat tidak terekam (eksemsi web-offline) */}
+            {response.gps_missing === true && (
+              <div
+                className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+                role="alert"
+              >
+                <svg className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                </svg>
+                <span>
+                  <strong>Perlu verifikasi:</strong> survei ini mewajibkan GPS, tapi koordinat tidak
+                  terekam (status: {response.start_geo_status || response.geo_status || 'tidak diketahui'}) —
+                  biasanya pengisian lewat web saat offline/dalam ruangan. Pastikan lokasi wawancara wajar
+                  lewat bukti lain (foto, audio, wilayah jawaban).
+                </span>
+              </div>
+            )}
+
             {/* QC: durasi pengisian mencurigakan (di bawah ambang survei) */}
             {response.short_duration === true && (
               <div

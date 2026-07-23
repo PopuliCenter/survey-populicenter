@@ -979,8 +979,11 @@ describe('Response Module - Field Tools Validation on Submit', () => {
     expect(res.body.error).toBe('Foto wajib diisi');
   });
 
-  // Requirement 5.4: GPS required → reject without latitude/longitude
-  test('gps_mode required tanpa latitude/longitude → 422 "Lokasi GPS wajib diisi"', async () => {
+  // Requirement 5.4 (direvisi 2026-07-23): GPS wajib —
+  //   koordinat awal ATAU saat-submit dihitung sebagai "GPS ada";
+  //   tanpa koordinat sama sekali: ditolak KECUALI status kegagalan terekam
+  //   (eksemsi web-offline → nanti ditandai kuning gps_missing utk direview).
+  test('gps_mode required: koordinat saat-submit dihitung → 201 walau start_latitude absen', async () => {
     const token = createSurveyorToken();
     const { sessionToken } = setupFieldToolsSubmit({
       signature_mode: 'disabled',
@@ -998,8 +1001,50 @@ describe('Response Module - Field Tools Validation on Submit', () => {
         geo: { status: 'available', lat: -6.2, lng: 106.8 },
       });
 
+    expect(res.status).toBe(201);
+  });
+
+  test('gps_mode required tanpa koordinat & tanpa status kegagalan → 422 "Lokasi GPS wajib diisi"', async () => {
+    const token = createSurveyorToken();
+    const { sessionToken } = setupFieldToolsSubmit({
+      signature_mode: 'disabled',
+      audio_mode: 'disabled',
+      photo_mode: 'disabled',
+      gps_mode: 'required',
+    });
+
+    const res = await request(app)
+      .post('/responses/submit')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        session_token: sessionToken,
+        answers: [],
+        geo: { status: 'available', lat: null, lng: null },
+      });
+
     expect(res.status).toBe(422);
     expect(res.body.error).toBe('Lokasi GPS wajib diisi');
+  });
+
+  test('gps_mode required tanpa koordinat TAPI status kegagalan terekam (timeout) → 201 (eksemsi web-offline)', async () => {
+    const token = createSurveyorToken();
+    const { sessionToken } = setupFieldToolsSubmit({
+      signature_mode: 'disabled',
+      audio_mode: 'disabled',
+      photo_mode: 'disabled',
+      gps_mode: 'required',
+    });
+
+    const res = await request(app)
+      .post('/responses/submit')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        session_token: sessionToken,
+        answers: [],
+        geo: { status: 'timeout', lat: null, lng: null },
+      });
+
+    expect(res.status).toBe(201);
   });
 
   // Requirement 5.5: Optional field tools → accept without data

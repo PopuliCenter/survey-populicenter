@@ -197,6 +197,30 @@ describe('fieldToolsValidator', () => {
       expect(frac.error).toContain('min_duration_sec');
     });
 
+    it('GPS wajib: tanpa koordinat DITERIMA hanya bila status kegagalan terekam (eksemsi web-offline)', () => {
+      const { validateFieldToolsSubmission } = require('../../src/utils/fieldToolsValidator');
+      const settings = { ...baseModes, gps_mode: 'required', signature_mode: 'disabled', audio_mode: 'disabled', photo_mode: 'disabled' };
+      const base = { signature_path: null, audio_path: null, photo_paths: [] };
+
+      // Koordinat ada → valid (perilaku lama, tak berubah).
+      expect(validateFieldToolsSubmission({ ...base, latitude: -6.2, longitude: 106.8 }, settings))
+        .toEqual({ valid: true });
+
+      // Tanpa koordinat + status kegagalan TEREKAM → diterima (nanti ditandai
+      // kuning gps_missing di Data Responden untuk direview).
+      for (const status of ['timeout', 'lokasi_tidak_tersedia', 'tidak_didukung']) {
+        expect(validateFieldToolsSubmission({ ...base, latitude: null, longitude: null, geo_status: status }, settings))
+          .toEqual({ valid: true });
+      }
+
+      // Tanpa koordinat TANPA status kegagalan (absen / mengaku 'available') → tetap ditolak.
+      for (const status of [undefined, null, 'available']) {
+        const r = validateFieldToolsSubmission({ ...base, latitude: null, longitude: null, geo_status: status }, settings);
+        expect(r.valid).toBe(false);
+        expect(r.error).toContain('GPS');
+      }
+    });
+
     it('menerima tampilan huruf (form_font_scale/family); menolak nilai lain', () => {
       for (const scale of ['normal', 'large', 'xlarge']) {
         expect(validateFieldToolsSettings({ ...baseModes, form_font_scale: scale })).toEqual({ valid: true });

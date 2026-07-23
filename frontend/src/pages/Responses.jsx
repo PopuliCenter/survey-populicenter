@@ -341,7 +341,7 @@ function Responses() {
   function applyChip(chip) {
     if (!appliedFilters) return; // chip hanya aktif setelah filter dijalankan
     const review = chip === 'unreviewed' || chip === 'verified' || chip === 'flagged' ? chip : '';
-    const quality = chip === 'short_duration' ? 'short_duration' : '';
+    const quality = chip === 'short_duration' || chip === 'gps_missing' ? chip : '';
     const excluded = chip === 'excluded' ? 'true' : '';
     setReviewStatusFilter(review);
     setQualityFilter(quality);
@@ -353,8 +353,8 @@ function Responses() {
   // Chip aktif diturunkan dari state filter — tak perlu state terpisah.
   const activeChip = excludedFilter === 'true'
     ? 'excluded'
-    : qualityFilter === 'short_duration'
-      ? 'short_duration'
+    : ['short_duration', 'gps_missing'].includes(qualityFilter)
+      ? qualityFilter
       : ['unreviewed', 'verified', 'flagged'].includes(reviewStatusFilter)
         ? reviewStatusFilter
         : 'all';
@@ -669,6 +669,7 @@ function Responses() {
             {[
               { key: 'all', label: 'Semua', count: summary.total, dot: 'bg-gray-400' },
               { key: 'short_duration', label: 'Durasi singkat', count: summary.short_duration, dot: 'bg-amber-500' },
+              { key: 'gps_missing', label: 'Tanpa GPS', count: summary.gps_missing ?? 0, dot: 'bg-amber-500' },
               { key: 'unreviewed', label: 'Belum direview', count: summary.unreviewed, dot: 'bg-gray-400' },
               { key: 'verified', label: 'Terverifikasi', count: summary.verified, dot: 'bg-green-500' },
               { key: 'excluded', label: 'Dikecualikan', count: summary.excluded ?? 0, dot: 'bg-gray-600' },
@@ -774,7 +775,7 @@ function Responses() {
                           ? 'bg-gray-100 hover:bg-gray-200 text-gray-500'
                           : response.gender_parity_mismatch === true
                             ? 'bg-red-50 hover:bg-red-100'
-                            : response.short_duration === true
+                            : (response.short_duration === true || response.gps_missing === true)
                               ? 'bg-amber-50 hover:bg-amber-100'
                               : 'hover:bg-gray-50'
                       }`}
@@ -803,6 +804,17 @@ function Responses() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               Durasi
+                            </span>
+                          )}
+                          {response.gps_missing === true && (
+                            <span
+                              title="GPS wajib pada survei ini tapi koordinat tidak terekam (pengisian web offline) — periksa kewajaran lokasinya"
+                              className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-2xs font-semibold"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                              </svg>
+                              GPS
                             </span>
                           )}
                           {response.excluded === true && (

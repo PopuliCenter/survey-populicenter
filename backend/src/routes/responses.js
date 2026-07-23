@@ -281,14 +281,17 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
       return res.status(deviceCheck.status).json({ error: deviceCheck.error });
     }
 
-    // Validate field tools submission against survey settings
+    // Validate field tools submission against survey settings.
+    // Koordinat dianggap ADA bila posisi awal ATAU posisi saat-submit terekam;
+    // geo_status kegagalan (dari salah satunya) jadi syarat eksemsi web-offline.
     const fieldToolsResult = validateFieldToolsSubmission(
       {
         signature_path: signature_path || null,
         audio_path: firstAudioPath,
         photo_paths: Array.isArray(photo_paths) ? photo_paths : [],
-        latitude: start_latitude != null ? start_latitude : null,
-        longitude: start_longitude != null ? start_longitude : null,
+        latitude: start_latitude != null ? start_latitude : (geo.lat != null ? geo.lat : null),
+        longitude: start_longitude != null ? start_longitude : (geo.lng != null ? geo.lng : null),
+        geo_status: start_geo_status || geo.status || null,
       },
       survey.field_tools_settings
     );
@@ -846,6 +849,16 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
       ];
     }
 
+    // Chip QC "Tanpa GPS": survei mewajibkan GPS tapi respons tak membawa
+    // koordinat sama sekali (awal maupun saat-submit) — hasil eksemsi
+    // web-offline yang perlu direview supervisor.
+    if (role !== 'surveyor' && req.query.quality === 'gps_missing') {
+      whereClause[Op.and] = [
+        ...(whereClause[Op.and] ? [].concat(whereClause[Op.and]) : []),
+        Sequelize.literal(`"Response"."id" IN (SELECT r2.id FROM responses r2 JOIN surveys s2 ON s2.id = r2.survey_id WHERE (s2.field_tools_settings->>'gps_mode') = 'required' AND r2.latitude IS NULL AND r2.start_latitude IS NULL)`),
+      ];
+    }
+
     const isSurveyor = role === 'surveyor';
 
     // ── Pagination (server-side) ──────────────────────────────────────────────
@@ -863,6 +876,9 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
       'end_time',
       'duration_seconds',
       'geo_status',
+      // Untuk penanda QC "Tanpa GPS" (koordinat awal & saat-submit dua-duanya kosong).
+      'latitude',
+      'start_latitude',
       'created_at',
     ];
 
@@ -987,6 +1003,12 @@ router.get('/', authMiddleware, requireRole(['admin', 'supervisor', 'viewer', 's
       // QC: durasi pengisian mencurigakan (di bawah ambang survei).
       item.short_duration = isShortDuration(r.duration_seconds, r.survey && r.survey.field_tools_settings);
 
+      // QC: GPS wajib tapi tak ada koordinat sama sekali (eksemsi web-offline) —
+      // penanda kuning untuk direview supervisor.
+      item.gps_missing = !!(r.survey && r.survey.field_tools_settings
+        && r.survey.field_tools_settings.gps_mode === 'required'
+        && r.latitude == null && r.start_latitude == null);
+
       if (!isSurveyor) {
         item.review_status = r.review_status;
         item.review_note = r.review_note;
@@ -1033,12 +1055,13 @@ router.get('/quality-summary', authMiddleware, requireRole(['admin', 'supervisor
          COUNT(*) FILTER (WHERE r.review_status = 'flagged')::int AS flagged,
          COUNT(*) FILTER (WHERE r.latitude IS NOT NULL)::int AS gps_with,
          COUNT(*) FILTER (WHERE r.duration_seconds IS NOT NULL AND ${thr} > 0 AND r.duration_seconds < ${thr})::int AS short_duration,
+         COUNT(*) FILTER (WHERE (s.field_tools_settings->>'gps_mode') = 'required' AND r.latitude IS NULL AND r.start_latitude IS NULL)::int AS gps_missing,
          COUNT(*) FILTER (WHERE r.excluded)::int AS excluded
        FROM responses r LEFT JOIN surveys s ON s.id = r.survey_id
        WHERE ${whereSql}`,
       { replacements, type: sequelize.QueryTypes.SELECT }
     );
-    res.json(rows[0] || { total: 0, unreviewed: 0, verified: 0, flagged: 0, gps_with: 0, short_duration: 0, excluded: 0 });
+    res.json(rows[0] || { total: 0, unreviewed: 0, verified: 0, flagged: 0, gps_with: 0, short_duration: 0, gps_missing: 0, excluded: 0 });
   } catch (error) {
     next(error);
   }
@@ -1165,6 +1188,10 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
       created_at: response.created_at,
       // QC: durasi pengisian mencurigakan (di bawah ambang survei).
       short_duration: isShortDuration(response.duration_seconds, response.survey && response.survey.field_tools_settings),
+      // QC: GPS wajib tapi tanpa koordinat (eksemsi web-offline) — perlu review.
+      gps_missing: !!(response.survey && response.survey.field_tools_settings
+        && response.survey.field_tools_settings.gps_mode === 'required'
+        && response.latitude == null && response.start_latitude == null),
       answers: (response.answers || []).map((a) => ({
         id: a.id,
         question_id: a.question_id,

@@ -157,10 +157,19 @@ function validateFieldToolsSubmission(submissionData, settings) {
     }
   }
 
-  // GPS validation
+  // GPS validation.
+  // Celah web (keputusan user 2026-07-23): geolokasi browser sering mustahil
+  // dapat fix saat offline/dalam ruangan — data sinkron TANPA koordinat tidak
+  // lagi ditolak ASALKAN status kegagalan GPS-nya TEREKAM (timeout / izin
+  // ditolak / tak didukung). Sebagai gantinya baris ditandai kuning "GPS" di
+  // Data Responden untuk direview supervisor (lihat gps_missing di routes).
+  // Tanpa status kegagalan terekam (klien lama / payload janggal) → tetap tolak.
   if (settings.gps_mode === 'required') {
     if (submissionData.latitude == null || submissionData.longitude == null) {
-      return { valid: false, error: 'Lokasi GPS wajib diisi' };
+      const GPS_FAILURE_STATUSES = ['timeout', 'lokasi_tidak_tersedia', 'tidak_didukung'];
+      if (!GPS_FAILURE_STATUSES.includes(submissionData.geo_status)) {
+        return { valid: false, error: 'Lokasi GPS wajib diisi' };
+      }
     }
   }
 
