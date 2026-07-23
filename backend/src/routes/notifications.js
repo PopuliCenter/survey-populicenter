@@ -14,7 +14,7 @@
 
 const express = require('express');
 const { Op } = require('sequelize');
-const { TpdNotification, User, FcmToken } = require('../models');
+const { TpdNotification, User, FcmToken, Survey, sequelize } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { sendPushToUser } = require('../utils/push');
 
@@ -98,6 +98,71 @@ router.post('/fcm-token', authMiddleware, requireRole('surveyor'), async (req, r
     return res.json({ registered: true });
   } catch {
     return res.status(500).json({ error: 'Gagal mendaftarkan token.' });
+  }
+});
+
+// ── GET /notifications/surveyor/:surveyorId — riwayat peringatan seorang TPD ──
+// Untuk admin/SPV (asisten mewarisi): bahan pembinaan — apakah TPD ini
+// mengulang kesalahan yang sama, sudah berapa kali ditegur, dan apakah
+// tegurannya SUDAH DIBACA (read_at). Baris tpd_notifications sengaja tidak
+// pernah dihapus otomatis — inilah riwayatnya.
+router.get('/surveyor/:surveyorId', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res) => {
+  try {
+    const { surveyorId } = req.params;
+    const surveyor = await User.findOne({
+      where: { id: surveyorId, role: 'surveyor' },
+      attributes: ['id', 'name'],
+    });
+    if (!surveyor) {
+      return res.status(404).json({ error: 'Akun TPD tidak ditemukan' });
+    }
+
+    const [rows, countRows] = await Promise.all([
+      TpdNotification.findAll({
+        where: { surveyor_id: surveyorId },
+        order: [['created_at', 'DESC']],
+        limit: 200,
+        attributes: ['id', 'survey_id', 'response_id', 'type', 'title', 'body', 'read_at', 'created_at'],
+        include: [
+          { model: User, as: 'sender', attributes: ['id', 'name'] },
+          { model: Survey, as: 'survey', attributes: ['id', 'title'] },
+        ],
+      }),
+      // Rekap AKURAT seluruh riwayat (bukan hanya 200 terbaru).
+      TpdNotification.findAll({
+        where: { surveyor_id: surveyorId },
+        attributes: [
+          'type',
+          [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
+          [sequelize.fn('COUNT', sequelize.literal('CASE WHEN read_at IS NULL THEN 1 END')), 'unread'],
+        ],
+        group: ['type'],
+        raw: true,
+      }),
+    ]);
+
+    const counts = { manual: 0, review: 0, quality: 0, unread: 0 };
+    for (const c of countRows) {
+      counts[c.type] = parseInt(c.count, 10) || 0;
+      counts.unread += parseInt(c.unread, 10) || 0;
+    }
+
+    return res.json({
+      surveyor: { id: surveyor.id, name: surveyor.name },
+      counts,
+      notifications: rows.map((n) => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        read_at: n.read_at,
+        created_at: n.created_at,
+        survey_title: n.survey ? n.survey.title : null,
+        sender_name: n.sender ? n.sender.name : null,
+      })),
+    });
+  } catch {
+    return res.status(500).json({ error: 'Gagal memuat riwayat pemberitahuan.' });
   }
 });
 

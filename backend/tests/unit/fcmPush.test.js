@@ -23,9 +23,14 @@ jest.mock('../../src/models', () => ({
     create: jest.fn(),
     destroy: jest.fn(),
   },
-  User: { findAll: jest.fn() },
+  User: { findAll: jest.fn(), findOne: jest.fn() },
+  Survey: {},
   Sequelize: { Op: { is: Symbol('is') } },
-  sequelize: {},
+  sequelize: {
+    fn: jest.fn((f, c) => ({ fn: f, c })),
+    col: jest.fn((c) => c),
+    literal: jest.fn((s) => ({ literal: s })),
+  },
 }));
 
 jest.mock('../../src/config/redis', () => ({
@@ -118,6 +123,63 @@ describe('POST /notifications/fcm-token', () => {
         .send(bad);
       expect(res.status).toBe(422);
     }
+  });
+});
+
+// ─── GET /notifications/surveyor/:id — riwayat peringatan per TPD ────────────
+
+describe('GET /notifications/surveyor/:id', () => {
+  test('TPD & viewer ditolak 403 (khusus admin/SPV)', async () => {
+    for (const role of ['surveyor', 'viewer']) {
+      const res = await request(app)
+        .get('/notifications/surveyor/tpd-1')
+        .set('Authorization', `Bearer ${tokenFor(role)}`);
+      expect(res.status).toBe(403);
+    }
+  });
+
+  test('akun TPD tidak ada → 404', async () => {
+    User.findOne.mockResolvedValue(null);
+    const res = await request(app)
+      .get('/notifications/surveyor/bukan-tpd')
+      .set('Authorization', `Bearer ${tokenFor('admin')}`);
+    expect(res.status).toBe(404);
+  });
+
+  test('res.body: rekap per jenis + unread + daftar dengan pengirim & judul survei', async () => {
+    User.findOne.mockResolvedValue({ id: 'tpd-1', name: 'TPD Satu' });
+    TpdNotification.findAll
+      .mockResolvedValueOnce([{
+        id: 'n1',
+        type: 'quality',
+        title: 'Wawancara singkat',
+        body: 'Durasi 12 detik.',
+        read_at: null,
+        created_at: '2026-07-23T10:00:00Z',
+        sender: null,
+        survey: { id: 's1', title: 'Survei Sampel' },
+      }])
+      .mockResolvedValueOnce([
+        { type: 'quality', count: '3', unread: '2' },
+        { type: 'manual', count: '1', unread: '0' },
+      ]);
+
+    const res = await request(app)
+      .get('/notifications/surveyor/tpd-1')
+      .set('Authorization', `Bearer ${tokenFor('supervisor')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.surveyor).toEqual({ id: 'tpd-1', name: 'TPD Satu' });
+    // Rekap dari SELURUH riwayat (query group), bukan dari 200 baris terbaru.
+    expect(res.body.counts).toEqual({ manual: 1, review: 0, quality: 3, unread: 2 });
+    expect(res.body.notifications).toHaveLength(1);
+    expect(res.body.notifications[0]).toMatchObject({
+      type: 'quality',
+      title: 'Wawancara singkat',
+      survey_title: 'Survei Sampel',
+      sender_name: null,
+      read_at: null,
+    });
   });
 });
 

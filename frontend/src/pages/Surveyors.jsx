@@ -614,6 +614,20 @@ function Surveyors() {
   const [msgTitle, setMsgTitle] = useState('');
   const [msgBody, setMsgBody] = useState('');
   const [msgBusy, setMsgBusy] = useState(false);
+  // Riwayat peringatan/pesan seorang TPD — bahan pembinaan: mengulang
+  // kesalahan yang sama atau tidak, sudah ditegur berapa kali, sudah dibaca?
+  const [historyModal, setHistoryModal] = useState(null); // { tpd, data?, error? }
+  async function openHistory(tpd) {
+    setHistoryModal({ tpd });
+    try {
+      const res = await api.get(`/notifications/surveyor/${tpd.id}`);
+      setHistoryModal((cur) => (cur && cur.tpd.id === tpd.id ? { tpd, data: res.data } : cur));
+    } catch (err) {
+      setHistoryModal((cur) => (cur && cur.tpd.id === tpd.id
+        ? { tpd, error: err.response?.data?.error || 'Gagal memuat riwayat.' }
+        : cur));
+    }
+  }
   const [assignQuota, setAssignQuota] = useState('');
   // Bagi nomor kuesioner otomatis saat penugasan massal: tiap TPD mendapat blok
   // berurutan sebesar kuota (TPD1: 001–010, TPD2: 011–020, …).
@@ -1415,6 +1429,14 @@ function Surveyors() {
                                 aria-expanded={isQuotaExpanded}
                               />
 
+                              {/* Riwayat peringatan/pesan — bahan pembinaan */}
+                              <IconButton
+                                icon="history"
+                                variant="accent"
+                                label={`Riwayat peringatan ${tpd.name}`}
+                                onClick={() => openHistory(tpd)}
+                              />
+
                               {/* Edit */}
                               <IconButton
                                 icon="edit"
@@ -1715,6 +1737,95 @@ function Surveyors() {
                 className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-60">
                 {msgBusy ? 'Mengirim…' : 'Kirim'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Riwayat peringatan/pesan seorang TPD — bahan pembinaan */}
+      {historyModal && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" aria-labelledby="tpd-history-title">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between gap-3 p-5 pb-3 border-b border-gray-100">
+              <div>
+                <h3 id="tpd-history-title" className="text-lg font-bold text-gray-900">
+                  Riwayat Peringatan — {historyModal.tpd.name}
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Semua pesan & teguran yang pernah dikirim ke TPD ini, beserta status dibacanya.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHistoryModal(null)}
+                aria-label="Tutup"
+                className="shrink-0 p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto">
+              {historyModal.error ? (
+                <p className="text-sm text-red-600" role="alert">{historyModal.error}</p>
+              ) : !historyModal.data ? (
+                <p className="text-sm text-gray-500">Memuat riwayat…</p>
+              ) : (
+                <>
+                  {/* Rekap — sekali lihat: pola kesalahan & beban teguran */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {[
+                      { label: 'Pesan manual', value: historyModal.data.counts.manual, cls: 'bg-primary-50 text-primary-700' },
+                      { label: 'Ditandai bermasalah', value: historyModal.data.counts.review, cls: 'bg-red-50 text-red-700' },
+                      { label: 'Durasi singkat', value: historyModal.data.counts.quality, cls: 'bg-amber-50 text-amber-700' },
+                      { label: 'Belum dibaca', value: historyModal.data.counts.unread, cls: 'bg-gray-100 text-gray-700' },
+                    ].map((c) => (
+                      <span key={c.label} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${c.cls}`}>
+                        {c.label}
+                        <span className="font-bold tabular-nums">{c.value}</span>
+                      </span>
+                    ))}
+                  </div>
+
+                  {historyModal.data.notifications.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic">
+                      Belum ada pesan/teguran untuk TPD ini — riwayatnya bersih.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-gray-100 border border-gray-100 rounded-xl">
+                      {historyModal.data.notifications.map((n) => (
+                        <li key={n.id} className="px-4 py-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-2xs font-semibold ${
+                              n.type === 'manual' ? 'bg-primary-50 text-primary-700'
+                                : n.type === 'review' ? 'bg-red-50 text-red-700'
+                                  : 'bg-amber-50 text-amber-700'
+                            }`}>
+                              {n.type === 'manual' ? 'Pesan' : n.type === 'review' ? 'Ditandai SPV' : 'Durasi singkat'}
+                            </span>
+                            {!n.read_at && (
+                              <span className="inline-flex rounded-full bg-gray-200 text-gray-600 px-2 py-0.5 text-2xs font-semibold" title="TPD belum membuka pemberitahuan ini">
+                                Belum dibaca
+                              </span>
+                            )}
+                            <span className="text-2xs text-gray-500 ml-auto">
+                              {new Date(n.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold text-gray-800 mt-1">{n.title}</p>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{n.body}</p>
+                          {(n.sender_name || n.survey_title) && (
+                            <p className="text-2xs text-gray-500 mt-1">
+                              {n.sender_name ? `Oleh ${n.sender_name}` : 'Otomatis sistem'}
+                              {n.survey_title ? ` · ${n.survey_title}` : ''}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

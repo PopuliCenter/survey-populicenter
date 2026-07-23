@@ -67,6 +67,7 @@ FcmToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(TpdNotification, { foreignKey: 'surveyor_id', as: 'tpdNotifications', onDelete: 'CASCADE' });
 TpdNotification.belongsTo(User, { foreignKey: 'surveyor_id', as: 'surveyor' });
 TpdNotification.belongsTo(User, { foreignKey: 'created_by', as: 'sender' });
+TpdNotification.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
 
 // Survey + User → Response
 Survey.hasMany(Response, { foreignKey: 'survey_id', as: 'responses' });

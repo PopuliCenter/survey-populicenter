@@ -5,7 +5,7 @@ import QuotaProgress from '../../components/QuotaProgress';
 import useSyncManager from '../hooks/useSyncManager';
 import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey, getDraftMedia, deleteDraftMedia } from '../../utils/storage';
 import { buildOfflineChecklist } from '../../utils/offlineReadiness';
-import { initPushNotifications } from '../../utils/pushNotifications';
+import { initPushNotifications, clearDeliveredNotifications } from '../../utils/pushNotifications';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import Icon from '../../components/Icon';
 import ConfirmSheet from '../../components/ConfirmSheet';
@@ -160,6 +160,7 @@ function SurveyList() {
   async function markAllNotifRead() {
     setNotifUnread(0);
     setNotifItems((prev) => prev.map((n) => ({ ...n, read_at: n.read_at || new Date().toISOString() })));
+    clearDeliveredNotifications(); // tray Android ikut bersih (riwayat server utuh)
     try { await api.patch('/notifications/read-all'); } catch { /* offline — server menyusul saat online */ }
   }
   const [downloading, setDownloading] = useState(false);

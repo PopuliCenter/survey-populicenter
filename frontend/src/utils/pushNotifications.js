@@ -51,6 +51,23 @@ async function mirrorToTray(title, body) {
  *   onNotificationReceived: dipanggil saat push tiba ketika aplikasi terbuka
  *   (dipakai SurveyList untuk menyegarkan lonceng tanpa menunggu Perbarui).
  */
+/**
+ * Bersihkan notifikasi aplikasi ini yang masih menumpuk di tray Android.
+ * Dipanggil saat TPD menandai semua pemberitahuan dibaca — tray ikut bersih
+ * (pola aplikasi chat). Riwayat di server TIDAK tersentuh. No-op di web.
+ */
+export async function clearDeliveredNotifications() {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    const { PushNotifications } = await import('@capacitor/push-notifications');
+    await PushNotifications.removeAllDeliveredNotifications();
+  } catch { /* plugin absen — abaikan */ }
+  try {
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    await LocalNotifications.removeAllDeliveredNotifications();
+  } catch { /* plugin absen — abaikan */ }
+}
+
 export async function initPushNotifications(opts = {}) {
   if (!Capacitor.isNativePlatform() || initialized) return;
   initialized = true;
