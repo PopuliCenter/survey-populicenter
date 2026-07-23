@@ -292,7 +292,7 @@ router.get('/:id', authMiddleware, requireRole(['admin', 'supervisor', 'viewer',
       where: { survey_id: id },
       attributes: [
         'id', 'text', 'type', 'order_index', 'is_required',
-        'randomize_options', 'allow_other', 'options', 'skip_logic', 'auto_fill', 'created_at',
+        'randomize_options', 'randomize_order', 'allow_other', 'options', 'skip_logic', 'auto_fill', 'created_at',
       ],
       order: [['order_index', 'ASC']],
     });

@@ -389,6 +389,33 @@ describe('Survey Management Module - GET /surveys/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ id: 'survey-uuid-001', status: 'active' });
   });
+
+  test('questions di res.body memuat randomize_order — kontrak builder (rekap blok) & TPD (pengocokan)', async () => {
+    // Insiden 2026-07-23: whitelist attributes GET /surveys/:id tak memuat
+    // randomize_order → rekap blok selalu "kosong", badge tak tampil, dan APK
+    // tidak pernah mengocok. Mock di sini MENIRU penyaringan attributes agar
+    // res.body benar-benar gagal bila field dihapus dari whitelist lagi.
+    const token = createAdminToken();
+    Survey.findOne.mockResolvedValue(mockSurvey({ id: 'survey-uuid-001', status: 'active' }));
+    const fixtureRow = {
+      id: 'q-1', text: 'P1', type: 'single_choice', order_index: 0, is_required: true,
+      randomize_options: false, randomize_order: true, allow_other: false,
+      options: [], skip_logic: null, auto_fill: null, created_at: new Date().toISOString(),
+    };
+    Question.findAll.mockImplementation(async ({ attributes }) => [
+      Object.fromEntries((attributes || Object.keys(fixtureRow))
+        .filter((a) => a in fixtureRow)
+        .map((a) => [a, fixtureRow[a]])),
+    ]);
+
+    const res = await request(app)
+      .get('/surveys/survey-uuid-001')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.questions).toHaveLength(1);
+    expect(res.body.questions[0].randomize_order).toBe(true);
+  });
 });
 
 // ─── PUT /surveys/:id ─────────────────────────────────────────────────────────
