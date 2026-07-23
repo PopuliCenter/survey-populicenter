@@ -5,6 +5,7 @@ import QuotaProgress from '../../components/QuotaProgress';
 import useSyncManager from '../hooks/useSyncManager';
 import { cacheSurveyList, getCachedSurveyList, cacheSurvey, getCachedSurvey, getDraftMedia, deleteDraftMedia } from '../../utils/storage';
 import { buildOfflineChecklist } from '../../utils/offlineReadiness';
+import { initPushNotifications } from '../../utils/pushNotifications';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import Icon from '../../components/Icon';
 import ConfirmSheet from '../../components/ConfirmSheet';
@@ -149,6 +150,12 @@ function SurveyList() {
     } catch { /* offline — pakai cache */ }
   }, []);
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+
+  // Push FCM (APK): daftar token perangkat + segarkan lonceng saat push tiba.
+  // No-op di web; TPD yang menolak izin tetap dapat lonceng dalam-aplikasi.
+  useEffect(() => {
+    initPushNotifications({ onNotificationReceived: fetchNotifications });
+  }, [fetchNotifications]);
 
   async function markAllNotifRead() {
     setNotifUnread(0);

@@ -12,3 +12,7 @@ require('dotenv').config();
 // Jaring pengaman untuk lingkungan CI tanpa .env — nilai KHUSUS TES.
 if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'your-secret-key-change-in-production';
 if (!process.env.SESSION_SECRET) process.env.SESSION_SECRET = process.env.JWT_SECRET;
+
+// Push FCM WAJIB nonaktif saat tes (deterministik, tanpa jaringan/kunci nyata)
+// — meski .env lokal kelak menyetelnya. utils/push.js jadi no-op total.
+delete process.env.FIREBASE_SERVICE_ACCOUNT_PATH;

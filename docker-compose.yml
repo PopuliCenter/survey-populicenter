@@ -158,8 +158,13 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-survey-media}
       # Layanan Random Sampling (Python) — hanya via network internal Docker.
       SAMPLING_SERVICE_URL: ${SAMPLING_SERVICE_URL:-http://sampling:8000}
+      # Push FCM ke HP TPD: kunci service account Firebase di ./secrets pada
+      # host (TIDAK di repo/registry image). File tidak ada → push nonaktif
+      # dengan aman, fitur lain tak terpengaruh.
+      FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-/app/secrets/firebase-admin.json}
     volumes:
       - uploads:/app/uploads
+      - ./secrets:/app/secrets:ro
     # TIDAK memetakan port ke host — backend hanya diakses via nginx (internal
     # network). Mengekspos 3000 ke internet mem-bypass Cloudflare (WAF/rate-limit/
     # TLS) & memungkinkan spoof CF-Connecting-IP.

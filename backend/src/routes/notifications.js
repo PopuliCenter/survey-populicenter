@@ -14,8 +14,9 @@
 
 const express = require('express');
 const { Op } = require('sequelize');
-const { TpdNotification, User } = require('../models');
+const { TpdNotification, User, FcmToken } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
+const { sendPushToUser } = require('../utils/push');
 
 const router = express.Router();
 
@@ -63,9 +64,40 @@ router.post('/', authMiddleware, requireRole(['admin', 'supervisor']), async (re
       created_by: req.user.id,
     })));
 
+    // Push FCM ke HP tiap target — fire-and-forget: lonceng dalam-aplikasi
+    // sudah tersimpan; push hanya membangunkan HP yang aplikasinya tertutup.
+    Promise.allSettled(targets.map((t) => sendPushToUser(t.id, {
+      title: cleanTitle,
+      body: cleanBody,
+      data: { type: 'manual', survey_id: surveyId || '' },
+    }))).catch(() => {});
+
     return res.status(201).json({ sent: rows.length });
   } catch {
     return res.status(500).json({ error: 'Gagal mengirim pemberitahuan.' });
+  }
+});
+
+// ── POST /notifications/fcm-token — registrasi token push perangkat TPD ──────
+// Dipanggil aplikasi tiap kali dapat token dari FCM (login / token dirotasi).
+// Token unik global: bila perangkat pindah akun, kepemilikan token ikut pindah
+// ke akun yang terakhir login (selaras kunci 1-user-1-device).
+router.post('/fcm-token', authMiddleware, requireRole('surveyor'), async (req, res) => {
+  const token = String((req.body || {}).token || '').trim();
+  const platform = String((req.body || {}).platform || 'android').slice(0, 20);
+  if (!token || token.length > 512) {
+    return res.status(422).json({ error: 'Token tidak valid.' });
+  }
+  try {
+    const existing = await FcmToken.findOne({ where: { token } });
+    if (existing) {
+      await existing.update({ user_id: req.user.id, platform });
+    } else {
+      await FcmToken.create({ user_id: req.user.id, token, platform });
+    }
+    return res.json({ registered: true });
+  } catch {
+    return res.status(500).json({ error: 'Gagal mendaftarkan token.' });
   }
 });
 

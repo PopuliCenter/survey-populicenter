@@ -12,6 +12,7 @@ const { validateFieldToolsSubmission } = require('../utils/fieldToolsValidator')
 const { incrementResponseStats, markStatsDirty, recomputeSurveyStats } = require('../utils/statisticsUpdater');
 const { collectMediaPaths, deleteMediaFiles } = require('../utils/mediaFiles');
 const { cacheDelPattern } = require('../utils/cache');
+const { sendPushToUser } = require('../utils/push');
 const { computeHiddenQuestions, buildAnswerMap } = require('../utils/skipLogicEvaluator');
 const { isSafeSqlIdent } = require('../utils/uuid');
 
@@ -659,15 +660,19 @@ router.post('/submit', authMiddleware, requireRole('surveyor'), async (req, res,
     // min_duration_sec survei → TPD ditegur sistem lewat lonceng aplikasinya
     // (fire-and-forget — kegagalan tidak boleh mengganggu submit).
     if (isShortDuration(duration_seconds, survey.field_tools_settings)) {
+      const qualityTitle = `Wawancara No. ${questionnaire_number} tercatat sangat singkat`;
+      const qualityBody = `Durasi pengisian hanya ${duration_seconds} detik — di bawah ambang wajar survei ini. `
+        + 'Respons ini ditandai untuk ditinjau supervisor. Pastikan wawancara dilakukan lengkap sesuai kuesioner.';
       TpdNotification.create({
         surveyor_id,
         survey_id,
         response_id,
         type: 'quality',
-        title: `Wawancara No. ${questionnaire_number} tercatat sangat singkat`,
-        body: `Durasi pengisian hanya ${duration_seconds} detik — di bawah ambang wajar survei ini. `
-          + 'Respons ini ditandai untuk ditinjau supervisor. Pastikan wawancara dilakukan lengkap sesuai kuesioner.',
+        title: qualityTitle,
+        body: qualityBody,
       }).catch((err) => console.error('[Notif] Gagal membuat notifikasi kualitas:', err.message));
+      sendPushToUser(surveyor_id, { title: qualityTitle, body: qualityBody, data: { type: 'quality' } })
+        .catch(() => {});
     }
 
     res.status(201).json({
@@ -1253,17 +1258,21 @@ router.patch('/:id/review', authMiddleware, requireRole(['admin', 'supervisor'])
     // langsung tahu lewat lonceng aplikasinya, lengkap dengan catatan reviewer
     // (fire-and-forget; verified/unreviewed tidak memberi tahu).
     if (review_status === 'flagged') {
+      const reviewTitle = `Respons No. ${response.questionnaire_number} ditandai bermasalah`;
+      const reviewBody = review_note
+        ? `Catatan supervisor: ${review_note}`
+        : 'Supervisor menandai respons ini bermasalah. Hubungi supervisor Anda untuk tindak lanjut.';
       TpdNotification.create({
         surveyor_id: response.surveyor_id,
         survey_id: response.survey_id,
         response_id: response.id,
         type: 'review',
-        title: `Respons No. ${response.questionnaire_number} ditandai bermasalah`,
-        body: review_note
-          ? `Catatan supervisor: ${review_note}`
-          : 'Supervisor menandai respons ini bermasalah. Hubungi supervisor Anda untuk tindak lanjut.',
+        title: reviewTitle,
+        body: reviewBody,
         created_by: req.user.id,
       }).catch((err) => console.error('[Notif] Gagal membuat notifikasi review:', err.message));
+      sendPushToUser(response.surveyor_id, { title: reviewTitle, body: reviewBody, data: { type: 'review' } })
+        .catch(() => {});
     }
 
     // Fetch reviewer name

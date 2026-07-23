@@ -26,6 +26,7 @@ const PublishedResult = require('./PublishedResult')(sequelize);
 const MonitoringReport = require('./MonitoringReport')(sequelize);
 const RtSelection = require('./RtSelection')(sequelize);
 const RtSeedTicket = require('./RtSeedTicket')(sequelize);
+const FcmToken = require('./FcmToken')(sequelize);
 const TpdNotification = require('./TpdNotification')(sequelize);
 
 // ─── Associations ─────────────────────────────────────────────────────────────
@@ -57,6 +58,10 @@ Survey.hasMany(RtSeedTicket, { foreignKey: 'survey_id', as: 'rtSeedTickets', onD
 RtSeedTicket.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
 User.hasMany(RtSeedTicket, { foreignKey: 'surveyor_id', as: 'rtSeedTickets', onDelete: 'CASCADE' });
 RtSeedTicket.belongsTo(User, { foreignKey: 'surveyor_id', as: 'surveyor' });
+
+// User → FcmToken (token push perangkat; hangus saat akun dihapus)
+User.hasMany(FcmToken, { foreignKey: 'user_id', as: 'fcmTokens', onDelete: 'CASCADE' });
+FcmToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 // User (TPD) → TpdNotification (pemberitahuan dashboard → app TPD)
 User.hasMany(TpdNotification, { foreignKey: 'surveyor_id', as: 'tpdNotifications', onDelete: 'CASCADE' });
@@ -122,5 +127,6 @@ module.exports = {
   MonitoringReport,
   RtSelection,
   RtSeedTicket,
+  FcmToken,
   TpdNotification,
 };

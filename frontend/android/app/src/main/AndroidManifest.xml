@@ -54,6 +54,9 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
+    <!-- Notifikasi push FCM — Android 13+ mewajibkan izin runtime -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Catatan: READ/WRITE_EXTERNAL_STORAGE sudah usang sejak Android 13 (API 33)
          dan tidak diperlukan oleh plugin Capacitor Camera/Filesystem.
          Dihapus agar lolos kebijakan Google Play. Jika perlu baca media di
