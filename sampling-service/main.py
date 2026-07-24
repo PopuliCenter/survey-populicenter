@@ -109,7 +109,14 @@ def _parse_config(raw: str) -> dict:
 
 def _config_from(payload: dict) -> "E.SamplingConfig":
     w = payload.get("weights") or {}
+    method = str(payload.get("method", "proportional")).lower()
+    if method not in ("proportional", "sqrt", "pps_systematic"):
+        raise HTTPException(
+            status_code=422,
+            detail="method harus salah satu dari: proportional, sqrt, pps_systematic",
+        )
     return E.SamplingConfig(
+        method=method,
         scope=str(payload.get("scope", "NASIONAL")).upper(),
         scope_filter=list(payload.get("scope_filter") or []),
         unit=str(payload.get("unit", "DESA")).upper(),

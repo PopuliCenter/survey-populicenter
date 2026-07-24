@@ -73,6 +73,26 @@ function DataTable({ rows, max = 200 }) {
 const SCOPES = ['NASIONAL', 'PROVINSI', 'KABUPATEN'];
 const LVL_NAME = { NASIONAL: 'provinsi', PROVINSI: 'kab/kota', KABUPATEN: 'kecamatan' };
 
+// Metode alokasi & seleksi (unit Desa/Kelurahan). Penjelasan singkat tampil di
+// kartu; detail metodologis ada di mesin (sampling_engine.py).
+const METHODS = [
+  {
+    value: 'proportional',
+    label: 'Proporsional + jaminan minimum',
+    desc: 'Perilaku lama. Wilayah kecil ditolong minimum keras — hasil WAJIB dianalisis memakai kolom BOBOT_DESAIN (disertakan otomatis).',
+  },
+  {
+    value: 'sqrt',
+    label: 'Akar-kuadrat (√N) + bobot desain',
+    desc: 'Wilayah kecil terangkat halus tanpa minimum keras — pas bila klien butuh estimasi per provinsi. Analisis tetap memakai BOBOT_DESAIN.',
+  },
+  {
+    value: 'pps_systematic',
+    label: 'PPS Sistematik (rekomendasi survei nasional)',
+    desc: 'Metodologi BPS/SILOGNAS: desa terpilih ∝ ukurannya, urutan geografis menjamin sebaran. SELF-WEIGHTING — tanpa pembobotan pasca. Butuh kolom DPT/PENDUDUK per baris desa di file MFD.',
+  },
+];
+
 function RandomSampling() {
   const [mfdFile, setMfdFile] = useState(null);
   const [refFile, setRefFile] = useState(null);
@@ -85,6 +105,7 @@ function RandomSampling() {
   const [scopeFilter, setScopeFilter] = useState([]);
   const [kabProvince, setKabProvince] = useState(''); // provinsi terpilih untuk mode KABUPATEN
   const [unit, setUnit] = useState('DESA');
+  const [method, setMethod] = useState('proportional');
   const [nTotal, setNTotal] = useState(1200);
   const [clusterSize, setClusterSize] = useState(10);
   const [pps, setPps] = useState(true);
@@ -146,14 +167,17 @@ function RandomSampling() {
     scope,
     scope_filter: scope === 'NASIONAL' ? [] : scopeFilter,
     unit,
+    method: unit === 'DESA' ? method : 'proportional',
     n_total: Number(nTotal),
     cluster_size: unit === 'DESA' ? Number(clusterSize) : 1,
     weights: { PENDUDUK: Number(wPop) || 0, DPT: Number(wDpt) || 0, MFD: Number(wMfd) || 0 },
     stratify_ur: unit === 'DESA' ? !!stratify : false,
-    min_per_unit: Number(minPer),
+    // PPS sistematik tidak memakai jaminan minimum (sebaran dijamin urutan
+    // geografis) — kirim 0 agar sig pratinjau tak basi saat angka ini diubah.
+    min_per_unit: unit === 'DESA' && method === 'pps_systematic' ? 0 : Number(minPer),
     pps: unit === 'KABUPATEN' ? !!pps : false,
     seed: Number(seed),
-  }), [scope, scopeFilter, unit, nTotal, clusterSize, wPop, wDpt, wMfd, stratify, minPer, pps, seed]);
+  }), [scope, scopeFilter, unit, method, nTotal, clusterSize, wPop, wDpt, wMfd, stratify, minPer, pps, seed]);
 
   // Tanda tangan parameter — seed tak memengaruhi alokasi, jadi tak ikut dihitung
   // (ganti seed tidak membuat pratinjau usang).
@@ -363,6 +387,58 @@ function RandomSampling() {
             )}
           </div>
 
+          {/* Metode alokasi & seleksi — hanya untuk unit Desa/Kelurahan */}
+          {unit === 'DESA' && (
+            <div>
+              <span className="text-sm font-medium text-gray-700">Metode alokasi &amp; seleksi</span>
+              <div className="grid sm:grid-cols-3 gap-3 mt-2">
+                {METHODS.map((m) => (
+                  <label
+                    key={m.value}
+                    className={`flex flex-col gap-1 rounded-xl border p-3 cursor-pointer transition-colors ${
+                      method === m.value ? 'border-primary-400 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-gray-800">
+                      <input
+                        type="radio"
+                        name="sampling-method"
+                        value={m.value}
+                        checked={method === m.value}
+                        onChange={() => setMethod(m.value)}
+                        className="accent-primary-600"
+                      />
+                      {m.label}
+                    </span>
+                    <span className="text-xs text-gray-600">{m.desc}</span>
+                  </label>
+                ))}
+              </div>
+              {method === 'pps_systematic' && inspect && (
+                (() => {
+                  const nDpt = Number(inspect.info?.desa_ber_dpt || 0);
+                  const nPen = Number(inspect.info?.desa_ber_penduduk || 0);
+                  const ada = Math.max(nDpt, nPen);
+                  return ada > 0 ? (
+                    <p className="inline-flex items-start gap-1 text-xs text-green-700 mt-2">
+                      <Icon name="check" className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>
+                        MFD membawa ukuran per desa ({ada.toLocaleString('id-ID')} baris ber-{nDpt >= nPen ? 'DPT' : 'Penduduk'}) —
+                        PPS berjalan self-weighting penuh (bobot = 1, tanpa pembobotan pasca).
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-700 mt-2">
+                      MFD ini belum membawa ukuran per desa (kolom DPT/PENDUDUK per baris). PPS akan jatuh ke
+                      sistematik-geografis berpeluang sama + kolom BOBOT_DESAIN sebagai koreksi — untuk
+                      self-weighting penuh, tambahkan kolom DPT per baris desa di file MFD.
+                    </p>
+                  );
+                })()
+              )}
+            </div>
+          )}
+
           {/* Basis alokasi */}
           <div>
             <span className="text-sm font-medium text-gray-700">Basis alokasi proporsional</span>
@@ -390,8 +466,15 @@ function RandomSampling() {
               <label className="inline-flex items-center gap-2 text-gray-700">
                 <input type="checkbox" checked={stratify} disabled={unit === 'KABUPATEN'} onChange={(e) => setStratify(e.target.checked)} className="accent-primary-600" /> Stratifikasi Kota/Desa
               </label>
-              <label className="block"><span className="text-xs text-gray-500">Min. titik per {LVL_NAME[scope]} (jaminan cakupan)</span>
-                <input type="number" min="0" value={minPer} onChange={(e) => setMinPer(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></label>
+              {unit === 'DESA' && method === 'pps_systematic' ? (
+                <p className="text-xs text-gray-500 mt-1 sm:mt-6">
+                  Jaminan minimum tidak dipakai pada PPS Sistematik — sebaran wilayah dijamin oleh urutan
+                  geografis seleksinya.
+                </p>
+              ) : (
+                <label className="block"><span className="text-xs text-gray-500">Min. titik per {LVL_NAME[scope]} (jaminan cakupan)</span>
+                  <input type="number" min="0" value={minPer} onChange={(e) => setMinPer(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></label>
+              )}
               <label className="block"><span className="text-xs text-gray-500">Random seed (reproducible)</span>
                 <input type="number" min="0" value={seed} onChange={(e) => setSeed(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" /></label>
             </div>

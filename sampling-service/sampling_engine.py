@@ -89,6 +89,18 @@ def load_mfd(path_or_buffer) -> tuple[pd.DataFrame, dict]:
         for c in CODE_COLS:
             out[c] = d[c] if c in d.columns else pd.NA
 
+        # Ukuran PER-DESA (opsional) — syarat PPS sistematik self-weighting:
+        # tambahkan kolom DPT / PENDUDUK per BARIS desa di file MFD. Disimpan
+        # dengan akhiran _DESA agar tak bentrok dengan DPT/PENDUDUK per-provinsi
+        # yang ditempel attach_reference().
+        for src, dst in (("DPT", "DPT_DESA"), ("JUMLAH DPT", "DPT_DESA"),
+                         ("PENDUDUK", "PENDUDUK_DESA"), ("JUMLAH PENDUDUK", "PENDUDUK_DESA")):
+            if src in d.columns and dst not in out.columns:
+                out[dst] = pd.to_numeric(d[src], errors="coerce")
+        for dst in ("DPT_DESA", "PENDUDUK_DESA"):
+            if dst not in out.columns:
+                out[dst] = pd.NA
+
         raw_total += len(out)
         # buang baris tak valid: tanpa nama desa/kab atau UR bukan 1/2 (header sisa, total, kosong)
         valid = (
@@ -114,6 +126,10 @@ def load_mfd(path_or_buffer) -> tuple[pd.DataFrame, dict]:
         "n_desa_rural": int((df["UR"] == 2).sum()),
         "baris_dibuang": dropped,
         "baris_mentah": raw_total,
+        # Ketersediaan ukuran per-desa (utk memberi tahu UI apakah PPS
+        # sistematik bisa berjalan self-weighting penuh).
+        "desa_ber_dpt": int(pd.to_numeric(df["DPT_DESA"], errors="coerce").notna().sum()),
+        "desa_ber_penduduk": int(pd.to_numeric(df["PENDUDUK_DESA"], errors="coerce").notna().sum()),
     }
     return df, info
 
@@ -282,6 +298,45 @@ def compute_sizes(df: pd.DataFrame, level_col: str, weights: dict) -> dict:
     return sizes
 
 
+METHOD_LABEL = {
+    "proportional": "Proporsional + jaminan minimum (bobot desain disertakan)",
+    "sqrt": "Akar-kuadrat (√N) + bobot desain",
+    "pps_systematic": "PPS Sistematik ber-urutan geografis",
+}
+
+
+def allocation_sizes(sizes_prop: dict, method: str) -> dict:
+    """Ukuran untuk ALOKASI: apa adanya (proporsional) atau ditransformasi √.
+
+    √N mengangkat wilayah kecil secara halus (pengganti jaminan minimum keras)
+    — distorsinya terdokumentasi dan dikoreksi lewat bobot desain.
+    """
+    if method == "sqrt":
+        return {k: float(np.sqrt(max(v, 0.0))) for k, v in sizes_prop.items()}
+    return dict(sizes_prop)
+
+
+def design_weights(sizes_prop: dict, picked_counts: dict) -> dict:
+    """Bobot desain per unit primer: share populasi ÷ share titik terpilih.
+
+    Dipakai analis sebagai weight (SPSS/R) agar estimasi kembali tak bias
+    walau alokasi menyimpang dari proporsional (jaminan minimum / √N).
+    Share populasi dinormalisasi ulang ke unit yang benar-benar kebagian titik,
+    sehingga rata-rata tertimbang bobot ≈ 1.
+    """
+    total_pts = float(sum(v for v in picked_counts.values() if v > 0))
+    if total_pts <= 0:
+        return {k: 1.0 for k in picked_counts}
+    pop = {k: max(sizes_prop.get(k, 0.0), 0.0) for k, v in picked_counts.items() if v > 0}
+    pop_tot = sum(pop.values()) or 1.0
+    out = {}
+    for k, t in picked_counts.items():
+        if t <= 0:
+            continue
+        out[k] = (pop.get(k, 0.0) / pop_tot) / (t / total_pts)
+    return out
+
+
 # ---------------------------------------------------------------------------
 # 3. SELEKSI acak
 # ---------------------------------------------------------------------------
@@ -321,6 +376,13 @@ class SamplingConfig:
     min_per_unit: int = 1                 # minimal titik/unit per stratum primer (jaminan cakupan)
     pps: bool = False                     # seleksi PPS (peluang ~ ukuran) utk unit KABUPATEN
     seed: int = 2024
+    # Metode alokasi & seleksi (unit DESA):
+    #   proportional   : proporsional + jaminan minimum (perilaku lama) + bobot desain
+    #   sqrt           : alokasi ~ akar-kuadrat ukuran (provinsi kecil terangkat halus) + bobot desain
+    #   pps_systematic : PPS sistematik ber-urutan geografis — self-weighting bila
+    #                    MFD membawa ukuran per desa (kolom DPT/PENDUDUK per baris);
+    #                    jaminan minimum TIDAK dipakai (sebaran dijamin urutan sistematik)
+    method: str = "proportional"
 
 
 @dataclass
@@ -360,6 +422,9 @@ def run_sampling(df: pd.DataFrame, cfg: SamplingConfig) -> SamplingResult:
 
 # ---- unit = DESA/KELURAHAN (titik) -----------------------------------------
 def _run_desa(data, cfg, rng, warns) -> SamplingResult:
+    if getattr(cfg, "method", "proportional") == "pps_systematic":
+        return _run_desa_pps(data, cfg, rng, warns)
+
     level_col = LEVEL_COL[cfg.scope]
     n_clusters = int(np.ceil(cfg.n_total / max(cfg.cluster_size, 1)))
 
@@ -372,7 +437,7 @@ def _run_desa(data, cfg, rng, warns) -> SamplingResult:
         )
 
     sizes = compute_sizes(data, level_col, cfg.weights)
-    alloc_primary = allocate(sizes, n_clusters, cfg.min_per_unit)
+    alloc_primary = allocate(allocation_sizes(sizes, cfg.method), n_clusters, cfg.min_per_unit)
 
     rows = []
     alloc_records = []
@@ -412,9 +477,142 @@ def _run_desa(data, cfg, rng, warns) -> SamplingResult:
     if surplus > 0 and len(sample) > 0:
         sample.loc[len(sample) - 1, "RESPONDEN"] = cfg.cluster_size - surplus
 
+    # Bobot desain per unit primer — mengoreksi deviasi alokasi (jaminan
+    # minimum / √N) terhadap proporsional. Rata-rata tertimbang ≈ 1;
+    # alokasi murni-proporsional menghasilkan bobot ≈ 1 semua.
+    picked_counts = (sample.groupby(level_col)["ID"].count().to_dict()
+                     if len(sample) else {})
+    w_unit = design_weights(sizes, picked_counts)
+    if len(sample):
+        sample["BOBOT_DESAIN"] = sample[level_col].map(w_unit).fillna(1.0).round(4)
+
     alokasi = pd.DataFrame(alloc_records)
+    if len(alokasi):
+        alokasi["Bobot_Desain"] = alokasi[level_col].map(w_unit).fillna(1.0).round(4)
     coverage = _coverage_report(data, sample, level_col, units)
     ringkasan = _ringkasan(cfg, sample, n_clusters, level_col, coverage)
+    return SamplingResult(sample, alokasi, ringkasan, coverage, warns)
+
+
+# ---- unit = DESA, metode PPS SISTEMATIK ------------------------------------
+def _pps_size_column(data: pd.DataFrame, weights: dict):
+    """Kolom ukuran per-desa untuk PPS, mengikuti preferensi basis alokasi
+    (DPT vs Penduduk). None bila MFD tidak membawa ukuran per desa."""
+    pref = (["DPT_DESA", "PENDUDUK_DESA"]
+            if weights.get("DPT", 0) >= weights.get("PENDUDUK", 0)
+            else ["PENDUDUK_DESA", "DPT_DESA"])
+    for c in pref:
+        if c in data.columns and pd.to_numeric(data[c], errors="coerce").fillna(0).sum() > 0:
+            return c
+    return None
+
+
+def _run_desa_pps(data, cfg, rng, warns) -> SamplingResult:
+    """PPS sistematik ber-urutan geografis (metodologi BPS/SILOGNAS).
+
+    Desa diurutkan geografis (kode BPS bila ada) → ukuran dikumulatifkan →
+    dipilih tiap interval tetap dari awalan acak. Peluang desa ∝ ukurannya;
+    digabung jatah tetap responden per titik → SELF-WEIGHTING (bobot = 1).
+    Urutan sistematik itu sendiri menjamin sebaran antar wilayah, sehingga
+    jaminan minimum TIDAK dipakai. Desa sangat besar bisa terpilih >1 kali
+    (jatah responden berlipat) — sah dalam PPS sistematik.
+
+    Fallback: tanpa ukuran per desa, seleksi jadi sistematik-geografis
+    berpeluang sama (BUKAN self-weighting) — bobot desain tingkat unit primer
+    tetap dihitung dan peringatan diberikan.
+    """
+    level_col = LEVEL_COL[cfg.scope]
+    n_clusters = int(np.ceil(cfg.n_total / max(cfg.cluster_size, 1)))
+    units = list(data[level_col].dropna().unique())
+
+    if n_clusters > len(data):
+        warns.append(
+            f"Jumlah titik ({n_clusters}) melebihi jumlah desa tersedia ({len(data)}) — "
+            f"sebagian desa pasti terpilih berulang."
+        )
+
+    # Urutan geografis (implicit stratification): kode BPS bila lengkap, nama bila tidak.
+    code_ok = [c for c in CODE_COLS if c in data.columns and data[c].notna().all()]
+    sort_cols = code_ok if len(code_ok) >= 2 else ["NMPROP", "NMKAB", "NMKEC", "NMDESA"]
+    frame = data.sort_values(sort_cols, kind="mergesort").reset_index(drop=True)
+
+    size_col = _pps_size_column(frame, cfg.weights)
+    if size_col is not None:
+        sizes_row = pd.to_numeric(frame[size_col], errors="coerce").fillna(0).clip(lower=0).to_numpy(dtype=float)
+        n_zero = int((sizes_row <= 0).sum())
+        if n_zero:
+            positif = sizes_row[sizes_row > 0]
+            floor_sz = float(max(positif.min() * 0.5, 1.0)) if len(positif) else 1.0
+            sizes_row = np.where(sizes_row <= 0, floor_sz, sizes_row)
+            warns.append(
+                f"{n_zero} desa tanpa nilai {size_col} diberi ukuran terkecil agar tetap berpeluang terpilih."
+            )
+        basis_pps = "DPT per desa" if size_col == "DPT_DESA" else "Penduduk per desa"
+        self_weighting = True
+    else:
+        sizes_row = np.ones(len(frame), dtype=float)
+        basis_pps = "seragam — fallback (MFD tanpa ukuran per desa)"
+        self_weighting = False
+        warns.append(
+            "PPS sistematik berjalan TANPA ukuran per desa (tambahkan kolom DPT/PENDUDUK per baris "
+            "di file MFD untuk self-weighting penuh). Seleksi jatuh ke sistematik-geografis "
+            "berpeluang sama; kolom BOBOT_DESAIN dihitung di tingkat "
+            f"{LEVEL_LABEL.get(level_col, level_col)} sebagai koreksi."
+        )
+
+    # Seleksi sistematik: awalan acak u ∈ [0, I), lalu u, u+I, u+2I, ...
+    cum = np.cumsum(sizes_row)
+    interval = cum[-1] / n_clusters
+    start = float(rng.uniform(0, interval))
+    points = start + interval * np.arange(n_clusters)
+    idx = np.clip(np.searchsorted(cum, points, side="left"), 0, len(frame) - 1)
+    hits = pd.Series(idx).value_counts().sort_index()
+
+    sample = frame.iloc[hits.index].copy().reset_index(drop=True)
+    sample["TITIK"] = hits.to_numpy()
+    sample["RESPONDEN"] = sample["TITIK"] * cfg.cluster_size
+    surplus = int(sample["RESPONDEN"].sum() - cfg.n_total)
+    if surplus > 0 and len(sample):
+        sample.loc[len(sample) - 1, "RESPONDEN"] = int(sample.loc[len(sample) - 1, "RESPONDEN"]) - surplus
+
+    multi = int((sample["TITIK"] > 1).sum())
+    if multi:
+        warns.append(
+            f"{multi} desa berukuran besar terpilih lebih dari satu kali "
+            f"(jatah responden berlipat) — sah dalam PPS sistematik."
+        )
+
+    # Bobot desain: self-weighting → 1; fallback seragam → koreksi tingkat unit primer.
+    if self_weighting:
+        sample["BOBOT_DESAIN"] = 1.0
+    else:
+        sizes_prop = compute_sizes(data, level_col, cfg.weights)
+        picked_counts = sample.groupby(level_col)["TITIK"].sum().astype(int).to_dict()
+        w_unit = design_weights(sizes_prop, picked_counts)
+        sample["BOBOT_DESAIN"] = sample[level_col].map(w_unit).fillna(1.0).round(4)
+
+    # Tabel alokasi: hasil emergent per unit primer (bukan target di muka).
+    per_unit = (sample.groupby(level_col)
+                .agg(Titik=("TITIK", "sum"), Responden=("RESPONDEN", "sum"))
+                .reset_index())
+    prov_map = data.groupby(level_col)["NMPROP"].first()
+    alokasi = pd.DataFrame({
+        level_col: per_unit[level_col],
+        "Provinsi": per_unit[level_col].map(prov_map),
+        "Strata": "PPS sistematik",
+        "Target_Titik": per_unit["Titik"].astype(int),
+        "Terpilih": per_unit["Titik"].astype(int),
+    })
+    if len(sample):
+        bobot_map = sample.groupby(level_col)["BOBOT_DESAIN"].first()
+        alokasi["Bobot_Desain"] = alokasi[level_col].map(bobot_map).fillna(1.0)
+
+    coverage = _coverage_report(data, sample, level_col, units)
+    coverage["titik_terpilih"] = int(sample["TITIK"].sum()) if len(sample) else 0
+    bobot_note = ("1,0 — self-weighting (tanpa pembobotan pasca)" if self_weighting
+                  else "kolom BOBOT_DESAIN pada sheet Sampel (pakai sebagai weight di SPSS)")
+    ringkasan = _ringkasan(cfg, sample, n_clusters, level_col, coverage,
+                           bobot_note=bobot_note, basis_pps=basis_pps)
     return SamplingResult(sample, alokasi, ringkasan, coverage, warns)
 
 
@@ -516,8 +714,12 @@ def _coverage_report(data, sample, level_col, units) -> dict:
     }
 
 
-def _ringkasan(cfg, sample, n_clusters, level_col, cov) -> pd.DataFrame:
+def _ringkasan(cfg, sample, n_clusters, level_col, cov,
+               bobot_note: str | None = None, basis_pps: str | None = None) -> pd.DataFrame:
+    method = getattr(cfg, "method", "proportional")
+    is_pps = method == "pps_systematic"
     rows = [
+        {"Keterangan": "Metode sampling", "Nilai": METHOD_LABEL.get(method, method)},
         {"Keterangan": "Cakupan survei", "Nilai": cfg.scope.title()},
         {"Keterangan": "Unit sampling", "Nilai": "Desa/Kelurahan (titik)"},
         {"Keterangan": "Target responden", "Nilai": cfg.n_total},
@@ -529,11 +731,18 @@ def _ringkasan(cfg, sample, n_clusters, level_col, cov) -> pd.DataFrame:
          "Nilai": f"{cov['unit_tercakup']}/{cov['unit_total']}"},
         {"Keterangan": "Provinsi tercakup",
          "Nilai": f"{cov['provinsi_tercakup']}/{cov['provinsi_total']}"},
-        {"Keterangan": "Stratifikasi Kota/Desa", "Nilai": "Ya" if cfg.stratify_ur else "Tidak"},
+        {"Keterangan": "Stratifikasi Kota/Desa",
+         "Nilai": "Implisit (urutan geografis)" if is_pps else ("Ya" if cfg.stratify_ur else "Tidak")},
         {"Keterangan": "Bobot basis alokasi",
          "Nilai": ", ".join(f"{k}:{v:g}" for k, v in cfg.weights.items() if v > 0)},
         {"Keterangan": "Random seed", "Nilai": cfg.seed},
     ]
+    if basis_pps:
+        rows.insert(1, {"Keterangan": "Ukuran PPS", "Nilai": basis_pps})
+    rows.append({
+        "Keterangan": "Bobot desain",
+        "Nilai": bobot_note or "kolom BOBOT_DESAIN pada sheet Sampel (pakai sebagai weight di SPSS)",
+    })
     out = pd.DataFrame(rows)
     out["Nilai"] = out["Nilai"].astype(str)  # seragamkan tipe (hindari isu serialisasi)
     return out
@@ -574,6 +783,7 @@ def build_template() -> dict:
         ["Catatan", "", "Baris kosong / tanpa NMDESA / UR selain 1-2 akan otomatis diabaikan."],
         ["Catatan", "", "Isi data mulai baris ke-2 (baris ke-1 = nama kolom). Hapus contoh sebelum dipakai."],
         ["Referensi", "", "Untuk alokasi berbasis Penduduk/DPT, sesuaikan data/referensi_provinsi.csv (kolom: NMPROP, DPT, PENDUDUK)."],
+        ["DPT / PENDUDUK", "opsional", "Kolom angka PER BARIS DESA — syarat metode PPS Sistematik self-weighting. Tanpa ini PPS jatuh ke sistematik-geografis berpeluang sama (bobot desain disertakan)."],
     ])
     petunjuk.columns = petunjuk.iloc[0]
     petunjuk = petunjuk[1:].reset_index(drop=True)
@@ -627,7 +837,9 @@ def build_kerangka_recap(df: pd.DataFrame, res: "SamplingResult", cfg: SamplingC
             if u not in p.columns:
                 p[u] = 0
         return p[[1, 2]]
-    tk = _piv("ID", "count").rename(columns={1: "Titik_Kota", 2: "Titik_Desa"})
+    # PPS sistematik: satu baris sampel bisa mewakili >1 titik (kolom TITIK).
+    tk = (_piv("TITIK", "sum") if "TITIK" in s.columns else _piv("ID", "count")) \
+        .rename(columns={1: "Titik_Kota", 2: "Titik_Desa"})
     rp = _piv("RESPONDEN", "sum").rename(columns={1: "Resp_Kota", 2: "Resp_Desa"})
 
     rec = avail.merge(tk, on=lvl, how="left").merge(rp, on=lvl, how="left").fillna(0)
@@ -703,8 +915,21 @@ def preview_allocation(df: pd.DataFrame, cfg: SamplingConfig) -> pd.DataFrame:
     # ---- unit DESA ----
     lvl = LEVEL_COL[cfg.scope]
     n_clusters = int(np.ceil(cfg.n_total / max(cfg.cluster_size, 1)))
-    sizes = compute_sizes(data, lvl, cfg.weights)
-    alloc = allocate(sizes, n_clusters, cfg.min_per_unit)
+    method = getattr(cfg, "method", "proportional")
+    if method == "pps_systematic":
+        # PPS: alokasi per unit bersifat EMERGENT dari seleksi sistematik.
+        # Pratinjau menampilkan ekspektasinya (proporsional thd ukuran per-desa;
+        # realisasi bisa bergeser ±1 per unit) — tanpa jaminan minimum.
+        size_col = _pps_size_column(data, cfg.weights)
+        if size_col is not None:
+            per_unit = data.assign(_s=pd.to_numeric(data[size_col], errors="coerce").fillna(0)) \
+                           .groupby(lvl)["_s"].sum().to_dict()
+        else:
+            per_unit = data.groupby(lvl)["ID"].count().to_dict()
+        alloc = allocate(per_unit, n_clusters, 0)
+    else:
+        sizes = compute_sizes(data, lvl, cfg.weights)
+        alloc = allocate(allocation_sizes(sizes, method), n_clusters, cfg.min_per_unit)
 
     rows = []
     for u in sorted(data[lvl].dropna().unique()):
