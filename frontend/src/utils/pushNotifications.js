@@ -36,6 +36,11 @@ async function mirrorToTray(title, body) {
         channelId: CHANNEL_ID,
         title: String(title || 'Populi Survey').slice(0, 200),
         body: String(body || '').slice(0, 1000),
+        // Ikon KECIL (bilah status) = siluet putih; ikon BESAR (di dalam
+        // notifikasi) = ikon aplikasi berwarna agar identitas app terlihat.
+        smallIcon: 'ic_stat_notify',
+        largeIcon: 'ic_launcher',
+        iconColor: '#EA580C',
       }],
     });
   } catch {

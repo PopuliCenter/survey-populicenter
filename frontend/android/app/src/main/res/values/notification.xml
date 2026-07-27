@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Warna aksen ikon/aksesori notifikasi (oranye Populi, senada tema TPD). -->
+    <color name="notification_color">#EA580C</color>
+</resources>

@@ -27,6 +27,12 @@ const config: CapacitorConfig = {
       style: 'LIGHT',
       backgroundColor: '#ffffff',
     },
+    LocalNotifications: {
+      // Ikon KECIL default (siluet putih) + warna aksen untuk notifikasi lokal
+      // (cermin push saat aplikasi di depan). Tanpa ini → kotak kosong.
+      smallIcon: 'ic_stat_notify',
+      iconColor: '#EA580C',
+    },
   },
   android: {
     // Mixed content dimatikan (keamanan rilis): aset di-bundle (skema capacitor)
