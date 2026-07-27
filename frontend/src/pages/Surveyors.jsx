@@ -15,6 +15,25 @@ import { useToast } from '../components/Toast';
 import useModalA11y from '../hooks/useModalA11y';
 import api from '../services/api';
 
+// Ringkas label perangkat terikat (dari User-Agent) jadi teks pendek + deteksi
+// KOMPUTER/WEB vs HP. Insiden lapangan: akun terikat ke browser web (karena web
+// mengisi survei duluan) tapi badge dulu selalu bertulis "HP" → admin mengira
+// kunci "tak berfungsi" padahal terkunci ke perangkat yang salah.
+function describeBoundDevice(label) {
+  const s = String(label || '');
+  if (/Android/i.test(s)) {
+    const m = s.match(/Android[^;]*;?\s*([^;)]+)?/i);
+    const model = (m && m[1] ? m[1].trim() : '').replace(/build.*$/i, '').trim();
+    return { short: model ? `Android · ${model}`.slice(0, 22) : 'Android', isDesktop: false };
+  }
+  if (/iPhone|iPad|iOS/i.test(s)) return { short: 'iPhone/iPad', isDesktop: false };
+  if (/Windows/i.test(s)) return { short: 'Komputer (Windows)', isDesktop: true };
+  if (/Macintosh|Mac OS/i.test(s)) return { short: 'Komputer (Mac)', isDesktop: true };
+  if (/Linux/i.test(s)) return { short: 'Komputer (Linux)', isDesktop: true };
+  if (!s) return { short: 'Perangkat', isDesktop: false };
+  return { short: s.slice(0, 20), isDesktop: false };
+}
+
 // Tipe/skala survei — selaras dengan halaman Manajemen Survei (nasional/daerah/lainnya).
 const SURVEY_TYPE_META = [
   { value: 'nasional', label: 'Nasional', dot: 'bg-primary-500' },
@@ -1386,15 +1405,22 @@ function Surveyors() {
                           {/* Name */}
                           <td className="px-5 py-3 font-medium text-gray-800">
                             {tpd.name}
-                            {tpd.device_bound && (
-                              <span
-                                className="ml-2 inline-flex items-center gap-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-2xs font-semibold align-middle"
-                                title={`Terkunci ke perangkat${tpd.device_label ? `: ${tpd.device_label}` : ''}${tpd.device_bound_at ? ` (sejak ${new Date(tpd.device_bound_at).toLocaleDateString('id-ID')})` : ''}`}
-                              >
-                                <Icon name="lock" className="w-3 h-3" />
-                                HP
-                              </span>
-                            )}
+                            {tpd.device_bound && (() => {
+                              const d = describeBoundDevice(tpd.device_label);
+                              return (
+                                <span
+                                  className={`ml-2 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs font-semibold align-middle border ${
+                                    d.isDesktop
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                  }`}
+                                  title={`Terkunci ke perangkat${tpd.device_label ? `: ${tpd.device_label}` : ''}${tpd.device_bound_at ? ` (sejak ${new Date(tpd.device_bound_at).toLocaleDateString('id-ID')})` : ''}${d.isDesktop ? ' — ini KOMPUTER/WEB, bukan HP lapangan. Reset lalu kunci dari HP TPD.' : ''}`}
+                                >
+                                  <Icon name="lock" className="w-3 h-3" />
+                                  {d.short}
+                                </span>
+                              );
+                            })()}
                           </td>
 
                           {/* Email */}
