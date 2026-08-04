@@ -62,8 +62,14 @@ web-survey-platform/
 │   │   ├── surveyor/     # Halaman surveyor (form, list)
 │   │   ├── services/     # API client (axios)
 │   │   └── utils/        # Helpers, offline DB
+│   ├── android/          # Project Android (Capacitor) — build APK TPD
 │   ├── Dockerfile        # Docker image frontend (multi-stage + nginx)
 │   └── package.json
+├── sampling-service/     # Microservice Random Sampling (Python + FastAPI)
+│   ├── main.py           # Endpoint HTTP (/inspect, /preview, /run, /template)
+│   ├── sampling_engine.py# Engine metodologi (MFD/BPS)
+│   └── requirements.txt
+├── docs/                 # Dokumentasi (play-store, legal, ops, embed WordPress)
 ├── docker-compose.yml    # Orchestrasi semua service
 ├── nginx.conf            # Reverse proxy config untuk Docker
 ├── .env.docker           # Template env untuk Docker deployment
@@ -483,10 +489,13 @@ Setelah seeder, tersedia akun admin:
 
 | Role | Akses |
 |---|---|
-| **admin** | Semua fitur: Dashboard, Pengguna, Surveyors, Surveys, Responses, Reports, Map, Audit Log, Pembersihan Data |
-| **supervisor** | Dashboard, Surveys, Surveyors, Responses, Reports, Map |
-| **viewer** | Dashboard, Surveys, Reports, Map, Responses (read-only) |
-| **surveyor** | Halaman surveyor: daftar survei, isi formulir |
+| **admin** | Semua fitur: Dashboard, Pengguna, Surveyors, Surveys, Responses, Reports, Map, Audit Log, Pembersihan Data, Random Sampling, hapus permanen respons |
+| **supervisor** | Dashboard, Surveys, Surveyors, Responses, Reports, Map, Random Sampling, kecualikan respons dari laporan |
+| **asisten supervisor** | Seperti supervisor **tanpa** kelola/ubah survei (mewarisi hak akses supervisor) |
+| **viewer** / **partner lokal** | Dashboard, Surveys, Reports, Map, Responses (read-only) |
+| **surveyor** (TPD) | Halaman surveyor: daftar survei, isi formulir, undian RT, notifikasi |
+
+> **Kunci perangkat**: bila survei mengaktifkan "Kunci Perangkat", satu akun TPD hanya bisa login/isi dari satu perangkat (HP) yang pertama kali dipakai. Reset lewat **Manajemen TPD → Reset Perangkat**.
 
 ### Aturan Password
 
@@ -512,6 +521,15 @@ Min. 8 karakter, huruf besar, huruf kecil, dan angka. Contoh: `Admin123!`, `Surv
 | `FRONTEND_URL` | `http://localhost:5173` | URL frontend untuk CORS |
 | `UPLOAD_DIR` | `uploads/photos` | Direktori upload |
 | `MAX_FILE_SIZE_MB` | `5` | Max ukuran file upload |
+| `SAMPLING_SERVICE_URL` | `http://sampling:8000` | URL internal microservice Random Sampling |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` | — | Path file service account JSON untuk push FCM. Kosong = push nonaktif (fitur lonceng tetap jalan) |
+| `MEDIA_STORAGE` | `local` | `local` (folder `UPLOAD_DIR`) atau `minio` (object storage S3) |
+| `MINIO_ENDPOINT` / `MINIO_PORT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` / `MINIO_USE_SSL` | — | Konfigurasi MinIO bila `MEDIA_STORAGE=minio` |
+| `LOGIN_RATE_LIMIT_MAX` | `10` | Batas login per IP+email / 15 mnt |
+| `LOGIN_IP_RATE_LIMIT_MAX` | `100` | Batas login per IP / 15 mnt (untuk jaringan CGNAT banyak TPD) |
+| `SENTRY_DSN` | — | DSN Sentry (error tracking); kosong = nonaktif |
+
+> **Push FCM & Random Sampling bersifat opsional.** Bila `FIREBASE_SERVICE_ACCOUNT_PATH` tidak diisi, backend hidup normal tanpa push. Bila service `sampling` tidak berjalan, hanya menu Random Sampling yang tak tersedia. JANGAN commit file service account JSON ke repo.
 
 ---
 
@@ -544,6 +562,49 @@ Pertanyaan pilihan tunggal/ganda bisa diaktifkan opsi "Lainnya" — surveyor men
 - **Survei**: filter tahun, bulan
 - **Surveyor**: filter nama, survei, tahun/bulan bergabung
 - **Responden**: filter survei, surveyor, tanggal, geolokasi, status review
+
+### 10.7 Randomisasi Urutan Pertanyaan (Blok Acak)
+
+Admin menandai **blok** pertanyaan (lewat rentang nomor) yang urutannya diacak per responden — mengurangi bias urutan. Panel menampilkan **rekap** blok (dari nomor berapa sampai berapa) dan tombol **hapus blok**. Saling eksklusif dengan skip logic; seed diacak per nomor kuesioner sehingga bisa direplikasi. Data diri responden tidak ikut diacak.
+
+### 10.8 Undian RT (Pemilihan RT)
+
+Untuk survei berbasis wilayah, TPD melakukan **undian RT** yang jadi replika Form A dengan **grid kotak** agar admin/SPV/asisten bisa memverifikasi pengacakan secara visual. Bisa dijalankan **offline** memakai tiket seed (deterministik), lalu disinkronkan saat online. Aktifkan di Survey Builder → Field Tools → Pemilihan RT + jumlah RT.
+
+### 10.9 Kunci Perangkat (1 Akun TPD = 1 HP)
+
+Bila diaktifkan per survei, akun TPD terikat ke **perangkat pertama** yang mengisi survei berkunci. Login dari perangkat lain ditolak sejak halaman masuk. Badge di Manajemen TPD menampilkan perangkat sebenarnya (mis. `Android · <model>` atau `Komputer (Windows)`). Reset via **Reset Perangkat** agar bisa mengikat ulang.
+
+### 10.10 Kebijakan GPS
+
+- **APK (HP)**: submit **diblokir** sampai GPS mendapatkan fix (data lapangan wajib berkoordinat).
+- **Web**: best-effort — submit tanpa koordinat **diterima** hanya bila status kegagalan GPS terekam (timeout / lokasi tidak tersedia), lalu ditandai **kuning "GPS"** untuk review.
+
+### 10.11 Notifikasi TPD
+
+- **Lonceng di dashboard TPD**: pesan dari admin/SPV + notifikasi otomatis saat responsnya ditandai review.
+- **Push FCM ke HP** (bila `FIREBASE_SERVICE_ACCOUNT_PATH` diisi): notifikasi tetap tampil walau aplikasi sedang dibuka (dicermin ke tray).
+
+### 10.12 Kecualikan Respons dari Laporan
+
+Saat oversampling menambal data fraud, admin/SPV dapat **mengecualikan** respons dari laporan — respons tetap ada di database tetapi tidak masuk ekspor, snapshot publik, maupun agregat, dan **tidak** memakai kuota. **Hapus permanen** hanya bisa dilakukan admin.
+
+### 10.13 Font Formulir per Survei
+
+Di Pengaturan Survei, atur **skala** (normal / besar / lebih besar) dan **jenis huruf** (default / serif / Atkinson Hyperlegible / ringkas) formulir agar nyaman dibaca TPD di lapangan.
+
+### 10.14 Checklist "Siap Offline"
+
+Di aplikasi TPD, checklist pra-lapangan memastikan survei, data acuan wilayah, dan tiket undian RT sudah terunduh sebelum berangkat ke lokasi tanpa sinyal.
+
+### 10.15 Laporan & Hasil Publik
+
+- **Laporan PPTX** otomatis (template Populi) dari data agregat.
+- **Hasil publik**: snapshot agregat opt-in yang bisa di-**embed** sebagai iframe ke website (mis. populicenter.org).
+
+### 10.16 Random Sampling
+
+Menu **Random Sampling** (admin/supervisor) memanggil microservice Python/FastAPI untuk menyusun sampel wilayah dengan 3 metode: **Proporsional + bobot desain**, **√N + bobot**, dan **PPS Sistematik**. Unggah MFD, pratinjau alokasi, jalankan, lalu unduh hasil Excel. Lihat [sampling-service/README.md](sampling-service/README.md).
 
 ---
 
@@ -629,7 +690,27 @@ Restart backend setelah update kode:
 docker compose restart backend worker
 ```
 
+### Push FCM tidak sampai ke HP TPD
+
+1. Pastikan `FIREBASE_SERVICE_ACCOUNT_PATH` terisi dan file JSON ada di server → cek log backend saat start (`[Push] FCM aktif` vs `NONAKTIF`).
+2. Pastikan HP TPD sudah pakai APK terbaru dan token FCM tercatat (tabel `fcm_tokens`).
+3. Lonceng dashboard tetap berfungsi walau push nonaktif — keduanya jalur terpisah.
+
+### "Pengaturan survei tidak berlaku di APK"
+
+Biasanya **cache survei basi** di HP, bukan bug. Minta TPD menekan **Perbarui** saat online agar menarik pengaturan terbaru (font, field tools, kunci perangkat). Server tetap menegakkan aturan saat submit.
+
+### Kunci perangkat "masih bisa login di 2 device"
+
+Akun terikat ke perangkat **pertama** yang mengisi survei berkunci. Bila ternyata terikat ke browser web (bukan HP), buka **Manajemen TPD → Reset Perangkat**, lalu login & mulai survei **dari HP** agar mengikat ulang ke HP. Cek badge perangkat untuk memastikan terikat ke `Android`, bukan `Komputer`.
+
+### Menu Random Sampling error / kosong
+
+Pastikan service `sampling` berjalan (`docker compose ps` → `sampling` healthy) dan `SAMPLING_SERVICE_URL` menunjuk ke `http://sampling:8000`. Service ini tanpa port ke host (hanya diakses backend via jaringan internal Docker).
+
 ### Backup & Restore Database
+
+> **Penting:** media (foto, **rekaman audio**, tanda tangan) disimpan terpisah dari database. Backup DB saja tidak menyertakan media — cadangkan juga `UPLOAD_DIR` / bucket MinIO.
 
 ```bash
 # Docker

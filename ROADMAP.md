@@ -260,6 +260,28 @@ Supervisor dan admin dapat menandai (flag) responden yang mencurigakan dan menam
 | — | Pembersihan data otomatis & manual (Cleanup) | ✅ Selesai |
 | — | Kuota langsung saat tambah surveyor | ✅ Selesai |
 
+### Fitur Lapangan & Operasional (Roadmap v3 — Implementasi Langsung)
+
+Dibangun langsung dari kebutuhan lapangan TPD dan permintaan klien, tanpa spec Kiro terpisah.
+
+| # | Fitur | Kategori | Status |
+|---|-------|----------|--------|
+| — | Randomisasi urutan pertanyaan (blok acak per responden + rekap & hapus blok) | Desain Survei | ✅ Selesai |
+| — | Undian RT (replika Form A + grid verifikasi, mode offline bertiket seed) | Field Tools | ✅ Selesai |
+| — | Kunci perangkat (1 akun TPD = 1 HP) + badge perangkat sebenarnya | Kontrol Lapangan | ✅ Selesai |
+| — | Kebijakan GPS wajib (APK hard-block, web best-effort + penanda kuning) | Kontrol Lapangan | ✅ Selesai |
+| — | Checklist pra-lapangan "siap offline" di aplikasi TPD | Offline | ✅ Selesai |
+| — | Lonceng pemberitahuan TPD (manual + otomatis saat respons ditandai review) | Notifikasi | ✅ Selesai |
+| — | Push notification FCM ke HP TPD (Firebase) + cermin ke tray | Notifikasi | ✅ Selesai |
+| — | Kecualikan respons dari laporan (oversampling/fraud) + hapus permanen khusus admin | Integritas Data | ✅ Selesai |
+| — | Generator laporan PPTX otomatis (template Populi) | Laporan | ✅ Selesai |
+| — | Hasil publik (snapshot agregat opt-in + embed iframe ke website) | Laporan | ✅ Selesai |
+| — | Random Sampling microservice — 3 metode (Proporsional+bobot, √N+bobot, PPS Sistematik) | Sampling | ✅ Selesai |
+| — | Font formulir per survei (skala + jenis, Atkinson Hyperlegible dibundel) | Tampilan | ✅ Selesai |
+| — | Penugasan TPD massal di dashboard | Manajemen | ✅ Selesai |
+| — | Role Partner Lokal & Asisten Supervisor (pewarisan hak akses) | Role | ✅ Selesai |
+| — | Distribusi Android APK ber-versionCode (rilis berkala ke TPD) | Distribusi | ✅ Selesai |
+
 ### Legenda Status
 
 | Simbol | Arti |
@@ -271,9 +293,20 @@ Supervisor dan admin dapat menandai (flag) responden yang mencurigakan dan menam
 
 ---
 
+## Backlog / Rencana Berikutnya
+
+| Fitur | Prioritas | Catatan |
+|-------|-----------|---------|
+| Publikasi Play Store (Android) | 🔴 Tinggi | Draf Kebijakan Privasi & store listing siap di `docs/play-store/`; menunggu verifikasi akun/organisasi |
+| Pemilihan KK (Form C) | 🟡 Menengah | Menunggu aturan substitusi tertulis dari tim metodologi |
+| Kish Grid (pemilihan responden dalam rumah tangga) | 🟡 Menengah | Belum dimulai |
+| Rilis iOS (App Store) | 🟢 Rendah | Scaffolding Capacitor iOS sudah ada; butuh akun Apple Developer atas nama Yayasan |
+
+---
+
 ## Catatan Teknis
 
-- Semua fitur menggunakan stack yang sudah ada: Node.js + Express + Sequelize + React + Vite
+- Stack inti: Node.js + Express + Sequelize + React + Vite; ditambah microservice Random Sampling (Python/FastAPI) dan push FCM (firebase-admin)
 - Setiap fitur memerlukan migration database baru (tidak mengubah migration lama)
 - Setiap fitur akan dilengkapi unit tests dan property-based tests (fast-check)
 - Backend dan frontend diimplementasikan bersamaan dalam satu spec
