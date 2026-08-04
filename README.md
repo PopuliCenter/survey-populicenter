@@ -216,7 +216,7 @@ npx cap open android     # buka di Android Studio → Build → Generate Signed 
 ## Akun Default Setelah Seed
 | Field | Value |
 |---|---|
-| Email | `admin@populicenter.com` |
+| Email | `admin@example.com` |
 | Password | `Admin123!` |
 > **Ganti password segera setelah login pertama.**
 

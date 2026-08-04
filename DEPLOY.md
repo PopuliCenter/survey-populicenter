@@ -153,6 +153,6 @@ docker compose exec postgres psql -U surveyapp -d web_survey_platform -c "ALTER 
 
 ## Default Login
 
-- Email: `admin@populicenter.com`
+- Email: `admin@example.com`
 - Password: `Admin123!`
 - **SEGERA ganti password setelah login pertama!**

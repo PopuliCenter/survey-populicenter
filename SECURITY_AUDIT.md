@@ -66,7 +66,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 **Perbaikan:** Ganti ke versi nyata, mis. `"typescript": "^5.6.0"` (atau hapus jika tak dipakai — proyek ini JS, bukan TS).
 
 ### H4. Akun admin default + password lemah
-**Bukti:** Seed `admin@populicenter.com` / `Admin123!`.
+**Bukti:** Seed `admin@example.com` / `Admin123!`.
 **Dampak:** Jika seed dijalankan di produksi dan tidak segera diganti, akun admin mudah ditebak.
 **Perbaikan:** Paksa ganti password saat login pertama, atau jangan seed admin di produksi (buat manual via env saat provisioning). Dokumentasikan di runbook deploy.
 
