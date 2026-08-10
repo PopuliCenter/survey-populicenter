@@ -4,6 +4,11 @@ Menyediakan menu **Random Sampling** di dashboard. Membungkus engine metodologi
 sampling wilayah (MFD/BPS) sebagai API HTTP JSON agar dipanggil frontend React
 lewat proxy backend Node.
 
+## Metodologi (rumus & panduan manual Excel)
+Penjelasan lengkap rumus tiap metode (proporsional + largest-remainder, √N,
+PPS sistematik), bobot desain, stratifikasi, dan **cara reproduksi manual di
+Excel** ada di [docs/metodologi-sampling.md](../docs/metodologi-sampling.md).
+
 ## Asal engine
 `sampling_engine.py` **di-vendor** dari aplikasi Streamlit `Asisten_random_sampling`
 (engine metodologi otoritatif — alokasi proporsional + largest-remainder +
