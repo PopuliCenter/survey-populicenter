@@ -213,8 +213,13 @@ BOBOT_DESAIN(u) =  share_populasi(u)  /  share_titik(u)
 
 ## 8. Reproduksi manual di Excel (panduan verifikasi)
 
+> 📗 **File contoh berjalan:** [`docs/sampling/Contoh-Sampling-38-Provinsi.xlsx`](sampling/Contoh-Sampling-38-Provinsi.xlsx)
+> — 38 provinsi (DPT & Penduduk asli), rumus hidup untuk Proporsional, √N, dan
+> PPS Sistematik. Sheet **MFD** berisi sampel dummy; ganti dengan MFD BPS asli.
+
 Contoh: **NASIONAL, proporsional**, `n_total = 1200`, `cluster_size = 10`,
-basis = Penduduk. Maka `n_titik = 120`.
+basis = Penduduk. Maka `n_titik = 120`. (Hasil alokasi teratas: Jawa Barat 16,
+Jawa Timur 13, Jawa Tengah 12 titik — total 120 titik = 1.200 responden.)
 
 ### Langkah A — Alokasi antar provinsi (largest-remainder)
 
