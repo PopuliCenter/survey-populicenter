@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import SurveySelector from '../components/SurveySelector';
 import PublicationPanel from '../components/PublicationPanel';
 import MonitoringPanel from '../components/MonitoringPanel';
+import SpreadsheetFeedPanel from '../components/SpreadsheetFeedPanel';
 import SamplingTargetModal from '../components/SamplingTargetModal';
 import ReportConfigModal from '../components/ReportConfigModal';
 import { useToast } from '../components/Toast';
@@ -716,6 +717,22 @@ function Reports() {
                 </button>
                 <MonitoringPanel surveyId={selectedSurveyId} surveyTitle={getSelectedSurveyTitle()} />
               </>
+            ) : (
+              <p className="text-sm text-gray-500">Pilih survei terlebih dahulu.</p>
+            )}
+          </div>
+        )}
+
+        {!isViewer && (
+          <div className="bg-white rounded-xl shadow p-5 space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-700">Tarik ke Spreadsheet</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Sediakan tautan CSV yang bisa ditarik langsung ke Google Sheets / Excel dan menyegar otomatis.
+              </p>
+            </div>
+            {selectedSurveyId ? (
+              <SpreadsheetFeedPanel surveyId={selectedSurveyId} />
             ) : (
               <p className="text-sm text-gray-500">Pilih survei terlebih dahulu.</p>
             )}

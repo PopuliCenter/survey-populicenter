@@ -95,6 +95,25 @@ module.exports = (sequelize) => {
       defaultValue: {},
       // { methodology, narratives:{qid:text}, demographics:[qid], sections:{qid:label} }
     },
+    // ── Tarik ke Spreadsheet (feed CSV bertoken) ──────────────────────────────
+    // Token rahasia pada URL memberi akses BACA CSV tanpa login, agar Google
+    // Sheets (=IMPORTDATA) / Excel bisa menariknya. Nonaktif secara default.
+    report_feed_token: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+      unique: true,
+    },
+    report_feed_enabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    // Data mentah per responden bersifat SENSITIF (GPS/waktu) → opt-in terpisah.
+    report_feed_include_raw: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
   }, {
     tableName: 'surveys',
     underscored: true,

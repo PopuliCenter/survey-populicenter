@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const crypto = require('crypto');
 const path = require('path');
 const { Op } = require('sequelize');
 const ExcelJS = require('exceljs');
@@ -706,4 +707,93 @@ router.post('/surveys/:id/export/pptx', authMiddleware, requireRole(['admin', 's
   }
 });
 
+// ===========================================================================
+// TARIK KE SPREADSHEET — kelola feed CSV bertoken (admin & supervisor)
+// ===========================================================================
+// Endpoint publik yang menyajikan CSV ada di routes/public.js. Di sini hanya
+// pengelolaan: aktif/nonaktif, izin data mentah, dan putar token.
+
+function feedPaths(token) {
+  return {
+    rekap: `/public/feed/${token}/rekap.csv`,
+    monitoring: `/public/feed/${token}/monitoring.csv`,
+    mentah: `/public/feed/${token}/mentah.csv`,
+  };
+}
+
+function feedStatus(survey) {
+  return {
+    enabled: !!survey.report_feed_enabled,
+    include_raw: !!survey.report_feed_include_raw,
+    token: survey.report_feed_token || null,
+    paths: survey.report_feed_token ? feedPaths(survey.report_feed_token) : null,
+  };
+}
+
+/**
+ * GET /reports/surveys/:id/feed
+ * Status feed CSV survei (untuk panel "Tarik ke Spreadsheet").
+ */
+router.get('/surveys/:id/feed', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const survey = await Survey.findByPk(req.params.id, {
+      attributes: ['id', 'report_feed_token', 'report_feed_enabled', 'report_feed_include_raw'],
+    });
+    if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
+    res.json(feedStatus(survey));
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /reports/surveys/:id/feed
+ * Body: { enabled?: boolean, include_raw?: boolean }
+ * Mengaktifkan/menonaktifkan feed & izin data mentah. Token dibuat otomatis
+ * saat pertama kali diaktifkan.
+ */
+router.put('/surveys/:id/feed', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const survey = await Survey.findByPk(req.params.id);
+    if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
+
+    const { enabled, include_raw } = req.body || {};
+    const patch = {};
+    if (typeof enabled === 'boolean') {
+      patch.report_feed_enabled = enabled;
+      // Buat token saat diaktifkan pertama kali (belum punya).
+      if (enabled && !survey.report_feed_token) {
+        patch.report_feed_token = crypto.randomBytes(24).toString('hex');
+      }
+    }
+    if (typeof include_raw === 'boolean') {
+      patch.report_feed_include_raw = include_raw;
+    }
+    await survey.update(patch);
+    res.json(feedStatus(survey));
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /reports/surveys/:id/feed/rotate
+ * Ganti token feed — semua link lama langsung mati. Untuk mencabut akses.
+ */
+router.post('/surveys/:id/feed/rotate', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  try {
+    const survey = await Survey.findByPk(req.params.id);
+    if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
+    await survey.update({ report_feed_token: crypto.randomBytes(24).toString('hex') });
+    res.json(feedStatus(survey));
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
+// Bagikan helper ekspor mentah agar routes/public.js (feed CSV bertoken) memakai
+// pembangun yang SAMA — header UPPERCASE & aturan kecualikan tetap satu sumber.
+module.exports.buildResponseWhereClause = buildResponseWhereClause;
+module.exports.fetchResponses = fetchResponses;
+module.exports.buildExportData = buildExportData;

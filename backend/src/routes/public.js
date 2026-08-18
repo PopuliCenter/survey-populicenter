@@ -9,8 +9,17 @@
  */
 
 const express = require('express');
-const { PublishedResult, MonitoringReport } = require('../models');
-const { buildMonitoringSnapshot } = require('../utils/aggregateResults');
+const { stringify } = require('csv-stringify');
+const { PublishedResult, MonitoringReport, Survey, Question } = require('../models');
+const { buildSnapshot, buildMonitoringSnapshot } = require('../utils/aggregateResults');
+const { aggregateToCsv, monitoringToCsv } = require('../utils/reportFeedCsv');
+// Bangun ekspor MENTAH memakai helper yang SAMA dengan ekspor manual (header
+// UPPERCASE & aturan kecualikan konsisten — satu sumber).
+const {
+  buildResponseWhereClause,
+  fetchResponses,
+  buildExportData,
+} = require('./reports');
 
 const router = express.Router();
 
@@ -110,6 +119,88 @@ router.get('/monitor/:token', async (req, res, next) => {
     }
 
     res.json({ ...snapshot, snapshot_at: mon.snapshot_at });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ===========================================================================
+// TARIK KE SPREADSHEET — feed CSV bertoken (Google Sheets =IMPORTDATA / Excel)
+// ===========================================================================
+// Token pada URL = pembawa akses baca. Nonaktif → 404 (tak membocorkan apa pun).
+// Data mentah butuh izin terpisah (report_feed_include_raw). CSV di-stream.
+
+async function findFeedSurvey(token) {
+  if (!token) return null;
+  return Survey.findOne({
+    where: { report_feed_token: token, report_feed_enabled: true },
+    attributes: ['id', 'title', 'report_feed_include_raw'],
+  });
+}
+
+function streamCsv(res, filename, headers, rows) {
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+  const stringifier = stringify({ header: false });
+  stringifier.on('error', () => { try { res.end(); } catch { /* noop */ } });
+  stringifier.pipe(res);
+  stringifier.write(headers);
+  for (const r of rows) stringifier.write(r);
+  stringifier.end();
+}
+
+/**
+ * GET /public/feed/:token/rekap.csv — rekap jawaban agregat (per pertanyaan).
+ */
+router.get('/feed/:token/rekap.csv', async (req, res, next) => {
+  try {
+    const survey = await findFeedSurvey(req.params.token);
+    if (!survey) return res.status(404).json({ error: 'Feed tidak ditemukan atau nonaktif' });
+    const snapshot = await buildSnapshot(survey.id);
+    const { headers, rows } = aggregateToCsv(snapshot);
+    streamCsv(res, 'rekap.csv', headers, rows);
+  } catch (error) {
+    if (error.status === 404) return res.status(404).json({ error: error.message });
+    next(error);
+  }
+});
+
+/**
+ * GET /public/feed/:token/monitoring.csv — capaian vs target (total + provinsi).
+ */
+router.get('/feed/:token/monitoring.csv', async (req, res, next) => {
+  try {
+    const survey = await findFeedSurvey(req.params.token);
+    if (!survey) return res.status(404).json({ error: 'Feed tidak ditemukan atau nonaktif' });
+    const snapshot = await buildMonitoringSnapshot(survey.id);
+    const { headers, rows } = monitoringToCsv(snapshot);
+    streamCsv(res, 'monitoring.csv', headers, rows);
+  } catch (error) {
+    if (error.status === 404) return res.status(404).json({ error: error.message });
+    next(error);
+  }
+});
+
+/**
+ * GET /public/feed/:token/mentah.csv — data mentah per responden (SENSITIF).
+ * Hanya bila report_feed_include_raw aktif; committed & non-excluded saja.
+ */
+router.get('/feed/:token/mentah.csv', async (req, res, next) => {
+  try {
+    const survey = await findFeedSurvey(req.params.token);
+    // 404 (bukan 403) bila mentah tak diizinkan → tak membocorkan keberadaannya.
+    if (!survey || !survey.report_feed_include_raw) {
+      return res.status(404).json({ error: 'Feed tidak ditemukan atau nonaktif' });
+    }
+    const { whereClause } = buildResponseWhereClause(survey.id, { response_status: 'committed' });
+    const questions = await Question.findAll({
+      where: { survey_id: survey.id },
+      attributes: ['id', 'text', 'order_index', 'type', 'options'],
+      order: [['order_index', 'ASC']],
+    });
+    const responses = await fetchResponses(whereClause);
+    const { headers, rows } = buildExportData(responses, questions);
+    streamCsv(res, 'mentah.csv', headers, rows);
   } catch (error) {
     next(error);
   }
