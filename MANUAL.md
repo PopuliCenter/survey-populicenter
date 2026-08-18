@@ -606,6 +606,20 @@ Di aplikasi TPD, checklist pra-lapangan memastikan survei, data acuan wilayah, d
 
 Menu **Random Sampling** (admin/supervisor) memanggil microservice Python/FastAPI untuk menyusun sampel wilayah dengan 3 metode: **Proporsional + bobot desain**, **√N + bobot**, dan **PPS Sistematik**. Unggah MFD, pratinjau alokasi, jalankan, lalu unduh hasil Excel. Lihat [sampling-service/README.md](sampling-service/README.md).
 
+### 10.17 Tarik ke Spreadsheet (feed CSV)
+
+Di **Laporan** (admin/supervisor), panel **Tarik ke Spreadsheet** menyediakan tautan CSV bertoken yang bisa ditarik langsung ke Google Sheets/Excel dan **menyegar otomatis** — tanpa login. Tiga umpan:
+
+- **Rekap jawaban (agregat)** — hitungan & persentase per pertanyaan.
+- **Progres/capaian (monitoring)** — target vs capaian per provinsi.
+- **Data mentah per responden** — SENSITIF (GPS/waktu), **opt-in terpisah**; hanya responden committed & tidak dikecualikan.
+
+Cara pakai:
+- **Google Sheets**: tempel `=IMPORTDATA("<url>")` di satu sel.
+- **Excel**: *Data → Ambil Data → Dari Web*, tempel URL, lalu *Muat*/*Refresh All*.
+
+Keamanan: tautan bertoken (hanya pemegang link bisa buka). Untuk mencabut akses, tekan **Ganti token** (memutus semua tautan lama) atau **Nonaktifkan**. Data mentah baru muncul bila kotak "Izinkan tarik data mentah" dicentang.
+
 ---
 
 ## 11. Troubleshooting

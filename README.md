@@ -16,7 +16,7 @@ Platform survei lapangan full-stack untuk Populi Center — dirancang khusus unt
 | **Notifikasi** | **Lonceng dashboard** (pesan admin/SPV, respons ditandai review) + **push FCM** ke HP TPD (Firebase), cermin ke tray saat aplikasi terbuka |
 | **Android** | APK native via Capacitor 8; kamera + kompresi otomatis, GPS watchPosition, notifikasi lokal + FCM |
 | **Dashboard** | Statistik real-time (WIB), tren 7 hari, progress per survei & TPD, Top 5 TPD, peta sebaran GPS |
-| **Laporan & Analisis** | Export Excel/CSV per survei (filter tanggal/TPD), **generator laporan PPTX otomatis** (template Populi), **hasil publik** (snapshot agregat opt-in + embed iframe ke website) |
+| **Laporan & Analisis** | Export Excel/CSV per survei (filter tanggal/TPD), **generator laporan PPTX otomatis** (template Populi), **hasil publik** (snapshot agregat opt-in + embed iframe ke website), **Tarik ke Spreadsheet** (feed CSV bertoken untuk Google Sheets `IMPORTDATA`/Excel — rekap, monitoring, data mentah opt-in) |
 | **Integritas Data** | **Kecualikan respons dari laporan** (oversampling/fraud — kuota tetap bebas, ekspor & snapshot bersih); **hapus permanen** khusus admin |
 | **Random Sampling** | Microservice Python/FastAPI (engine MFD/BPS) — 3 metode: Proporsional + bobot desain, √N + bobot, PPS Sistematik |
 | **Tampilan** | Font formulir per survei (skala normal/besar/lebih besar + jenis, termasuk **Atkinson Hyperlegible** yang dibundel) |

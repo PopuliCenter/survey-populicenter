@@ -276,6 +276,7 @@ Dibangun langsung dari kebutuhan lapangan TPD dan permintaan klien, tanpa spec K
 | — | Kecualikan respons dari laporan (oversampling/fraud) + hapus permanen khusus admin | Integritas Data | ✅ Selesai |
 | — | Generator laporan PPTX otomatis (template Populi) | Laporan | ✅ Selesai |
 | — | Hasil publik (snapshot agregat opt-in + embed iframe ke website) | Laporan | ✅ Selesai |
+| — | Tarik ke Spreadsheet (feed CSV bertoken: rekap/monitoring/mentah untuk Google Sheets & Excel) | Laporan | ✅ Selesai |
 | — | Random Sampling microservice — 3 metode (Proporsional+bobot, √N+bobot, PPS Sistematik) | Sampling | ✅ Selesai |
 | — | Font formulir per survei (skala + jenis, Atkinson Hyperlegible dibundel) | Tampilan | ✅ Selesai |
 | — | Penugasan TPD massal di dashboard | Manajemen | ✅ Selesai |
