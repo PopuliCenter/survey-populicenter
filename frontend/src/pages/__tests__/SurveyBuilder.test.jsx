@@ -307,6 +307,83 @@ describe('SurveyBuilder — Rating Scale type option', () => {
     });
   });
 
+  test('matrix: baris/kolom kosong disaring sebelum kirim (tidak lagi 422)', async () => {
+    api.post.mockResolvedValue({ data: { id: 'new-q', type: 'matrix' } });
+
+    renderSurveyBuilder();
+    await openAddModal();
+
+    fireEvent.change(screen.getByLabelText(/teks pertanyaan/i), {
+      target: { value: 'Seberapa sering hal berikut terlihat' },
+    });
+    fireEvent.change(screen.getByLabelText(/tipe pertanyaan/i), {
+      target: { value: 'matrix' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Konfigurasi Matrix/Grid')).toBeInTheDocument();
+    });
+
+    // 1 baris terisi
+    fireEvent.click(screen.getByRole('button', { name: /Tambah Baris/i }));
+    fireEvent.change(screen.getByLabelText('Baris 1'), {
+      target: { value: 'Menggunakan pakaian adat' },
+    });
+
+    // 3 slot kolom, tapi yang ke-3 SENGAJA dibiarkan kosong (kasus yang bikin 422)
+    const addCol = screen.getByRole('button', { name: /Tambah Kolom/i });
+    fireEvent.click(addCol);
+    fireEvent.click(addCol);
+    fireEvent.click(addCol);
+    fireEvent.change(screen.getByLabelText('Kolom 1'), { target: { value: 'Tidak pernah' } });
+    fireEvent.change(screen.getByLabelText('Kolom 2'), { target: { value: 'Sering' } });
+    // Kolom 3 dibiarkan kosong
+
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(dialog.querySelector('button[type="submit"]'));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith(
+        expect.stringContaining('/questions'),
+        expect.objectContaining({
+          type: 'matrix',
+          options: expect.objectContaining({
+            rows: ['Menggunakan pakaian adat'],
+            columns: ['Tidak pernah', 'Sering'], // kolom kosong ke-3 sudah disaring
+          }),
+        })
+      );
+    });
+  });
+
+  test('matrix: kurang dari 2 kolom terisi ditolak di klien dengan pesan jelas', async () => {
+    renderSurveyBuilder();
+    await openAddModal();
+
+    fireEvent.change(screen.getByLabelText(/teks pertanyaan/i), {
+      target: { value: 'Pertanyaan matrix' },
+    });
+    fireEvent.change(screen.getByLabelText(/tipe pertanyaan/i), {
+      target: { value: 'matrix' },
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Konfigurasi Matrix/Grid')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Tambah Baris/i }));
+    fireEvent.change(screen.getByLabelText('Baris 1'), { target: { value: 'Sub-1' } });
+    fireEvent.click(screen.getByRole('button', { name: /Tambah Kolom/i }));
+    fireEvent.change(screen.getByLabelText('Kolom 1'), { target: { value: 'Ya' } });
+
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(dialog.querySelector('button[type="submit"]'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/minimal 2 kolom terisi/i)).toBeInTheDocument();
+    });
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   test('saat edit pertanyaan rating_scale yang sudah ada, nilai konfigurasi tersimpan ditampilkan', async () => {
     const surveyWithRating = {
       ...mockSurvey,

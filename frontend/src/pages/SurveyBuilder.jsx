@@ -1219,6 +1219,33 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
       return;
     }
 
+    // Matrix: buang baris/kolom kosong (slot yang belum diisi) sebelum kirim,
+    // lalu validasi di klien agar pesannya jelas. Tanpa ini, satu input kosong
+    // membuat server menolak 422 tanpa alasan yang terlihat. Server tetap
+    // validator terakhir.
+    let matrixClean = null;
+    if (type === 'matrix') {
+      matrixClean = {
+        rows: (matrixConfig.rows || []).map((r) => r.trim()).filter(Boolean),
+        columns: (matrixConfig.columns || []).map((c) => c.trim()).filter(Boolean),
+      };
+      if (matrixClean.rows.length < 1) {
+        setFormError('Matrix harus memiliki minimal 1 baris terisi.');
+        return;
+      }
+      if (matrixClean.columns.length < 2) {
+        setFormError('Matrix harus memiliki minimal 2 kolom terisi.');
+        return;
+      }
+      if (
+        new Set(matrixClean.rows).size !== matrixClean.rows.length ||
+        new Set(matrixClean.columns).size !== matrixClean.columns.length
+      ) {
+        setFormError('Baris/kolom matrix tidak boleh duplikat.');
+        return;
+      }
+    }
+
     const validationPayload = validationConfig ? { validation: validationConfig } : {};
 
     const payload = {
@@ -1237,7 +1264,7 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
       ...(type === 'phone_number' ? { options: { ...phoneConfig, ...validationPayload } } : {}),
       ...(type === 'unique_id' ? { options: { ...uniqueIdConfig, ...validationPayload } } : {}),
       ...(type === 'date' ? { options: { ...dateConfig, ...validationPayload } } : {}),
-      ...(type === 'matrix' ? { options: { ...matrixConfig, ...validationPayload } } : {}),
+      ...(type === 'matrix' ? { options: { ...matrixClean, ...validationPayload } } : {}),
       ...(type === 'indonesia_region' ? { options: { ...regionConfig } } : {}),
       // Tipe lain (teks, foto, dst.): KIRIM options secara eksplisit — berisi
       // validasi bila ada, atau null bila tidak. Tanpa ini, mengganti tipe dari
@@ -1267,7 +1294,8 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
       onSaved();
     } catch (err) {
       setFormError(
-        err.response?.data?.message ||
+        err.response?.data?.error ||
+          err.response?.data?.message ||
           err.message ||
           'Terjadi kesalahan. Silakan coba lagi.'
       );
