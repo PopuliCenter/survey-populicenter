@@ -28,7 +28,7 @@ function CopyButton({ text, label = 'Salin' }) {
       onClick={onCopy}
       className="shrink-0 px-2.5 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md"
     >
-      {copied ? 'Tersalin ✓' : label}
+      {copied ? 'Tersalin' : label}
     </button>
   );
 }
