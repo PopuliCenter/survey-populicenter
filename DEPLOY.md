@@ -20,8 +20,14 @@ Jika diminta login GitHub, gunakan Personal Access Token:
 
 SSH ke VPS:
 ```bash
-ssh root@187.127.114.159
+ssh root@IP_VPS
 ```
+
+> 🔒 **Keamanan origin — JANGAN tulis IP asli VPS di repo** (placeholder `IP_VPS`
+> di dokumen ini disengaja). IP itu ada di balik Cloudflare; membocorkannya
+> memudahkan penyerang melewati WAF/rate-limit dengan menyerang server langsung.
+> **Kunci firewall origin agar HANYA menerima rentang IP Cloudflare** (lihat
+> `docs/ops/`), sehingga IP yang bocor pun tak bisa diakses langsung.
 
 Download dan jalankan deploy script:
 ```bash
@@ -40,7 +46,7 @@ Script ini otomatis:
 ## Langkah 3: Konfigurasi Domain (Opsional tapi Direkomendasikan)
 
 1. Di DNS provider, tambahkan A record:
-   - `survey.populicenter.com` → `187.127.114.159`
+   - `survey.populicenter.com` → `IP_VPS`
 
 2. Di VPS, edit `.env`:
    ```bash
@@ -60,7 +66,7 @@ Di komputer lokal:
 
 1. Edit `frontend/src/services/api.js` — default URL:
    ```
-   return 'http://187.127.114.159:3000';
+   return 'http://IP_VPS:3000';
    ```
    Atau biarkan user input URL via Server Config.
 
@@ -87,7 +93,7 @@ git commit -m "Update fitur XYZ"
 git push origin main
 
 # Di VPS
-ssh root@187.127.114.159
+ssh root@IP_VPS
 cd /opt/survey-populicenter
 bash deploy.sh update
 ```

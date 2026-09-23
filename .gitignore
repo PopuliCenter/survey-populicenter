@@ -49,3 +49,8 @@ frontend/public/~$*
 sampling-service/.venv/
 sampling-service/__pycache__/
 sampling-service/**/__pycache__/
+
+# Transkrip chat / catatan scratch — jangan commit (bisa memuat IP origin/rahasia)
+/chat*.md
+/AUDIT-PROMPT.md
+*.local.txt
