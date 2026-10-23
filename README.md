@@ -31,7 +31,7 @@ Platform survei lapangan full-stack untuk Populi Center — dirancang khusus unt
 ### Backend
 | Teknologi | Versi | Keterangan |
 |---|---|---|
-| Node.js | 20 LTS | Runtime |
+| Node.js | 22 LTS | Runtime (container `node:22-alpine`; CI juga Node 22) |
 | Express | 4.22 | HTTP framework |
 | Sequelize | 6.37 | ORM |
 | PostgreSQL | 16 | Database utama |

@@ -54,7 +54,7 @@ Dokumen ini menjelaskan arsitektur teknis lengkap platform, mulai dari komponen 
 
 ### 2.1 nginx (Reverse Proxy + Frontend Server)
 
-- **Image**: `nginx:alpine` (multi-stage build dari `node:20-alpine`)
+- **Image**: `nginx:alpine` (multi-stage build dari `node:22-alpine`)
 - **Tugas**: Serve React SPA, meneruskan `/auth`, `/surveys`, `/responses`, dll. ke backend.
 - **Caching**:
   - `sw.js` & `index.html` → `no-cache, no-store` (wajib agar update UI terdeteksi pada refresh biasa).

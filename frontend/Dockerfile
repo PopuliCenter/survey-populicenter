@@ -1,4 +1,4 @@
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
@@ -6,8 +6,12 @@ WORKDIR /app
 ARG VITE_SENTRY_DSN=""
 ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 
+# Build tools untuk dependensi native (mis. sharp) bila prebuilt musl untuk
+# Node 22 tak tersedia. Stage build ini dibuang — image akhir tetap nginx:alpine.
 COPY package.json package-lock.json* .npmrc* ./
-RUN if [ -f package-lock.json ]; then npm ci --legacy-peer-deps; else npm install --legacy-peer-deps; fi
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+ && (if [ -f package-lock.json ]; then npm ci --legacy-peer-deps; else npm install --legacy-peer-deps; fi) \
+ && apk del .build-deps
 
 COPY . .
 RUN npm run build
