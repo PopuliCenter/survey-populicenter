@@ -4,8 +4,10 @@ Menyalin backup VPS (`*.dump` + `uploads_*.tar.gz`) ke **NAS QNAP di kantor
 Populi Center**. Karena NAS berada di jaringan berbeda dari VPS, ini memenuhi
 syarat *off-site* yang sesungguhnya.
 
-> ✅ **Sudah terpasang & teruji (15 Jul 2026).** NAS `PopuliCenter` (TS-431P2)
-> menarik dari VPS tiap **04:00** → `/share/Backup/populi-survey/`.
+> ⚠️ **Status:** terpasang 15 Jul 2026, namun tarikan **berhenti diam-diam sejak
+> 24 Sep 2026** (lihat §4 "Insiden"). Pasang ulang dengan versi **tahan-reboot**
+> (`scripts/qnap/`) — NAS `PopuliCenter` (TS-431P2) menarik dari VPS tiap
+> **04:00** → `/share/Backup/populi-survey/`.
 > Kunci `backupro` terbukti **ditolak** saat mencoba menjalankan perintah non-rsync.
 >
 > Dokumen ini memakai placeholder `IP_VPS` — **jangan menuliskan IP asli VPS di
@@ -117,34 +119,74 @@ resmi QNAP. Di sebagian model sudah terpasang bawaan.)
 > tidak menemukan opsi persis seperti di atas, cari job bertipe **Sync/Backup**
 > dengan sumber **rsync remote**. Prinsipnya sama: **NAS menarik dari VPS**.
 
-**Alternatif tanpa HBS 3 — INI YANG DIPAKAI** (sudah terpasang & teruji):
+**Alternatif tanpa HBS 3 — INI YANG DIPAKAI: cron tahan-reboot** (`scripts/qnap/`)
 
-> 🚨 **`crontab -e` saja TIDAK CUKUP di QNAP.** QTS **menimpa** crontab dari
-> `/etc/config/crontab` saat reboot — jadwal Anda akan **hilang diam-diam**.
-> Harus ditulis ke `/etc/config/crontab`, lalu di-load ulang:
+> 🚨 **Insiden 24 Sep – Okt 2026:** tarikan berhenti diam-diam ±4 minggu. Versi
+> lama menaruh kunci di `/mnt/HDA_ROOT/.config` (bisa terhapus update firmware)
+> dan `known_hosts` di `~/.ssh` (RAM-disk / tak terbaca cron) → setelah NAS
+> restart/update, SSH gagal *"Host key verification failed"* tiap malam. Lalu
+> alarm Healthchecks **dimatikan dengan ping manual dari browser** — yang
+> menyembunyikan kegagalan. **Jangan pernah ping manual.**
+
+Tiga jebakan QTS yang ditutup versi ini:
+
+| Jebakan | Akibat | Penangkal |
+|---|---|---|
+| `crontab -e` saja | jadwal **hilang** saat reboot (dibangun ulang dari `/etc/config/crontab`) | `ensure-cron.sh` menulis ke `/etc/config/crontab` (tugas sistem QTS dipertahankan) |
+| `/root/.ssh`, `/tmp` | **RAM-disk**, kosong tiap reboot | kunci + `known_hosts` di volume data `/share/Backup/.populi` |
+| `/mnt/HDA_ROOT/.config` | bisa **terhapus update firmware** | idem — volume data |
+
+Isi `/share/Backup/.populi/` (folder admin-only — share `Backup` berisi data
+pribadi responden, **wajib** hanya admin):
+
+- `populi-pull.sh` — salinan [`scripts/qnap/populi-pull.sh`](../../scripts/qnap/populi-pull.sh)
+- `ensure-cron.sh` — salinan [`scripts/qnap/ensure-cron.sh`](../../scripts/qnap/ensure-cron.sh)
+- `populi.conf` — `VPS_HOST=` dan `HC_URL=` (**tak masuk repo**)
+- `id_ed25519`, `known_hosts` — identitas SSH ke `backupro`
+
+**Pasang** (SSH ke QNAP sebagai admin; tempel skrip lewat *heredoc* — **jangan**
+menyalin dari checkout Windows lewat SMB, akhir baris CRLF merusak `sh`):
 
 ```bash
-cp /etc/config/crontab /etc/config/crontab.bak     # cadangkan dulu
+mkdir -p /share/Backup/.populi && chmod 700 /share/Backup/.populi
 
-echo '0 4 * * * { date; /usr/bin/rsync -az --stats -e "ssh -i /mnt/HDA_ROOT/.config/ssh/id_ed25519 -o StrictHostKeyChecking=yes" backupro@IP_VPS:/ /share/Backup/populi-survey/; echo "---"; } >> /share/Backup/populi-survey-rsync.log 2>&1' >> /etc/config/crontab
+# Kunci: pindahkan yang lama ke lokasi persisten, atau buat baru bila sudah hilang
+for k in /share/homes/admin/.ssh/id_ed25519 /mnt/HDA_ROOT/.config/ssh/id_ed25519 /root/.ssh/id_ed25519; do
+  [ -f "$k" ] && cp "$k" /share/Backup/.populi/id_ed25519 && echo "kunci disalin dari $k" && break
+done
+[ -f /share/Backup/.populi/id_ed25519 ] || ssh-keygen -t ed25519 -N '' -C qnap-backup -f /share/Backup/.populi/id_ed25519
+chmod 600 /share/Backup/.populi/id_ed25519
 
-crontab /etc/config/crontab
-/etc/init.d/crond.sh restart
-crontab -l | grep populi                            # pastikan ada
+printf 'VPS_HOST=%s\nHC_URL=%s\n' IP_VPS https://hc-ping.com/UUID-QNAP-JOB > /share/Backup/.populi/populi.conf
+chmod 600 /share/Backup/.populi/populi.conf
+
+# (tempel populi-pull.sh & ensure-cron.sh ke folder ini via cat > … <<'EOF')
+sed -i 's/\r$//' /share/Backup/.populi/*.sh && chmod 700 /share/Backup/.populi/*.sh
+
+sh /share/Backup/.populi/ensure-cron.sh                  # pasang jadwal 04:00 (idempoten)
+sh /share/Backup/.populi/populi-pull.sh; echo "exit=$?"  # uji sekarang
+tail -30 /share/Backup/populi-survey-rsync.log
 ```
 
-Jadwal **04:00** — setelah backup VPS selesai (02:15 DB, 02:30 media).
+Bila kunci **baru** dibuat (`ssh-keygen` jalan), daftarkan kunci publiknya di VPS
+seperti §1 (baris `command="$RRSYNC -ro …",restrict <isi id_ed25519.pub>`).
 
-**Kenapa dibungkus `{ date; ...; echo "---"; }`:** rsync **tidak mencetak apa pun**
-bila tak ada berkas baru. Tanpa `date`, log kosong karena *"tidak ada yang baru"*
-akan **terlihat identik** dengan log kosong karena *"cron tak pernah jalan"* —
-tepat jenis kegagalan senyap yang sedang kita cegah. Dengan stempel waktu, log
-membuktikan cron benar-benar berjalan.
+**Verifikasi host key** (sekali, setelah uji pertama — `accept-new` mempercayai
+koneksi pertama, lalu MENOLAK bila host key VPS kelak berubah):
+```bash
+ssh-keygen -lf /share/Backup/.populi/known_hosts          # di QNAP
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub          # di VPS — sidik jari HARUS sama
+```
 
-**Catatan path:** kunci ada di `/mnt/HDA_ROOT/.config/ssh/` (partisi sistem QNAP;
-`~/.ssh` adalah symlink ke sana). Cron tidak selalu memahami `~`, jadi **pakai
-path absolut**. ⚠️ Update firmware QTS dapat menghapus `/mnt/HDA_ROOT/.config` —
-bila sinkron tiba-tiba berhenti setelah update, buat ulang kuncinya.
+**Setelah update firmware QTS:** jalankan ulang `sh /share/Backup/.populi/ensure-cron.sh`.
+Opsional: aktifkan *Control Panel → Hardware → "Run user defined startup processes
+(autorun.sh)"* dan panggil skrip yang sama dari `autorun.sh` (cara memasang
+`autorun.sh` berbeda per model — ikuti panduan QNAP untuk TS-431P2). Healthchecks
+tetap menjadi jaring pengaman: jadwal yang hilang = tak ada ping = alarm.
+
+Jadwal **04:00** — setelah backup VPS selesai (02:15 DB, 02:30 media). Log
+`populi-survey-rsync.log` memuat `=== START …` / `=== END rc=… ===` per run
+(membedakan "tak ada berkas baru" dari "cron tak jalan"), dirotasi bila >5 MB.
 
 ## 5 · 🚨 JANGAN pakai `--delete` (dan kenapa itu justru menyelamatkan Anda)
 
@@ -193,14 +235,20 @@ memantau **kesegaran berkas di NAS** tidak mungkin (VPS tak melihat NAS). Jadi
 pantau dari **sisi QNAP**:
 
 - **HBS 3 → Event notification** → kirim email bila job **gagal**.
-- Lebih kuat: tambahkan *dead man's switch* — di Task Scheduler QNAP, setelah
-  rsync sukses, ping Healthchecks.io:
-  ```bash
-  0 4 * * *  rsync -az -e "ssh -i /share/homes/admin/.ssh/id_ed25519" backupro@IP_VPS:/ /share/Backup/populi-survey/ && curl -fsS -m 10 https://hc-ping.com/UUID-QNAP-JOB
-  ```
-  Kalau tarikan berhenti (NAS mati, listrik padam, internet kantor putus, kunci
-  dicabut), **tidak ada ping** → Healthchecks mengalarm Anda. Kegagalan senyap
-  inilah yang paling berbahaya dan tak bisa dideteksi dari VPS.
+- **Dead man's switch (terpasang di `populi-pull.sh`)** — melapor ke Healthchecks.io:
+  `/start` saat mulai, lalu `/<exit-code>` dengan ekor log sebagai body. Hasilnya:
+  - tarikan **gagal** → alarm **seketika**, dan pesan errornya (`Host key
+    verification failed`, `Permission denied`, disk penuh, …) **tampil langsung**
+    di detail event Healthchecks — tak perlu SSH ke NAS untuk tahu sebabnya;
+  - tarikan **berhenti** (NAS mati, listrik padam, internet kantor putus, jadwal
+    hilang) → **tak ada ping** → alarm setelah masa tenggang.
+
+  Atur check di Healthchecks: **Period 1 hari, Grace 2 jam**, notifikasi ke email/WA.
+
+  > 🚫 **Jangan pernah membuka URL ping di browser untuk "menghijaukan" alarm.**
+  > Itu persis yang menyembunyikan insiden 24 Sep: event `HTTPS POST … Mozilla/5.0
+  > (Windows)` = ping manual, bukan backup. Ping asli selalu `curl/…` dari IP
+  > kantor ±04:0x. Alarm merah = perbaiki tarikannya, bukan bungkam alarmnya.
 
 ---
 
