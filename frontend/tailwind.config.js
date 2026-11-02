@@ -1,3 +1,5 @@
+import { brand, ink, positive, warning, negative, info } from './src/theme/palette.js';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -30,34 +32,62 @@ export default {
       fontSize: {
         '2xs': ['0.6875rem', { lineHeight: '1rem' }],
       },
+      // ── Warna ───────────────────────────────────────────────────────────────
+      // Nilai ada di src/theme/palette.js (dijaga tes kontras). Nama class Tailwind
+      // sengaja dipertahankan — ribuan pemakaian ikut berubah dari satu tempat:
+      //   primary, accent, orange      → oranye Populi (satu warna aksi, web & APK)
+      //   gray, slate                  → netral tinta
+      //   green, emerald               → positif
+      //   amber, yellow                → peringatan (oker)
+      //   red, rose                    → negatif (krimson)
+      //   blue, indigo, violet, purple,
+      //   sky, cyan, teal              → info (satu biru tinta — tanpa warna pelangi)
       colors: {
-        primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
-        },
-        // Aksen hangat (oranye/coral) untuk pengalaman isi-survei (surveyor).
-        accent: {
-          50: '#fff5ed',
-          100: '#ffe8d4',
-          200: '#fecda9',
-          300: '#fdac72',
-          400: '#fb8138',
-          500: '#f96316',
-          600: '#ea4c0c',
-          700: '#c23a0c',
-          800: '#9a3012',
-          900: '#7c2912',
-        },
-        // Latar krem hangat untuk layar surveyor.
-        cream: '#faf6f0',
+        primary: brand,
+        accent: brand,
+        orange: brand,
+        gray: ink,
+        slate: ink,
+        green: positive,
+        emerald: positive,
+        amber: warning,
+        yellow: warning,
+        red: negative,
+        rose: negative,
+        blue: info,
+        indigo: info,
+        violet: info,
+        purple: info,
+        sky: info,
+        cyan: info,
+        teal: info,
+        // Latar layar TPD. Dulu krem #faf6f0; kini netral agar kontras di lapangan.
+        cream: ink[50],
+      },
+      fontFamily: {
+        // Dibundel (lihat src/index.css) agar tampil sama saat offline di APK.
+        sans: ['"Libre Franklin"', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
+      },
+      // ── Sudut: tegas, bukan membulat di mana-mana. rounded-full tetap untuk
+      // titik status, avatar, dan bar progres.
+      borderRadius: {
+        sm: '0.125rem',
+        DEFAULT: '0.1875rem',
+        md: '0.25rem',
+        lg: '0.25rem',
+        xl: '0.375rem',
+        '2xl': '0.375rem',
+        '3xl': '0.5rem',
+      },
+      // ── Bayangan: permukaan dibedakan garis tipis, bukan elevasi. Hanya elemen
+      // yang benar-benar melayang (menu, modal) yang mendapat bayangan.
+      boxShadow: {
+        sm: '0 0 0 0 transparent',
+        DEFAULT: '0 0 0 1px rgb(26 25 23 / 0.09)',
+        md: '0 0 0 1px rgb(26 25 23 / 0.09)',
+        lg: '0 0 0 1px rgb(26 25 23 / 0.08), 0 4px 12px rgb(26 25 23 / 0.08)',
+        xl: '0 0 0 1px rgb(26 25 23 / 0.08), 0 8px 24px rgb(26 25 23 / 0.12)',
+        '2xl': '0 0 0 1px rgb(26 25 23 / 0.08), 0 12px 32px rgb(26 25 23 / 0.16)',
       },
     },
   },

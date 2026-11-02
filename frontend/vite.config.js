@@ -25,7 +25,7 @@ export default defineConfig({
       workbox: {
         // wilayahIndonesia.json disajikan dari /public, bukan di-bundle.
         // Exclude dari SW precache agar tidak melebihi batas 2 MB.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         globIgnores: ['**/wilayahIndonesia*', 'wilayahIndonesia.json'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB safety net
         // Skip waiting — langsung aktifkan SW baru tanpa tunggu tab ditutup

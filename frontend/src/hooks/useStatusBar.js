@@ -23,13 +23,13 @@ import { setStatusBarStyle } from '../utils/capacitorBridge';
  *   useStatusBar({ style: 'DARK', color: '#7c2912' }); // kustom
  */
 
-// Tema default aplikasi: permukaan terang (cream/putih) → ikon gelap.
+// Tema default aplikasi: permukaan terang → ikon gelap.
 export const DEFAULT_STATUS_BAR = { style: 'LIGHT', color: '#ffffff' };
 
 // Preset berbasis warna LATAR layar (bukan warna ikon).
 const PRESETS = {
   light: DEFAULT_STATUS_BAR,           // latar terang → ikon gelap
-  dark: { style: 'DARK', color: '#1e3a8a' }, // latar biru gelap (Login) → ikon putih
+  dark: { style: 'DARK', color: '#1a1917' }, // latar tinta gelap → ikon putih
 };
 
 export default function useStatusBar(theme) {
