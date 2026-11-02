@@ -330,7 +330,7 @@ function RtSelection() {
             <p className="text-xs text-gray-500 truncate">{survey?.title || 'Survei'}</p>
           </div>
           {!online && (
-            <span className="shrink-0 text-xs font-medium text-accent-700 bg-accent-50 border border-accent-200 rounded-full px-2.5 py-1">
+            <span className="shrink-0 text-xs font-medium text-accent-700 bg-accent-50 border border-accent-200 rounded px-2.5 py-1">
               Offline
             </span>
           )}
@@ -405,7 +405,7 @@ function RtSelection() {
         )}
 
         {/* Form input */}
-        <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
+        <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Lokasi penugasan</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -487,7 +487,7 @@ function RtSelection() {
           </div>
 
           <button type="button" onClick={handleDraw} disabled={submitting}
-            className="w-full min-h-[48px] rounded-xl bg-accent-600 hover:bg-accent-700 disabled:opacity-60 text-white text-sm font-semibold inline-flex items-center justify-center gap-2 transition-colors">
+            className="w-full min-h-[48px] rounded-xl bg-accent-600 hover:bg-accent-700 disabled:bg-gray-400 text-white text-sm font-semibold inline-flex items-center justify-center gap-2 transition-colors">
             <Icon name="shuffle" className="w-4 h-4" />
             {submitting ? 'Mengundi…' : `Undi ${rtCount} RT sekarang`}
           </button>
@@ -499,7 +499,7 @@ function RtSelection() {
 
         {/* Menunggu sinkron + riwayat */}
         {(pending.length > 0 || history.length > 0) && (
-          <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-2">Undian tercatat</h2>
             <ul className="divide-y divide-gray-100">
               {pending.map((p) => (

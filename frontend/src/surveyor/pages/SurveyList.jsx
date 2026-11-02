@@ -618,23 +618,17 @@ function SurveyList() {
       )}
 
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
         <div className="max-w-3xl mx-auto px-screen py-3">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex items-center gap-3">
-              <div
-                className="shrink-0 w-9 h-9 rounded-full bg-accent-100 text-accent-700 font-medium flex items-center justify-center text-sm"
-                aria-hidden="true"
-              >
-                {(user?.name || user?.email || '?').trim().charAt(0).toUpperCase()}
-              </div>
               <div className="min-w-0">
-                <h1 className="text-lg font-bold font-serif text-gray-900 leading-snug">Daftar Survei</h1>
+                <h1 className="text-lg font-bold text-gray-900 leading-snug">Daftar Survei</h1>
                 {user && (
                   <p className="text-xs text-gray-500 mt-0.5 truncate">
                     Halo, <span className="font-medium text-gray-700">{user.name || user.email}</span>
-                    <span className="text-gray-300"> · </span>
-                    Sesi: <span className="font-semibold text-accent-700">{sessionCount}</span>
+                    <span className="text-gray-500"> · </span>
+                    Sesi: <span className="font-medium text-gray-700 tabular-nums">{sessionCount}</span>
                   </p>
                 )}
               </div>
@@ -645,7 +639,7 @@ function SurveyList() {
               <button
                 onClick={() => { setNotifOpen(true); fetchNotifications(); }}
                 aria-label={notifUnread > 0 ? `Pemberitahuan, ${notifUnread} belum dibaca` : 'Pemberitahuan'}
-                className="relative min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-500 hover:text-accent-700 hover:bg-accent-50 rounded-xl transition-colors"
+                className="relative min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
@@ -682,7 +676,7 @@ function SurveyList() {
               antrean) ada di checklist yang dibuka lewat ketukan. */}
           {surveys.length > 0 && (
             <div className={`mt-3 rounded-xl border ${
-              offlineChecklist.ready ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-300'
+              offlineChecklist.ready ? 'bg-white border-gray-200' : 'bg-amber-50 border-amber-300'
             }`}>
               <div className="flex items-center gap-2 p-2">
                 <button
@@ -696,7 +690,7 @@ function SurveyList() {
                     className={`w-5 h-5 shrink-0 ${offlineChecklist.ready ? 'text-green-600' : 'text-amber-600'}`}
                   />
                   <span className="min-w-0">
-                    <span className={`block text-xs font-semibold ${offlineChecklist.ready ? 'text-green-800' : 'text-amber-800'}`}>
+                    <span className={`block text-xs font-semibold ${offlineChecklist.ready ? 'text-gray-900' : 'text-amber-800'}`}>
                       {offlineChecklist.ready
                         ? 'Siap dipakai offline'
                         : `Belum siap offline — ${offlineChecklist.failCount} hal`}
@@ -718,7 +712,7 @@ function SurveyList() {
                 <button
                   onClick={handleRefreshAll}
                   disabled={downloading}
-                  className="min-h-[44px] shrink-0 inline-flex items-center gap-1.5 px-4 text-sm font-semibold text-white bg-accent-600 hover:bg-accent-700 rounded-xl disabled:opacity-50 transition-colors"
+                  className={`min-h-[44px] shrink-0 inline-flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-md disabled:opacity-50 transition-colors ${allDownloaded ? 'text-gray-800 bg-white border border-gray-300 hover:bg-gray-50' : 'text-white bg-accent-600 hover:bg-accent-700'}`}
                 >
                   {downloading ? (
                     <>
@@ -867,34 +861,18 @@ function SurveyList() {
               const localFailedCount = numbersToShow.filter((n) => numStatus(n) === 'failed').length;
               const filledNumCount = syncedCount + localPendingCount + localFailedCount;
 
-              // Warna pita status di sisi kiri kartu
-              const stripeColor = targetMet
-                ? 'bg-green-500'
-                : !temporal.canStart
-                  ? 'bg-gray-300'
-                  : isOfflineReady
-                    ? 'bg-accent-500'
-                    : 'bg-accent-400';
-
               return (
                 <div
                   key={survey.id}
-                  className={`bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex ${targetMet ? 'opacity-70' : ''}`}
+                  className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${targetMet ? 'opacity-70' : ''}`}
                 >
-                  {/* Pita status warna */}
-                  <div className={`w-1.5 shrink-0 ${stripeColor}`} aria-hidden="true" />
-
-                  <div className="flex-1 min-w-0 p-4 sm:p-5">
+                  <div className="p-4 sm:p-5">
                     {/* Judul + badge unduh */}
                     <div className="flex items-start justify-between gap-2">
-                      <h2 className="text-lg font-bold font-serif text-gray-900 leading-snug">{survey.title}</h2>
+                      <h2 className="text-base font-semibold text-gray-900 leading-snug">{survey.title}</h2>
                       <span
                         title={isOfflineReady ? 'Tersimpan' : 'Belum diunduh'}
-                        className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-2xs font-semibold ${
-                          isOfflineReady
-                            ? 'bg-green-50 text-green-700 border border-green-200'
-                            : 'bg-gray-100 text-gray-500 border border-gray-200'
-                        }`}
+                        className={`shrink-0 inline-flex items-center gap-1 mt-0.5 text-2xs font-medium ${isOfflineReady ? 'text-green-700' : 'text-gray-500'}`}
                       >
                         {isOfflineReady ? (
                           <>
@@ -910,7 +888,7 @@ function SurveyList() {
                       </span>
                     </div>
                     {survey.description && (
-                      <p className="text-sm text-gray-500 mt-1">{survey.description}</p>
+                      <p className="text-sm text-gray-600 mt-1">{survey.description}</p>
                     )}
                     {temporal.label && (
                       <p className={`text-xs mt-1 font-medium inline-flex items-center gap-1 ${temporal.isUrgent ? 'text-red-600' : 'text-gray-500'}`}>
@@ -935,7 +913,7 @@ function SurveyList() {
 
                     {/* Peringatan belum diunduh */}
                     {!isOfflineReady && temporal.canStart && !targetMet && (
-                      <p className="mt-3 text-xs text-accent-700 bg-accent-50 border border-accent-200 rounded-xl px-3 py-2 flex items-center gap-1.5">
+                      <p className="mt-3 text-xs font-medium text-amber-800 flex items-center gap-1.5">
                         <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" /></svg>
                         Unduh dulu agar bisa diisi tanpa internet
                       </p>
@@ -952,13 +930,13 @@ function SurveyList() {
                           <span className="flex items-center gap-2 shrink-0">
                             {/* Ringkasan status sekilas */}
                             {localPendingCount > 0 && (
-                              <span className="inline-flex items-center gap-1 text-2xs font-semibold text-accent-700 bg-accent-100 rounded-full px-2 py-0.5">
+                              <span className="inline-flex items-center gap-1 text-2xs font-medium text-accent-700 bg-accent-100 rounded px-2 py-0.5">
                                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 {localPendingCount}
                               </span>
                             )}
                             {localFailedCount > 0 && (
-                              <span className="inline-flex items-center gap-1 text-2xs font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
+                              <span className="inline-flex items-center gap-1 text-2xs font-medium text-red-700 bg-red-100 rounded px-2 py-0.5">
                                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 {localFailedCount}
                               </span>
@@ -977,7 +955,7 @@ function SurveyList() {
 
                           {/* Daftar nomor vertikal — tiap baris menampilkan status,
                               baris "belum diisi" dapat diketuk untuk langsung mengisi. */}
-                          <ul className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
+                          <ul className="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
                             {numbersToShow.map((num) => {
                               const status = numStatus(num);
                               const rowDraft = draftByNumber[String(num)] || null;
@@ -991,13 +969,13 @@ function SurveyList() {
                                 draft: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4h10M7 20h10M8 4v2.5a4 4 0 004 4 4 4 0 004-4V4M8 20v-2.5a4 4 0 014-4 4 4 0 014 4V20" /></svg>,
                               }[status];
                               const map = {
-                                synced: { row: 'bg-green-50', badge: 'bg-green-100 text-green-800', iconCls: 'text-green-600', label: 'Sudah terkirim' },
-                                uploading: { row: 'bg-accent-50', badge: 'bg-accent-100 text-accent-800', iconCls: 'text-accent-600 animate-pulse', label: 'Sedang mengunggah data' },
-                                pending: { row: 'bg-accent-50/60', badge: 'bg-accent-100 text-accent-800', iconCls: 'text-accent-600', label: 'Menunggu upload' },
-                                failed: { row: 'bg-red-50', badge: 'bg-red-100 text-red-800', iconCls: 'text-red-600', label: 'Gagal upload — perlu ditinjau' },
-                                ready: { row: 'bg-white hover:bg-accent-50', badge: 'bg-accent-100 text-accent-700', iconCls: 'text-accent-500', label: 'Belum diisi — ketuk untuk mengisi' },
-                                not_downloaded: { row: 'bg-white', badge: 'bg-gray-100 text-gray-500', iconCls: 'text-gray-500', label: 'Belum diisi' },
-                                draft: { row: 'bg-amber-50 hover:bg-amber-100', badge: 'bg-amber-100 text-amber-800', iconCls: 'text-amber-600', label: (rowDraft && rowDraft.totalSteps > 0) ? `Sedang dikerjakan · Pertanyaan ${Math.min((rowDraft.currentStep || 0) + 1, rowDraft.totalSteps)}/${rowDraft.totalSteps}` : 'Sedang dikerjakan — ketuk untuk lanjut' },
+                                synced: { row: 'bg-white', badge: 'text-green-700', iconCls: 'text-green-600', label: 'Sudah terkirim' },
+                                uploading: { row: 'bg-white', badge: 'text-gray-700', iconCls: 'text-gray-600 animate-pulse', label: 'Sedang mengunggah data' },
+                                pending: { row: 'bg-white', badge: 'text-gray-700', iconCls: 'text-gray-600', label: 'Menunggu upload' },
+                                failed: { row: 'bg-red-50', badge: 'text-red-700', iconCls: 'text-red-600', label: 'Gagal upload — perlu ditinjau' },
+                                ready: { row: 'bg-white hover:bg-gray-50', badge: 'text-primary-700', iconCls: 'text-gray-500', label: 'Belum diisi — ketuk untuk mengisi' },
+                                not_downloaded: { row: 'bg-white', badge: 'text-gray-500', iconCls: 'text-gray-500', label: 'Belum diisi' },
+                                draft: { row: 'bg-amber-50 hover:bg-amber-100', badge: 'text-amber-800', iconCls: 'text-amber-600', label: (rowDraft && rowDraft.totalSteps > 0) ? `Sedang dikerjakan · Pertanyaan ${Math.min((rowDraft.currentStep || 0) + 1, rowDraft.totalSteps)}/${rowDraft.totalSteps}` : 'Sedang dikerjakan — ketuk untuk lanjut' },
                               }[status];
                               const clickable = (status === 'ready' || status === 'not_downloaded' || status === 'draft') && temporal.canStart && !targetMet;
                               const RowTag = clickable ? 'button' : 'div';
@@ -1033,11 +1011,11 @@ function SurveyList() {
                                         )}
                                       </span>
                                     </span>
-                                    <span className={`shrink-0 text-2xs font-semibold rounded-full px-2 py-0.5 ${map.badge}`}>
+                                    <span className={`shrink-0 text-xs font-medium ${map.badge}`}>
                                       {{ synced: 'Terkirim', uploading: 'Mengunggah', pending: 'Menunggu', failed: 'Gagal', ready: 'Isi', not_downloaded: 'Belum', draft: 'Lanjut' }[status]}
                                     </span>
                                     {clickable && (
-                                      <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                      <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                     )}
                                   </RowTag>
                                 </li>
@@ -1061,7 +1039,7 @@ function SurveyList() {
                         <button
                           type="button"
                           onClick={() => handleStartSurvey(survey.id, latestDraft?.number || null)}
-                          className="flex-1 min-w-0 flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 px-4 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300"
+                          className="flex-1 min-w-0 flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 px-4 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
                           aria-label={`Lanjutkan kuesioner yang sedang dikerjakan pada survei ${survey.title}`}
                         >
                           <span className="text-amber-600 shrink-0" aria-hidden="true">
@@ -1090,7 +1068,7 @@ function SurveyList() {
                               )}
                             </span>
                           </span>
-                          <span className="shrink-0 text-xs font-bold text-amber-800 bg-amber-100 rounded-full px-3 py-1">Lanjut</span>
+                          <span className="shrink-0 text-xs font-medium text-amber-800 bg-amber-100 rounded px-3 py-1">Lanjut</span>
                         </button>
                         {/* Kosongkan draft terakhir (mulai baru) — selalu konfirmasi dulu. */}
                         <button

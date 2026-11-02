@@ -92,7 +92,7 @@ function InterviewTimerBadge({ startAt }) {
   const label = `${h > 0 ? `${h}:` : ''}${pad(Math.floor((secs % 3600) / 60))}:${pad(secs % 60)}`;
   return (
     <span
-      className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold tabular-nums text-gray-600 bg-gray-100 border border-gray-200 rounded-full px-2 py-1"
+      className="shrink-0 inline-flex items-center gap-1 text-xs font-medium tabular-nums text-gray-600"
       title="Durasi wawancara"
       aria-label={`Durasi wawancara ${label}`}
     >
@@ -657,7 +657,7 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
             {availableNumbers.length} dari {assignedNumbers.length} nomor tersedia
           </span>
           {!isOnline && (
-            <span className="text-xs font-medium text-accent-600 bg-accent-50 border border-accent-200 rounded-full px-2 py-0.5 inline-flex items-center gap-1">
+            <span className="text-xs font-medium text-accent-600 bg-accent-50 border border-accent-200 rounded px-2 py-0.5 inline-flex items-center gap-1">
               <Icon name="phone" className="w-3 h-3" />
               Data offline
             </span>
@@ -2734,9 +2734,9 @@ function SurveyForm() {
   const isLastStep = currentStep === totalSteps - 1;
 
   return (
-    <div className="min-h-screen bg-cream" style={formFontStyle}>
+    <div className="min-h-screen bg-cream flex flex-col" style={formFontStyle}>
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-10 pt-[env(safe-area-inset-top)]">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10 pt-[env(safe-area-inset-top)]">
         <div className="max-w-2xl mx-auto px-screen py-4 flex items-center gap-3">
           <button
             onClick={handleBackClick}
@@ -2752,7 +2752,7 @@ function SurveyForm() {
               {survey?.title || 'Formulir Survei'}
             </h1>
             {currentQuestionnaireNumber ? (
-              <span className="inline-flex items-center gap-1 mt-0.5 text-xs font-semibold text-accent-700 bg-accent-50 border border-accent-200 rounded-full px-2 py-0.5">
+              <span className="inline-flex items-center gap-1 mt-0.5 text-xs font-medium text-gray-600 tabular-nums">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 Kuesioner No. {currentQuestionnaireNumber}
               </span>
@@ -2774,14 +2774,14 @@ function SurveyForm() {
               <button
                 type="button"
                 onClick={() => setShowOverview(true)}
-                className="text-xs text-accent-600 hover:text-accent-800 font-medium transition-colors"
+                className="text-xs text-gray-700 underline underline-offset-2 hover:text-gray-900 font-medium transition-colors"
               >
                 Lihat Semua
               </button>
             </div>
             <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
               <div
-                className="h-full bg-accent-600 transition-all duration-300"
+                className="h-full bg-accent-500 rounded-full transition-all duration-300"
                 style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
               />
             </div>
@@ -2816,7 +2816,7 @@ function SurveyForm() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-screen py-6 space-y-6">
+      <main className="flex-1 w-full flex flex-col gap-6 max-w-2xl mx-auto px-screen pt-6">
         {/* Banner draft dipulihkan */}
         {draftRestored && (
           <div className="bg-accent-50 border border-accent-200 rounded-lg px-3 py-2.5 flex items-center justify-between gap-3">
@@ -2872,24 +2872,24 @@ function SurveyForm() {
                 <div
                   key={question.id}
                   id={`question-${question.id}`}
-                  className={`bg-white rounded-2xl border border-gray-200 border-l-4 border-l-accent-400 p-5 transition-colors ${
-                    hasError ? 'border-red-400 border-l-red-500' : ''
+                  className={`bg-white rounded-lg border border-gray-200 p-5 transition-colors ${
+                    hasError ? 'border-red-400' : ''
                   }`}
                 >
                   <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                    <p className="font-serif text-lg text-gray-900 leading-snug">
-                      <span className="font-sans font-semibold text-accent-500 mr-2">{index + 1}.</span>
+                    <p className="text-lg font-medium text-gray-900 leading-snug">
+                      <span className="font-medium text-gray-500 mr-2 tabular-nums">{index + 1}.</span>
                       {question.text}
                       {question.is_required && (
                         <span className="text-red-500 ml-1" aria-label="wajib diisi">*</span>
                       )}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                      <span className="inline-flex items-center rounded bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
                         {questionTypeLabel}
                       </span>
                       {question.is_required && (
-                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                        <span className="inline-flex items-center rounded bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
                           Wajib
                         </span>
                       )}
@@ -2991,11 +2991,11 @@ function SurveyForm() {
             )}
 
             {/* Tombol simpan — sticky di bawah, mudah dijangkau jempol */}
-            <div className="sticky bottom-0 -mx-screen px-screen pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-cream via-cream/95 to-transparent">
+            <div className="sticky bottom-0 mt-auto -mx-screen px-screen pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-white border-t border-gray-200">
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="w-full bg-accent-600 hover:bg-accent-700 disabled:bg-accent-300 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-accent-600/20"
+                className="w-full bg-accent-600 hover:bg-accent-700 disabled:bg-gray-400 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
               >
                 {submitting ? (
                   <>
@@ -3019,7 +3019,7 @@ function SurveyForm() {
               <button
                 type="button"
                 onClick={() => setShowOverview(false)}
-                className="text-xs text-accent-600 hover:text-accent-800 font-medium transition-colors"
+                className="text-xs text-gray-700 underline underline-offset-2 hover:text-gray-900 font-medium transition-colors"
               >
                 Kembali ke Pertanyaan
               </button>
@@ -3085,10 +3085,10 @@ function SurveyForm() {
                     hasError ? 'rounded-2xl border border-red-300 bg-red-50/60 p-4' : ''
                   }`}
                 >
-                  {/* Question label — gaya editorial (serif) */}
+                  {/* Teks pertanyaan — mengikuti jenis huruf yang disetel admin per survei */}
                   <div className="mb-5">
-                    <p className="font-serif text-xl text-gray-900 leading-snug">
-                      <span className="font-sans font-semibold text-accent-500 mr-1.5">{currentStep + 1}.</span>
+                    <p className="text-xl font-medium text-gray-900 leading-snug">
+                      <span className="font-medium text-gray-500 mr-1.5 tabular-nums">{currentStep + 1}.</span>
                       {question.text}
                       {question.is_required && (
                         <span className="text-red-500 ml-1" aria-label="wajib diisi">*</span>
@@ -3227,7 +3227,7 @@ function SurveyForm() {
 
             {/* ─── Navigation buttons (sticky bottom bar) ──────────────────── */}
             {totalSteps > 0 && (
-              <div className="sticky bottom-0 -mx-screen px-screen pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-3 bg-gradient-to-t from-cream via-cream/95 to-transparent">
+              <div className="sticky bottom-0 mt-auto -mx-screen px-screen pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-3 bg-white border-t border-gray-200">
                 {/* Back button */}
                 <button
                   type="button"
@@ -3244,7 +3244,7 @@ function SurveyForm() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={submitting}
-                    className="flex-1 bg-accent-600 hover:bg-accent-700 disabled:bg-accent-300 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-accent-600/20"
+                    className="flex-1 bg-accent-600 hover:bg-accent-700 disabled:bg-gray-400 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
                   >
                     {submitting ? (
                       <>
@@ -3259,7 +3259,7 @@ function SurveyForm() {
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="flex-1 bg-accent-600 hover:bg-accent-700 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors shadow-lg shadow-accent-600/20"
+                    className="flex-1 bg-accent-600 hover:bg-accent-700 text-white font-semibold py-3.5 px-6 rounded-xl transition-colors"
                   >
                     Selanjutnya
                   </button>
