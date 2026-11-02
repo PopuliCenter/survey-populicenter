@@ -20,7 +20,7 @@ function SkipLogicHint({ question, questions = [] }) {
       {/* Badge bercabang + tooltip rincian */}
       <span className="relative group inline-flex">
         <span
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600 cursor-help focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600 cursor-help focus:outline-none focus:ring-2 focus:ring-primary-300"
           tabIndex={0}
           role="button"
           aria-label={`Bercabang: ${analysis.ruleCount} aturan skip logic. Arahkan kursor untuk rincian.`}
@@ -53,7 +53,7 @@ function SkipLogicHint({ question, questions = [] }) {
       {hasWarning && (
         <span className="relative group inline-flex">
           <span
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 cursor-help focus:outline-none focus:ring-2 focus:ring-amber-300"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 cursor-help focus:outline-none focus:ring-2 focus:ring-primary-300"
             tabIndex={0}
             role="button"
             aria-label={`Perlu dicek: ${analysis.warnings.length} masalah pada skip logic.`}

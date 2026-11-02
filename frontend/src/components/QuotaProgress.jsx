@@ -22,11 +22,11 @@ function QuotaProgress({ filled = 0, quota = null, showLabel = true }) {
       {/* Label row */}
       {showLabel && (
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-gray-600">
+          <span className="text-xs text-gray-600 tabular-nums">
             {hasQuota ? `${filled} / ${quota}` : `${filled} (tidak ada target)`}
           </span>
           {targetMet && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+            <span className="text-xs font-medium text-green-700">
               Target Terpenuhi
             </span>
           )}
@@ -36,7 +36,7 @@ function QuotaProgress({ filled = 0, quota = null, showLabel = true }) {
       {/* Progress bar — only shown when quota is set */}
       {hasQuota && (
         <div
-          className="w-full bg-gray-200 rounded-full h-2 overflow-hidden"
+          className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden"
           role="progressbar"
           aria-valuenow={filled}
           aria-valuemin={0}
@@ -44,7 +44,7 @@ function QuotaProgress({ filled = 0, quota = null, showLabel = true }) {
           aria-label={`Progres kuota: ${filled} dari ${quota}`}
         >
           <div
-            className={`h-2 rounded-full transition-all duration-300 ${
+            className={`h-full rounded-full transition-all duration-300 ${
               targetMet ? 'bg-green-500' : 'bg-primary-500'
             }`}
             style={{ width: `${percentage}%` }}

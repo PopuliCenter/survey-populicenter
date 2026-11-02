@@ -34,10 +34,10 @@ function DashboardProvinceMap({ surveyId }) {
   const top = (data?.regions || []).slice(0, 8);
 
   return (
-    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Peta sebaran provinsi">
+    <section className="bg-white rounded-lg border border-gray-200 p-5" aria-label="Peta sebaran provinsi">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div>
-          <h2 className="text-base font-semibold text-gray-700">Peta Sebaran per Provinsi</h2>
+          <h2 className="text-sm font-semibold text-gray-900">Peta sebaran per provinsi</h2>
           <p className="text-xs text-gray-500">
             {data
               ? `Data per ${new Date(data.generated_at).toLocaleString('id-ID')}${data.cached ? ' (cache)' : ''}`
@@ -48,7 +48,7 @@ function DashboardProvinceMap({ surveyId }) {
           type="button"
           onClick={load}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-50 rounded-lg"
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 rounded-md"
         >
           {loading ? 'Memuat…' : data ? 'Perbarui peta' : 'Muat peta'}
         </button>
@@ -79,7 +79,7 @@ function DashboardProvinceMap({ surveyId }) {
               {top.map((r) => (
                 <div key={r.province} className="flex justify-between text-sm">
                   <span className="text-gray-700 truncate mr-2">{r.province}</span>
-                  <span className="font-semibold text-gray-800">{r.count.toLocaleString('id-ID')}</span>
+                  <span className="font-semibold text-gray-900 tabular-nums">{r.count.toLocaleString('id-ID')}</span>
                 </div>
               ))}
             </div>

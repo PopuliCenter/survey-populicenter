@@ -44,7 +44,7 @@ function SurveyorProgressTable({ surveyors = [] }) {
               <td className="py-2.5 pr-4 text-right text-gray-600">{s.collected}</td>
               <td className="py-2.5 pr-4 text-right">
                 {s.percentage >= 100 ? (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
                     Selesai
                   </span>
                 ) : (

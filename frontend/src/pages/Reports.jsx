@@ -32,7 +32,7 @@ function JobStatusBadge({ status }) {
   const cls = map[status] || 'bg-gray-100 text-gray-600';
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${cls}`}
     >
       {label[status] || status || '—'}
     </span>
@@ -133,7 +133,7 @@ function ExportJobTracker({ job, onDone }) {
         {status === 'completed' && (
           <button
             onClick={handleDownload}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-400"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
             aria-label={`Unduh file ekspor ${job.format.toUpperCase()} untuk ${job.surveyTitle}`}
           >
             <svg
@@ -547,7 +547,7 @@ function Reports() {
               type="button"
               onClick={() => handleExport('xlsx')}
               disabled={exportingXlsx || exportingCsv}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
               aria-label="Ekspor data ke format Excel XLSX"
             >
               {exportingXlsx ? (
@@ -591,7 +591,7 @@ function Reports() {
               type="button"
               onClick={() => handleExport('csv')}
               disabled={exportingXlsx || exportingCsv}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
               aria-label="Ekspor data ke format CSV"
             >
               {exportingCsv ? (
@@ -637,7 +637,7 @@ function Reports() {
               type="button"
               onClick={handlePptx}
               disabled={exportingXlsx || exportingCsv || exportingPptx}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
               aria-label="Buat laporan presentasi PPTX"
             >
               {exportingPptx ? (
@@ -664,7 +664,7 @@ function Reports() {
                 if (!selectedSurveyId) { setExportError('Pilih survei terlebih dahulu.'); return; }
                 setShowReportConfig(true);
               }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
               aria-label="Konfigurasi laporan PPTX"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -711,7 +711,7 @@ function Reports() {
                 <button
                   type="button"
                   onClick={() => setShowTargets(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg"
                 >
                   Atur target per provinsi
                 </button>

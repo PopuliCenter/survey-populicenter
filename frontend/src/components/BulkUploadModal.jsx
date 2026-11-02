@@ -131,7 +131,7 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
               >
                 Tutup
               </button>
@@ -175,7 +175,7 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
                 accept=".csv,.xlsx"
                 onChange={handleFileChange}
                 disabled={uploading}
-                className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 focus:outline-none"
+                className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-800 hover:file:bg-gray-200 focus:outline-none"
                 aria-describedby="bulk-upload-file-hint"
               />
               <p id="bulk-upload-file-hint" className="mt-1 text-xs text-gray-500">
@@ -219,7 +219,7 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
                 type="button"
                 onClick={handleClose}
                 disabled={uploading}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
               >
                 Batal
               </button>
@@ -227,7 +227,7 @@ function BulkUploadModal({ open, onClose, onSuccess }) {
                 type="button"
                 onClick={handleUpload}
                 disabled={!file || uploading}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
               >
                 {uploading ? 'Mengupload…' : 'Upload'}
               </button>

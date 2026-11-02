@@ -27,7 +27,7 @@ function GeoStatusBadge({ status }) {
   const cls = map[status] || 'bg-gray-100 text-gray-600';
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${cls}`}
     >
       {label[status] || status || '—'}
     </span>
@@ -619,7 +619,7 @@ function Responses() {
               <button
                 type="button"
                 onClick={handleResetFilter}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
               >
                 Reset
               </button>
@@ -646,18 +646,18 @@ function Responses() {
 
         {/* Ringkasan kualitas data — agregasi server, AKURAT lintas halaman */}
         {!isSurveyor && !fetchError && appliedFilters && summary && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px bg-gray-200 border border-gray-200 rounded-md overflow-hidden">
             {[
-              { label: 'Total responden', value: summary.total, cls: 'text-gray-800' },
-              { label: 'Durasi singkat', value: summary.short_duration, cls: 'text-amber-600' },
-              { label: 'Belum direview', value: summary.unreviewed, cls: 'text-gray-800' },
-              { label: 'Terverifikasi', value: summary.verified, cls: 'text-green-600' },
-              { label: 'Dikecualikan', value: summary.excluded ?? 0, cls: 'text-gray-500' },
-              { label: 'Cakupan GPS', value: `${summary.total ? Math.round((summary.gps_with / summary.total) * 100) : 0}%`, cls: 'text-blue-600' },
+              { label: 'Total responden', value: summary.total },
+              { label: 'Durasi singkat', value: summary.short_duration },
+              { label: 'Belum direview', value: summary.unreviewed },
+              { label: 'Terverifikasi', value: summary.verified },
+              { label: 'Dikecualikan', value: summary.excluded ?? 0 },
+              { label: 'Cakupan GPS', value: `${summary.total ? Math.round((summary.gps_with / summary.total) * 100) : 0}%` },
             ].map((t) => (
-              <div key={t.label} className="rounded-xl border border-gray-100 bg-white px-4 py-3">
+              <div key={t.label} className="bg-white px-4 py-3">
                 <p className="text-xs text-gray-500">{t.label}</p>
-                <p className={`text-2xl font-semibold mt-0.5 ${t.cls}`}>{t.value}</p>
+                <p className="text-2xl font-semibold text-gray-900 mt-0.5 tabular-nums">{t.value}</p>
               </div>
             ))}
           </div>
@@ -681,7 +681,7 @@ function Responses() {
                   type="button"
                   onClick={() => applyChip(c.key)}
                   aria-pressed={active}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                  className={`inline-flex items-center gap-2 rounded border px-3 py-1.5 text-sm transition-colors ${
                     active
                       ? 'border-primary-300 bg-primary-50 text-primary-700'
                       : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
@@ -787,7 +787,7 @@ function Responses() {
                           {response.gender_parity_mismatch === true && (
                             <span
                               title="Jenis kelamin tidak sesuai paritas nomor kuesioner (ganjil = Laki-laki, genap = Perempuan)"
-                              className="inline-flex items-center gap-0.5 rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-2xs font-semibold"
+                              className="inline-flex items-center gap-0.5 rounded bg-red-100 text-red-700 px-1.5 py-0.5 text-2xs font-medium"
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.26 16A2 2 0 005 19z" />
@@ -798,7 +798,7 @@ function Responses() {
                           {response.short_duration === true && (
                             <span
                               title="Durasi pengisian terlalu singkat (di bawah ambang survei) — indikasi wawancara terburu-buru"
-                              className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-2xs font-semibold"
+                              className="inline-flex items-center gap-0.5 rounded bg-amber-100 text-amber-700 px-1.5 py-0.5 text-2xs font-medium"
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -809,7 +809,7 @@ function Responses() {
                           {response.gps_missing === true && (
                             <span
                               title="GPS wajib pada survei ini tapi koordinat tidak terekam (pengisian web offline) — periksa kewajaran lokasinya"
-                              className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-2xs font-semibold"
+                              className="inline-flex items-center gap-0.5 rounded bg-amber-100 text-amber-700 px-1.5 py-0.5 text-2xs font-medium"
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
@@ -820,7 +820,7 @@ function Responses() {
                           {response.excluded === true && (
                             <span
                               title={`Dikecualikan dari laporan${response.exclude_reason ? ` — ${response.exclude_reason}` : ''}${response.excluder_name ? ` (oleh ${response.excluder_name})` : ''}`}
-                              className="inline-flex items-center gap-0.5 rounded-full bg-gray-200 text-gray-600 px-1.5 py-0.5 text-2xs font-semibold"
+                              className="inline-flex items-center gap-0.5 rounded bg-gray-200 text-gray-600 px-1.5 py-0.5 text-2xs font-medium"
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
@@ -885,7 +885,7 @@ function Responses() {
                                   disabled={reviewingId === response.id}
                                   title="Verifikasi responden ini"
                                   aria-label={`Verifikasi responden ${response.questionnaire_number}`}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 px-2 py-1 text-xs font-medium transition-colors"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 disabled:opacity-50 px-2 py-1 text-xs font-medium transition-colors"
                                 >
                                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -900,7 +900,7 @@ function Responses() {
                                   disabled={reviewingId === response.id}
                                   title="Tandai responden ini untuk ditinjau"
                                   aria-label={`Tandai responden ${response.questionnaire_number}`}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-50 px-2 py-1 text-xs font-medium transition-colors"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 disabled:opacity-50 px-2 py-1 text-xs font-medium transition-colors"
                                 >
                                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 2H21l-3 6 3 6h-8.5l-1-2H5a2 2 0 00-2 2z" />
@@ -1023,7 +1023,7 @@ function Responses() {
                 <button
                   type="button"
                   onClick={() => setExcludeTarget(null)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   Batal
                 </button>
@@ -1062,7 +1062,7 @@ function Responses() {
                 <button
                   type="button"
                   onClick={() => setDeleteTarget(null)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   Batal
                 </button>

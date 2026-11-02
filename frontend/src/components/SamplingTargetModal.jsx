@@ -135,7 +135,7 @@ function SamplingTargetModal({ surveyId, surveyTitle, onClose }) {
             <button
               type="button"
               onClick={() => onClose?.(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+              className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg"
             >
               Batal
             </button>
@@ -143,7 +143,7 @@ function SamplingTargetModal({ surveyId, surveyTitle, onClose }) {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 rounded-lg"
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 rounded-lg"
             >
               {saving ? 'Menyimpan…' : 'Simpan'}
             </button>

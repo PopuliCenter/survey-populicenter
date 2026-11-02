@@ -143,15 +143,15 @@ function PublicationPanel({ surveyId, surveyTitle }) {
         {loading ? (
           <span className="text-sm text-gray-500">Memeriksa…</span>
         ) : isLive ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Tayang publik
           </span>
         ) : pub ? (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
             Dicabut (snapshot tersimpan)
           </span>
         ) : (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
             Belum dipublikasikan
           </span>
         )}
@@ -221,7 +221,7 @@ function PublicationPanel({ surveyId, surveyTitle }) {
           type="button"
           onClick={handlePublish}
           disabled={busy}
-          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
+          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
         >
           {busy ? 'Memproses…' : isLive ? 'Perbarui snapshot' : 'Publikasikan hasil'}
         </button>
@@ -259,7 +259,7 @@ function PublicationPanel({ surveyId, surveyTitle }) {
               <button
                 type="button"
                 onClick={() => copy(embedUrlWithOrder, 'url')}
-                className="px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg whitespace-nowrap"
+                className="px-3 py-2 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg whitespace-nowrap"
               >
                 {copied === 'url' ? <><Icon name="check" className="w-3.5 h-3.5" />Tersalin</> : 'Salin'}
               </button>
@@ -299,7 +299,7 @@ function PublicationPanel({ surveyId, surveyTitle }) {
               <button
                 type="button"
                 onClick={() => copy(iframeSnippet, 'embed')}
-                className="px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg whitespace-nowrap self-start"
+                className="px-3 py-2 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg whitespace-nowrap self-start"
               >
                 {copied === 'embed' ? <><Icon name="check" className="w-3.5 h-3.5" />Tersalin</> : 'Salin'}
               </button>

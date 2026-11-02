@@ -11,11 +11,13 @@ import api from '../services/api';
  */
 export function StatusBadge({ isActive }) {
   return isActive ? (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-800 whitespace-nowrap">
+      <span className="w-1.5 h-1.5 rounded-full bg-green-500" aria-hidden="true" />
       Aktif
     </span>
   ) : (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 whitespace-nowrap">
+      <span className="w-1.5 h-1.5 rounded-full bg-gray-400" aria-hidden="true" />
       Nonaktif
     </span>
   );
@@ -115,7 +117,7 @@ export function QuotaPanel({ surveyorId }) {
                       return (
                         <span
                           key={num}
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
                             isDone
                               ? 'bg-green-50 text-green-700 border-green-200'
                               : 'bg-amber-50 text-amber-700 border-amber-200'
@@ -141,7 +143,7 @@ export function QuotaPanel({ surveyorId }) {
                     {submittedNums.map((qn) => (
                       <span
                         key={qn}
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200"
+                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200"
                       >
                         <Icon name="check" className="w-3 h-3 mr-1 shrink-0" />{qn}
                       </span>

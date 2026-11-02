@@ -26,7 +26,7 @@ function CopyButton({ text, label = 'Salin' }) {
     <button
       type="button"
       onClick={onCopy}
-      className="shrink-0 px-2.5 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md"
+      className="shrink-0 px-2.5 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
     >
       {copied ? 'Tersalin' : label}
     </button>
@@ -195,7 +195,7 @@ function SpreadsheetFeedPanel({ surveyId }) {
               type="button"
               disabled={busy}
               onClick={rotate}
-              className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50"
+              className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md disabled:opacity-50"
             >
               Ganti token (putus tautan lama)
             </button>

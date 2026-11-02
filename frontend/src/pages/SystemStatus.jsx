@@ -5,7 +5,7 @@ import { SENTRY_DASHBOARD_URL } from '../config/appLinks';
 
 function StatusPill({ ok }) {
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${ok ? 'text-gray-800' : 'text-red-700'}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${ok ? 'bg-green-500' : 'bg-red-500'}`} />
       {ok ? 'Sehat' : 'Bermasalah'}
     </span>
@@ -14,7 +14,7 @@ function StatusPill({ ok }) {
 
 function Card({ title, children }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+    <div className="bg-white rounded-lg border border-gray-200 p-5">
       <h2 className="text-sm font-semibold text-gray-700 mb-3">{title}</h2>
       {children}
     </div>
@@ -74,7 +74,7 @@ function SystemStatus() {
             type="button"
             onClick={load}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-50 rounded-lg"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 rounded-lg"
           >
             {loading ? 'Memuat…' : 'Perbarui'}
           </button>
@@ -147,7 +147,7 @@ function SystemStatus() {
                   href={SENTRY_DASHBOARD_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg"
                 >
                   Buka Dashboard Sentry ↗
                 </a>

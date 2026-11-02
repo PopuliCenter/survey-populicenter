@@ -102,12 +102,20 @@ function getInitials(user) {
   return src.slice(0, 2).toUpperCase();
 }
 
-/** Judul halaman dari rute saat ini (atau null jika tidak cocok). */
-function getPageTitle(pathname, navItems) {
-  const exact = navItems.find((i) => i.path === pathname);
-  if (exact) return exact.label;
-  const prefix = navItems.find((i) => pathname.startsWith(`${i.path}/`));
-  return prefix ? prefix.label : null;
+// Kelompok menu — hanya memengaruhi TAMPILAN; hak akses tetap dari NAV_ITEMS_BY_ROLE.
+const NAV_GROUPS = [
+  { label: 'Operasional', paths: ['/dashboard', '/surveys', '/surveyors', '/responses'] },
+  { label: 'Analisis', paths: ['/reports', '/map', '/random-sampling', '/pemilihan-rt'] },
+  { label: 'Sistem', paths: ['/users', '/audit-log', '/system', '/penyimpanan', '/cleanup'] },
+];
+
+function groupNavItems(items) {
+  return NAV_GROUPS
+    .map((g) => ({
+      label: g.label,
+      items: g.paths.map((p) => items.find((i) => i.path === p)).filter(Boolean),
+    }))
+    .filter((g) => g.items.length > 0);
 }
 
 /**
@@ -122,8 +130,9 @@ export function getNavItemsForRole(role) {
 }
 
 /**
- * Admin/Supervisor/Viewer dashboard layout — sidebar gelap modern,
- * top header dengan judul halaman + avatar, dan area konten terang.
+ * Kerangka dashboard: sidebar terang berkelompok + area konten. Judul halaman
+ * ada di h1 tiap halaman, identitas pengguna di kaki sidebar — keduanya sengaja
+ * tidak diulang. Bar atas hanya muncul di HP (tombol menu).
  *
  * @param {{ children: React.ReactNode }} props
  */
@@ -153,7 +162,7 @@ function Layout({ children }) {
   // Menggeser drawer ke kiri akan menutupnya; offset mengikuti jari (dragX),
   // lalu menutup bila tergeser melewati ambang. Hanya aktif saat sidebar terbuka
   // di layar kecil (di desktop sidebar bersifat tetap/rail).
-  const DRAWER_WIDTH = 256; // selaras dengan w-64
+  const DRAWER_WIDTH = 240; // selaras dengan w-60
   const dragRef = useRef({ startX: 0, startY: 0, active: false });
   const [dragX, setDragX] = useState(null); // px (≤0) saat menggeser; null = idle
 
@@ -194,7 +203,7 @@ function Layout({ children }) {
   const userRole = user?.role || '';
   const navItems = NAV_ITEMS_BY_ROLE[userRole] || [];
   const sidebarLabel = SIDEBAR_LABEL_BY_ROLE[userRole] || 'Dashboard';
-  const pageTitle = getPageTitle(location.pathname, navItems);
+  const navGroups = groupNavItems(navItems);
 
   const handleLogout = async () => {
     try {
@@ -212,13 +221,13 @@ function Layout({ children }) {
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* ── Overlay mobile (memudar; ikut redup saat digeser) ── */}
       <div
-        className={`fixed inset-0 z-20 bg-black/40 md:hidden ${dragX !== null ? '' : 'transition-opacity duration-300'} ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 z-20 bg-gray-900/40 md:hidden ${dragX !== null ? '' : 'transition-opacity duration-300'} ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         style={dragX !== null ? { opacity: Math.max(0, 1 + dragX / DRAWER_WIDTH) } : undefined}
         onClick={() => setSidebar(false)}
         aria-hidden="true"
       />
 
-      {/* ── Sidebar (gelap) — drawer geser di mobile, rail tetap di desktop ── */}
+      {/* ── Sidebar — drawer geser di mobile, rail tetap di desktop ── */}
       <aside
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -226,76 +235,94 @@ function Layout({ children }) {
         style={dragX !== null ? { transform: `translateX(${dragX}px)`, transition: 'none' } : undefined}
         className={`
           fixed md:relative z-30 md:z-auto
-          h-full flex flex-col bg-slate-900 text-slate-300
-          w-64 ${sidebarOpen ? 'md:w-64' : 'md:w-16'}
+          h-full flex flex-col flex-shrink-0 bg-white border-r border-gray-200
+          w-60 ${sidebarOpen ? 'md:w-60' : 'md:w-14'}
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
-          transition-transform md:transition-all duration-300 ease-out will-change-transform
+          transition-transform md:transition-all duration-200 ease-out will-change-transform
           overflow-hidden
         `}
         aria-label="Sidebar"
       >
-        {/* Logo / Brand */}
-        <div className={`border-b border-white/10 flex items-center ${sidebarOpen ? 'px-5 py-4 gap-3' : 'px-2 py-4 justify-center'}`}>
-          <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center flex-shrink-0 overflow-hidden">
-            <img src="/logo-populi-center.png" alt="Populi Center" className="h-7 w-7 object-contain" />
-          </div>
+        {/* Logo / Brand + tombol lipat */}
+        <div className={`flex items-center h-14 flex-shrink-0 ${sidebarOpen ? 'pl-4 pr-2 gap-2.5' : 'justify-center'}`}>
           {sidebarOpen && (
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold text-white leading-tight truncate">Populi Center</h1>
-              <p className="text-2xs text-slate-400 mt-0.5 truncate">{sidebarLabel}</p>
-            </div>
+            <>
+              <img src="/logo-populi-center.png" alt="Populi Center" className="h-7 w-7 object-contain flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900 leading-tight truncate">Populi Center</p>
+                <p className="text-2xs text-gray-500 truncate">{sidebarLabel}</p>
+              </div>
+            </>
           )}
+          <button
+            onClick={() => setSidebar(!sidebarOpen)}
+            className="hidden md:inline-flex p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 rounded-md transition-colors flex-shrink-0"
+            aria-label={sidebarOpen ? 'Sembunyikan sidebar' : 'Tampilkan sidebar'}
+            aria-expanded={sidebarOpen}
+          >
+            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 5h16v14H4zM9 5v14" />
+            </svg>
+          </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4" aria-label="Sidebar navigation">
-          <ul className={`space-y-1 ${sidebarOpen ? 'px-3' : 'px-2'}`}>
-            {navItems.map(({ label, path, icon }) => {
-              const isActive = location.pathname === path || location.pathname.startsWith(`${path}/`);
-              return (
-                <li key={path}>
-                  <Link
-                    to={path}
-                    onClick={() => { if (!isDesktopViewport()) setSidebar(false); }}
-                    title={!sidebarOpen ? label : undefined}
-                    className={`flex items-center rounded-xl text-sm font-medium transition-colors ${
-                      sidebarOpen ? 'gap-3 px-3 py-2.5' : 'justify-center px-2 py-2.5'
-                    } ${
-                      isActive
-                        ? 'bg-primary-600 text-white shadow-sm'
-                        : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                    }`}
-                    aria-current={isActive ? 'page' : undefined}
-                    aria-label={!sidebarOpen ? label : undefined}
-                  >
-                    <Icon name={icon} className="w-5 h-5 flex-shrink-0" />
-                    {sidebarOpen && <span className="truncate">{label}</span>}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        <nav className="flex-1 overflow-y-auto pb-4" aria-label="Sidebar navigation">
+          {navGroups.map((group, gi) => (
+            <div key={group.label} className={gi > 0 ? (sidebarOpen ? 'mt-5' : 'mt-3 pt-3 mx-2 border-t border-gray-200') : ''}>
+              {sidebarOpen && (
+                <p className="px-4 pb-1.5 text-2xs font-medium text-gray-500">{group.label}</p>
+              )}
+              <ul className={`space-y-0.5 ${sidebarOpen ? 'px-2' : gi > 0 ? '' : 'px-2'}`}>
+                {group.items.map(({ label, path, icon }) => {
+                  const isActive = location.pathname === path || location.pathname.startsWith(`${path}/`);
+                  return (
+                    <li key={path}>
+                      <Link
+                        to={path}
+                        onClick={() => { if (!isDesktopViewport()) setSidebar(false); }}
+                        title={!sidebarOpen ? label : undefined}
+                        className={`flex items-center rounded-md text-sm transition-colors ${
+                          sidebarOpen ? 'gap-2.5 px-2 py-1.5' : 'justify-center px-1 py-2'
+                        } ${
+                          isActive
+                            ? 'bg-gray-100 text-gray-900 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        }`}
+                        aria-current={isActive ? 'page' : undefined}
+                        aria-label={!sidebarOpen ? label : undefined}
+                      >
+                        <Icon name={icon} className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-primary-500' : 'text-gray-500'}`} />
+                        {sidebarOpen && <span className="truncate">{label}</span>}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
         {/* Profil pengguna + logout */}
         {user && (
-          <div className={`border-t border-white/10 ${sidebarOpen ? 'p-3 flex items-center gap-3' : 'p-2 flex flex-col items-center gap-2'}`}>
-            <div className="w-9 h-9 rounded-full bg-primary-500/20 text-primary-300 font-bold flex items-center justify-center text-sm flex-shrink-0">
-              {getInitials(user)}
-            </div>
-            {sidebarOpen && (
+          <div className={`border-t border-gray-200 flex-shrink-0 ${sidebarOpen ? 'p-2 pl-4 flex items-center gap-2.5' : 'p-2 flex flex-col items-center gap-1.5'}`}>
+            {sidebarOpen ? (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{user.name || user.email}</p>
-                <p className="text-2xs text-slate-400 capitalize truncate">{ROLE_LABELS[user.role] || user.role}</p>
+                <p className="text-sm font-medium text-gray-900 truncate">{user.name || user.email}</p>
+                <p className="text-2xs text-gray-500 truncate">{ROLE_LABELS[user.role] || user.role}</p>
+              </div>
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-semibold flex items-center justify-center text-xs" title={user.name || user.email}>
+                {getInitials(user)}
               </div>
             )}
             <button
               onClick={handleLogout}
-              className="p-2 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-white/20"
+              className="p-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors flex-shrink-0"
               aria-label="Logout"
               title="Keluar"
             >
-              <Icon name="logout" className="w-5 h-5" />
+              <Icon name="logout" className="w-[18px] h-[18px]" />
             </button>
           </div>
         )}
@@ -303,42 +330,27 @@ function Layout({ children }) {
 
       {/* ── Main area ── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Top header */}
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
-          {/* Tombol toggle sidebar */}
+        {/* Bar atas — HP saja */}
+        <header className="md:hidden bg-white border-b border-gray-200 h-14 px-2 flex items-center gap-2 flex-shrink-0 pt-[env(safe-area-inset-top)] box-content">
           <button
             onClick={() => setSidebar(!sidebarOpen)}
-            className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 flex-shrink-0"
-            aria-label={sidebarOpen ? 'Sembunyikan sidebar' : 'Tampilkan sidebar'}
+            className="p-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors flex-shrink-0"
+            aria-label={sidebarOpen ? 'Sembunyikan menu' : 'Tampilkan menu'}
             aria-expanded={sidebarOpen}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" />
             </svg>
           </button>
-
-          {/* Judul halaman */}
-          {pageTitle && (
-            <h2 className="text-base font-bold text-gray-900 truncate">{pageTitle}</h2>
-          )}
-
-          {/* Avatar pengguna */}
-          {user && (
-            <div className="flex items-center gap-3 ml-auto">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-gray-800 truncate max-w-[160px]">{user.name || user.email}</p>
-                <p className="text-xs text-gray-500 capitalize">{ROLE_LABELS[user.role] || user.role}</p>
-              </div>
-              <div className="w-9 h-9 rounded-full bg-slate-800 text-white font-bold flex items-center justify-center text-sm flex-shrink-0" title={user.name || user.email}>
-                {getInitials(user)}
-              </div>
-            </div>
-          )}
+          <img src="/logo-populi-center.png" alt="" className="h-6 w-6 object-contain" />
+          <span className="text-sm font-semibold text-gray-900">Populi Center</span>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          {children}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-screen-2xl mx-auto p-4 md:px-8 md:py-7">
+            {children}
+          </div>
         </main>
       </div>
     </div>

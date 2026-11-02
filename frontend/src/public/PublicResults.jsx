@@ -1,3 +1,4 @@
+import { CATEGORICAL, CHART } from '../theme/chartTheme';
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -7,7 +8,7 @@ import publicApi from '../services/publicApi';
 import ProvinceBubbleMap from './ProvinceBubbleMap';
 
 // Palet warna konsisten untuk batang & lingkaran peta.
-const COLORS = ['#2563eb', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#10b981'];
+const COLORS = CATEGORICAL;
 
 // ─── Satu blok pertanyaan: bar chart distribusi ───────────────────────────────
 function DistributionChart({ data }) {
@@ -20,7 +21,7 @@ function DistributionChart({ data }) {
           type="category"
           dataKey="label"
           width={160}
-          tick={{ fontSize: 12, fill: '#374151' }}
+          tick={{ fontSize: 12, fill: CHART.label }}
           interval={0}
         />
         <Tooltip
@@ -35,7 +36,7 @@ function DistributionChart({ data }) {
             dataKey="pct"
             position="right"
             formatter={(v) => `${v}%`}
-            style={{ fontSize: 11, fill: '#6b7280' }}
+            style={{ fontSize: 11, fill: CHART.axis }}
           />
         </Bar>
       </BarChart>

@@ -181,7 +181,7 @@ function MapView() {
                 <button
                   type="submit"
                   disabled={loading || !surveyId}
-                  className="flex-1 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:bg-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
                 >
                   {loading ? 'Memuat…' : 'Tampilkan'}
                 </button>
@@ -189,7 +189,7 @@ function MapView() {
                   <button
                     type="button"
                     onClick={handleResetFilter}
-                    className="px-3 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    className="px-3 py-2 text-sm text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
                   >
                     Reset
                   </button>

@@ -20,14 +20,18 @@ import React from 'react';
  * @param {object} [props.rest] - atribut tambahan (aria-expanded, dll.)
  */
 
+// Aksi per baris sengaja netral: ikon + tooltip sudah menjelaskan fungsinya, dan
+// deretan kotak warna-warni hanya menambah kebisingan. Warna dipakai untuk satu
+// hal saja — aksi yang merusak. Nama varian dipertahankan agar pemanggil tak berubah.
+const NEUTRAL = 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-300';
 const VARIANTS = {
-  default: 'text-gray-600 bg-gray-50 hover:bg-gray-100 focus:ring-gray-300',
-  primary: 'text-primary-700 bg-primary-50 hover:bg-primary-100 focus:ring-primary-300',
-  info: 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 focus:ring-indigo-300',
-  success: 'text-green-700 bg-green-50 hover:bg-green-100 focus:ring-green-300',
-  warning: 'text-yellow-700 bg-yellow-50 hover:bg-yellow-100 focus:ring-yellow-300',
-  accent: 'text-purple-700 bg-purple-50 hover:bg-purple-100 focus:ring-purple-300',
-  danger: 'text-red-700 bg-red-50 hover:bg-red-100 focus:ring-red-300',
+  default: NEUTRAL,
+  primary: NEUTRAL,
+  info: NEUTRAL,
+  success: NEUTRAL,
+  warning: NEUTRAL,
+  accent: NEUTRAL,
+  danger: 'text-red-600 hover:bg-red-50 hover:text-red-700 focus:ring-red-300',
 };
 
 // Ikon outline 24×24 (gaya Heroicons). Hanya bagian <path> agar IconButton
@@ -74,15 +78,15 @@ function IconButton({
         onClick={onClick}
         disabled={disabled}
         aria-label={label}
-        className={`inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${VARIANTS[variant] || VARIANTS.default}`}
+        className={`inline-flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-md transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${VARIANTS[variant] || VARIANTS.default}`}
         {...rest}
       >
         <svg
-          className="w-[18px] h-[18px]"
+          className="w-[17px] h-[17px]"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
-          strokeWidth={1.8}
+          strokeWidth={1.6}
           aria-hidden="true"
         >
           <path strokeLinecap="round" strokeLinejoin="round" d={pathData} />

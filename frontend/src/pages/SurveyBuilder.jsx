@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { SurveyStatusBadge } from '../components/SurveyBadges';
 import SkipLogicEditor from '../components/SkipLogicEditor';
 import SkipLogicHint from '../components/SkipLogicHint';
 import ValidationRulesEditor from '../components/ValidationRulesEditor';
@@ -54,21 +55,6 @@ const FIELD_TOOL_MODES = [
 ];
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
-function SurveyStatusBadge({ status }) {
-  const map = {
-    draft: 'bg-gray-100 text-gray-600',
-    active: 'bg-green-100 text-green-700',
-    inactive: 'bg-yellow-100 text-yellow-700',
-  };
-  const label = { draft: 'Draft', active: 'Aktif', inactive: 'Nonaktif' };
-  return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${map[status] || map.draft}`}
-    >
-      {label[status] || status}
-    </span>
-  );
-}
 
 // ─── Type Badge ───────────────────────────────────────────────────────────────
 function TypeBadge({ type }) {
@@ -137,7 +123,7 @@ function OptionsEditor({ options, onChange }) {
       <button
         type="button"
         onClick={addOption}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
       >
         <span aria-hidden="true">+</span> Tambah Opsi
       </button>
@@ -692,7 +678,7 @@ function FieldToolsGroup({ title, summary, children }) {
   );
 }
 
-function FieldToolsSettingsSection({ settings, onChange }) {
+function FieldToolsSettingsSection({ settings, onChange, action }) {
   const MODE_SHORT = { required: 'wajib', optional: 'opsional', disabled: 'nonaktif' };
   const TOOL_SHORT = { signature_mode: 'TTD', audio_mode: 'Audio', photo_mode: 'Foto', gps_mode: 'GPS' };
   const modesSummary = FIELD_TOOLS
@@ -705,7 +691,10 @@ function FieldToolsSettingsSection({ settings, onChange }) {
 
   return (
     <div className="bg-white rounded-xl shadow px-6 py-4 space-y-2">
-      <h3 className="text-sm font-semibold text-gray-700">Pengaturan Field Tools</h3>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h3 className="text-sm font-semibold text-gray-700">Pengaturan Field Tools</h3>
+        {action}
+      </div>
 
       <FieldToolsGroup title="Perangkat lapangan" summary={modesSummary}>
         {FIELD_TOOLS.map(({ key, label }) => (
@@ -1030,10 +1019,13 @@ function FieldToolsSettingsSection({ settings, onChange }) {
  *   dateError: string,
  * }} props
  */
-function DatePickerSection({ startDate, endDate, onStartDateChange, onEndDateChange, dateError }) {
+function DatePickerSection({ startDate, endDate, onStartDateChange, onEndDateChange, dateError, action }) {
   return (
     <div className="bg-white rounded-xl shadow px-6 py-4 space-y-3">
-      <h3 className="text-sm font-semibold text-gray-700">Periode Pengisian Survei</h3>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h3 className="text-sm font-semibold text-gray-700">Periode Pengisian Survei</h3>
+        {action}
+      </div>
       <div className="flex items-start gap-4 flex-wrap">
         <div>
           <label htmlFor="survey-start-date" className="block text-xs font-medium text-gray-600 mb-1">
@@ -1626,14 +1618,14 @@ function QuestionFormModal({ mode, initial, surveyId, questions, onClose, onSave
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+              className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               {submitting
                 ? 'Menyimpan…'
@@ -2049,8 +2041,8 @@ function SurveyBuilder() {
         ) : (
           <>
             {/* Survey header */}
-            <div className="bg-white rounded-xl shadow px-6 py-4 flex items-center justify-between gap-4">
-              <div>
+            <div className="bg-white rounded-xl shadow px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="min-w-0">
                 <h1 className="text-xl font-bold text-gray-800">
                   {survey?.title}
                 </h1>
@@ -2060,13 +2052,13 @@ function SurveyBuilder() {
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <SurveyStatusBadge status={survey?.status} />
                 <a
                   href="/panduan-survei.html"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
                   title="Buka panduan membuat survei & menyusun pertanyaan (tab baru)"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -2077,7 +2069,7 @@ function SurveyBuilder() {
                 <button
                   type="button"
                   onClick={() => setExportOpen(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
                   title="Export pertanyaan ke JSON / CSV / Excel"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -2098,41 +2090,37 @@ function SurveyBuilder() {
             </div>
 
             {/* Date Picker Section */}
-            <div className="flex items-end gap-4">
-              <div className="flex-1">
-                <DatePickerSection
-                  startDate={startDate}
-                  endDate={endDate}
-                  onStartDateChange={handleStartDateChange}
-                  onEndDateChange={handleEndDateChange}
-                  dateError={dateError}
-                />
-              </div>
-              <button
-                onClick={handleSaveDates}
-                disabled={savingDates || !!dateError}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 shrink-0 self-start mt-8"
-              >
-                {savingDates ? 'Menyimpan…' : 'Simpan Periode'}
-              </button>
-            </div>
+            <DatePickerSection
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={handleStartDateChange}
+              onEndDateChange={handleEndDateChange}
+              dateError={dateError}
+              action={(
+                <button
+                  onClick={handleSaveDates}
+                  disabled={savingDates || !!dateError}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300 shrink-0"
+                >
+                  {savingDates ? 'Menyimpan…' : 'Simpan Periode'}
+                </button>
+              )}
+            />
 
             {/* Field Tools Settings Section */}
-            <div className="flex items-end gap-4">
-              <div className="flex-1">
-                <FieldToolsSettingsSection
-                  settings={fieldToolsSettings || DEFAULT_FIELD_TOOLS_SETTINGS}
-                  onChange={handleFieldToolsChange}
-                />
-              </div>
-              <button
-                onClick={handleSaveFieldTools}
-                disabled={savingFieldTools}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 shrink-0 self-start mt-8"
-              >
-                {savingFieldTools ? 'Menyimpan…' : 'Simpan Pengaturan'}
-              </button>
-            </div>
+            <FieldToolsSettingsSection
+              settings={fieldToolsSettings || DEFAULT_FIELD_TOOLS_SETTINGS}
+              onChange={handleFieldToolsChange}
+              action={(
+                <button
+                  onClick={handleSaveFieldTools}
+                  disabled={savingFieldTools}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300 shrink-0"
+                >
+                  {savingFieldTools ? 'Menyimpan…' : 'Simpan Pengaturan'}
+                </button>
+              )}
+            />
 
             {/* Form Mode Toggle */}
             <div className="bg-white rounded-xl shadow px-6 py-4 space-y-3">
@@ -2250,7 +2238,7 @@ function SurveyBuilder() {
                         className="mt-1 block w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
                     </label>
                     <button type="button" disabled={rbBusy} onClick={() => applyRandomBlockRange(true)}
-                      className="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white text-sm font-medium">
+                      className="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white text-sm font-medium">
                       {rbBusy ? 'Menerapkan…' : 'Jadikan blok acak'}
                     </button>
                     <button type="button" disabled={rbBusy} onClick={() => applyRandomBlockRange(false)}
@@ -2401,7 +2389,7 @@ function SurveyBuilder() {
                                 </button>
                                 <button
                                   onClick={() => setConfirmDeleteId(null)}
-                                  className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                                  className="px-2.5 py-1 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
                                   aria-label="Batal hapus"
                                 >
                                   Batal

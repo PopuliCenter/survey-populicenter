@@ -120,7 +120,7 @@ function RtSelectionMonitor() {
         )}
 
         {/* Filter */}
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-4 items-end">
+        <section className="bg-white rounded-lg border border-gray-200 p-4 flex flex-wrap gap-4 items-end">
           <label className="block flex-1 min-w-[240px]">
             <span className="text-sm text-gray-600">Survei</span>
             <select value={surveyId} onChange={(e) => setSurveyId(e.target.value)}
@@ -169,7 +169,7 @@ function RtSelectionMonitor() {
         )}
 
         {/* Tabel */}
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <section className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           {loading ? (
             <p className="p-6 text-sm text-gray-500">Memuat data…</p>
           ) : rows.length === 0 ? (

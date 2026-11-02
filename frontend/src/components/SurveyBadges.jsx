@@ -8,21 +8,19 @@ import React from 'react';
  * @param {{ status: 'draft' | 'active' | 'inactive' }} props
  */
 export function SurveyStatusBadge({ status }) {
-  const map = {
-    draft: 'bg-gray-100 text-gray-600',
-    active: 'bg-green-100 text-green-700',
-    inactive: 'bg-yellow-100 text-yellow-700',
+  const dot = {
+    draft: 'bg-gray-400',
+    active: 'bg-green-500',
+    inactive: 'bg-yellow-400',
   };
   const label = {
     draft: 'Draft',
     active: 'Aktif',
     inactive: 'Nonaktif',
   };
-  const cls = map[status] || map.draft;
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}
-    >
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-800 whitespace-nowrap">
+      <span className={`w-1.5 h-1.5 rounded-full ${dot[status] || dot.draft}`} aria-hidden="true" />
       {label[status] || status}
     </span>
   );
@@ -31,13 +29,13 @@ export function SurveyStatusBadge({ status }) {
 // ─── Temporal Badge ───────────────────────────────────────────────────────────
 /**
  * Badge status PERIODE survei berdasarkan start_date dan end_date.
- * - "Akan Datang" (biru): start_date di masa depan
- * - "Berjalan" (teal): dalam periode tanggal
- * - "Berakhir" (merah): end_date di masa lalu
+ * - "Akan Datang": start_date di masa depan
+ * - "Berjalan": dalam periode tanggal
+ * - "Berakhir": end_date di masa lalu
  * - null: survei tanpa start/end date — tak ada info periode, jangan render.
  *
- * Sengaja TIDAK memakai kata "Aktif" & warna hijau: itu milik SurveyStatusBadge
- * (status yang disetel admin). Dua badge "Aktif" hijau berdampingan membingungkan,
+ * Sengaja teks polos tanpa titik & tanpa kata "Aktif": itu milik SurveyStatusBadge
+ * (status yang disetel admin). Dua penanda "Aktif" berdampingan membingungkan,
  * apalagi kombinasi "Nonaktif"+"Aktif" yang tampak kontradiktif.
  *
  * @param {{ startDate: string|null, endDate: string|null }} props
@@ -49,7 +47,7 @@ export function TemporalBadge({ startDate, endDate }) {
 
   if (startDate && new Date(startDate) > now) {
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary-100 text-primary-700">
+      <span className="text-xs text-gray-600 whitespace-nowrap">
         Akan Datang
       </span>
     );
@@ -57,7 +55,7 @@ export function TemporalBadge({ startDate, endDate }) {
 
   if (endDate && new Date(endDate) < now) {
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+      <span className="text-xs font-medium text-red-700 whitespace-nowrap">
         Berakhir
       </span>
     );
@@ -65,7 +63,7 @@ export function TemporalBadge({ startDate, endDate }) {
 
   return (
     <span
-      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200"
+      className="text-xs text-gray-600 whitespace-nowrap"
       title="Dalam periode tanggal survei"
     >
       Berjalan

@@ -168,7 +168,7 @@ function Storage() {
             </p>
           </div>
           <button type="button" onClick={load} disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-50 rounded-lg">
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 rounded-lg">
             {loading ? 'Memuat…' : data ? 'Perbarui' : 'Muat'}
           </button>
         </div>
@@ -184,7 +184,7 @@ function Storage() {
                 <span className="text-sm text-gray-600">{selected.size} survei terpilih</span>
                 <div className="ml-auto flex items-center gap-2">
                   <button type="button" onClick={handleDownloadSelected} disabled={bulkBusy}
-                    className="px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-50 rounded-lg">
+                    className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 rounded-lg">
                     {bulkBusy ? 'Mengunduh…' : 'Unduh arsip terpilih'}
                   </button>
                   <button type="button" onClick={() => setConfirmPurge(true)}
@@ -206,7 +206,7 @@ function Storage() {
                     {purging ? 'Menghapus…' : 'Ya, hapus permanen'}
                   </button>
                   <button type="button" onClick={() => setConfirmPurge(false)}
-                    className="px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">
+                    className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg">
                     Batal
                   </button>
                 </div>
@@ -214,7 +214,7 @@ function Storage() {
             )}
 
             {/* Tabel per survei */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
+            <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead>
                   <tr className="border-b border-gray-100 text-gray-500">
@@ -240,7 +240,7 @@ function Storage() {
                       <td className="p-3 text-right text-gray-700">{s.media_count.toLocaleString('id-ID')}</td>
                       <td className="p-3 text-right">
                         <button type="button" onClick={() => downloadArchive(s)} disabled={busy.has(s.id)}
-                          className="px-3 py-1 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-50 rounded-md">
+                          className="px-3 py-1 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 rounded-md">
                           {busy.has(s.id) ? 'Menyiapkan…' : 'Unduh arsip'}
                         </button>
                       </td>

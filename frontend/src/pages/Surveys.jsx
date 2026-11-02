@@ -14,15 +14,15 @@ import ExportQuestionnaireModal from '../components/ExportQuestionnaireModal';
 
 // ─── Tipe / skala survei ────────────────────────────────────────────────────────
 const SURVEY_TYPES = [
-  { value: 'nasional', label: 'Nasional', badge: 'bg-primary-100 text-primary-700' },
-  { value: 'daerah', label: 'Daerah', badge: 'bg-emerald-100 text-emerald-700' },
-  { value: 'lainnya', label: 'Lainnya', badge: 'bg-gray-100 text-gray-600' },
+  { value: 'nasional', label: 'Nasional', badge: 'bg-gray-100 text-gray-700' },
+  { value: 'daerah', label: 'Daerah', badge: 'bg-gray-100 text-gray-700' },
+  { value: 'lainnya', label: 'Lainnya', badge: 'bg-gray-100 text-gray-700' },
 ];
 
 function SurveyTypeBadge({ type }) {
   const t = SURVEY_TYPES.find((x) => x.value === type) || SURVEY_TYPES[2];
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${t.badge}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.badge}`}>
       {t.label}
     </span>
   );
@@ -338,14 +338,14 @@ function CreateSurveyModal({ onClose, onSaved }) {
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+              className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               {submitting ? 'Menyimpan…' : 'Buat Survei'}
             </button>
@@ -412,9 +412,9 @@ function EditSurveyModal({ survey, onClose, onSaved }) {
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Batal</button>
+              className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg">Batal</button>
             <button type="submit" disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg">
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 rounded-lg">
               {submitting ? 'Menyimpan…' : 'Simpan'}
             </button>
           </div>
@@ -576,7 +576,7 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">File Kuesioner (JSON / CSV / Excel)</label>
             <input ref={fileRef} type="file" accept=".json,.csv,.xlsx" onChange={handleFileChange}
-              className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+              className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-800 hover:file:bg-gray-200" />
             <p className="mt-1 text-xs text-gray-500">
               JSON hasil export, atau spreadsheet dengan kolom: teks, tipe, wajib, opsi (opsi dipisah <b>|</b> untuk tipe pilihan).
             </p>
@@ -606,9 +606,9 @@ function ImportQuestionnaireModal({ surveys, onClose, onSuccess }) {
           )}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Batal</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg">Batal</button>
             <button onClick={handleImport} disabled={!targetSurveyId || !preview || importing}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg">
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 rounded-lg">
               {importing ? 'Mengimport…' : `Import ${preview?.questions?.length || 0} Pertanyaan`}
             </button>
           </div>
@@ -814,9 +814,9 @@ function Surveys() {
     <Layout>
       <div className="space-y-5">
         {/* Page header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-800">Manajemen Survei</h1>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setExplorerMode((m) => (m === 'folder' ? 'list' : 'folder'))}
@@ -834,7 +834,7 @@ function Surveys() {
               href="/panduan-survei.html"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
               title="Buka panduan membuat survei & menyusun pertanyaan (tab baru)"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -844,7 +844,7 @@ function Surveys() {
             </a>
             <button
               onClick={() => setShowImportModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
             >
               Import Kuesioner
             </button>
@@ -1182,7 +1182,7 @@ function Surveys() {
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
-                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
                 aria-label="Halaman sebelumnya"
               >
                 Sebelumnya
@@ -1194,7 +1194,7 @@ function Surveys() {
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
-                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
                 aria-label="Halaman berikutnya"
               >
                 Berikutnya

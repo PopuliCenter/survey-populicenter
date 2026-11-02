@@ -89,7 +89,7 @@ function SurveyorCard({
         {surveyor.is_active ? (
           <IconButton
             icon="deactivate"
-            variant="danger"
+            variant="warning"
             label={`Nonaktifkan TPD ${surveyor.name}`}
             onClick={() => onConfirmDeactivate(surveyor.id)}
           />

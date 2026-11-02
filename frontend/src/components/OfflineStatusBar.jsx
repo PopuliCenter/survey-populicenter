@@ -22,10 +22,10 @@ function OfflineStatusBar({ isOnline, isSyncing, pendingCount }) {
       <div
         role="status"
         aria-live="polite"
-        className="flex items-center gap-1.5 text-xs font-medium text-accent-700 bg-accent-50 border border-accent-200 rounded-full px-3 py-1"
+        className="flex items-center gap-1.5 text-xs font-medium text-gray-700"
       >
         <svg
-          className="animate-spin h-3 w-3 text-accent-600"
+          className="animate-spin h-3 w-3 text-gray-500"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -44,7 +44,7 @@ function OfflineStatusBar({ isOnline, isSyncing, pendingCount }) {
       <div
         role="status"
         aria-live="polite"
-        className="flex items-center gap-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-full px-3 py-1"
+        className="flex items-center gap-1.5 text-xs font-semibold text-red-700"
       >
         <span className="h-2 w-2 rounded-full bg-red-500 flex-shrink-0" aria-hidden="true" />
         Offline
@@ -52,14 +52,14 @@ function OfflineStatusBar({ isOnline, isSyncing, pendingCount }) {
     );
   }
 
-  // Online — aksen hangat (kalem), bukan hijau
+  // Online — titik hijau: tanda baik yang dikenal semua orang
   return (
     <div
       role="status"
       aria-live="polite"
-      className="flex items-center gap-1.5 text-xs font-medium text-accent-700 bg-accent-50 border border-accent-200 rounded-full px-3 py-1"
+      className="flex items-center gap-1.5 text-xs font-medium text-gray-700"
     >
-      <span className="h-2 w-2 rounded-full bg-accent-500 flex-shrink-0" aria-hidden="true" />
+      <span className="h-2 w-2 rounded-full bg-green-500 flex-shrink-0" aria-hidden="true" />
       {pendingCount > 0 ? (
         <span>Online &middot; {pendingCount} data menunggu sinkronisasi</span>
       ) : (

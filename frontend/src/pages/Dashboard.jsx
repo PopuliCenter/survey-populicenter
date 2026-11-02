@@ -8,149 +8,90 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
-  PieChart,
-  Pie,
   Cell,
 } from 'recharts';
 import Layout from '../components/Layout';
-import SurveyProgressCard from '../components/SurveyProgressCard';
 import SurveyorProgressTable from '../components/SurveyorProgressTable';
 import DashboardProvinceMap from '../components/DashboardProvinceMap';
 import DashboardTimePattern from '../components/DashboardTimePattern';
 import DashboardDataQuality from '../components/DashboardDataQuality';
 import LazyInView from '../components/LazyInView';
 import api from '../services/api';
+import { CHART, AXIS_TICK, TOOLTIP_STYLE } from '../theme/chartTheme';
 
-// ─── Ikon garis (SVG) ───────────────────────────────────────────────────────────
-const DASH_ICON_PATHS = {
-  doc: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.6a1 1 0 01.7.3l5.4 5.4a1 1 0 01.3.7V19a2 2 0 01-2 2z',
-  brief: 'M9 6V5a2 2 0 012-2h2a2 2 0 012 2v1m-9 0h14a1 1 0 011 1v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7a1 1 0 011-1z',
-  clipboard: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-6 4h6',
-  users: 'M17 20h5v-1a4 4 0 00-3-3.87M9 20H4v-1a4 4 0 013-3.87m6-1.13a4 4 0 10-4 0M16 7a3 3 0 11-2 5',
-};
+const PANEL = 'bg-white rounded-lg border border-gray-200 p-5';
 
-function DIcon({ name, className = 'w-5 h-5' }) {
-  const d = DASH_ICON_PATHS[name];
-  if (!d) return null;
+// ─── Metrik ───────────────────────────────────────────────────────────────────
+// Angka adalah isi halaman ini: tanpa ikon hias, tabular-nums agar tidak
+// "bergoyang" saat dashboard menyegarkan berkala.
+function Metric({ label, value, note }) {
   return (
-    <svg className={className} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-      <path d={d} />
-    </svg>
-  );
-}
-
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-function StatCard({ title, value, subtitle, iconName, tint, trend }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-      <div className="flex items-center justify-between">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tint}`} aria-hidden="true">
-          <DIcon name={iconName} />
-        </div>
-        {trend && (
-          <span className="inline-flex items-center gap-1 text-2xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 15l7-7 7 7" />
-            </svg>
-            {trend}
-          </span>
-        )}
-      </div>
-      {/* tabular-nums: lebar tiap digit sama, sehingga angka tidak "bergoyang"
-          saat nilainya berubah (dashboard ini menyegarkan berkala). */}
-      <p className="text-2xl font-bold text-gray-900 mt-3 tabular-nums">
+    <div className="bg-white px-5 py-4 min-w-0">
+      <p className="text-xs text-gray-600">{label}</p>
+      <p className="text-2xl font-semibold text-gray-900 mt-1 tabular-nums">
         {value !== null && value !== undefined ? value.toLocaleString('id-ID') : '—'}
       </p>
-      <p className="text-xs text-gray-500 mt-0.5">{title}</p>
-      {subtitle && <p className="text-2xs text-gray-500 mt-0.5">{subtitle}</p>}
+      {note && <p className="text-2xs text-gray-500 mt-1 truncate" title={note}>{note}</p>}
     </div>
   );
 }
 
-// ─── Mini Donut ───────────────────────────────────────────────────────────────
-const DONUT_COLORS = ['#3b82f6', '#e5e7eb'];
-
-function MiniDonut({ percentage, size = 80 }) {
-  const data = [
-    { name: 'filled', value: percentage },
-    { name: 'remaining', value: 100 - percentage },
-  ];
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={size * 0.32}
-            outerRadius={size * 0.45}
-            dataKey="value"
-            startAngle={90}
-            endAngle={-270}
-            stroke="none"
-          >
-            {data.map((_, i) => (
-              <Cell key={i} fill={DONUT_COLORS[i]} />
-            ))}
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs font-bold text-gray-700">{percentage}%</span>
-      </div>
-    </div>
-  );
-}
-
-// ─── Survey Overview Card ─────────────────────────────────────────────────────
-function SurveyOverviewCard({ title, totalQuota, totalCollected, percentage, onClick }) {
-  const remaining = Math.max(0, totalQuota - totalCollected);
-  const isComplete = percentage >= 100;
-
+// ─── Bar progres ──────────────────────────────────────────────────────────────
+function ProgressBar({ percentage, height = 'h-1.5' }) {
   return (
     <div
-      className={`bg-white rounded-2xl border p-4 cursor-pointer hover:shadow-md transition-shadow ${isComplete ? 'border-green-200' : 'border-gray-200'}`}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
+      className={`w-full bg-gray-100 rounded-full overflow-hidden ${height}`}
+      role="progressbar"
+      aria-valuenow={Math.min(100, percentage)}
+      aria-valuemin={0}
+      aria-valuemax={100}
     >
-      <div className="flex items-center gap-3">
-        <MiniDonut percentage={percentage} size={64} />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-gray-800 truncate" title={title}>{title}</p>
-          <div className="mt-1 space-y-0.5">
-            <p className="text-xs text-gray-500">
-              <span className="font-semibold text-gray-700">{totalCollected.toLocaleString('id-ID')}</span>
-              {' / '}
-              <span>{totalQuota.toLocaleString('id-ID')}</span>
-              {' responden'}
-            </p>
-            {isComplete ? (
-              <p className="text-xs font-medium text-green-600 inline-flex items-center gap-1"><Icon name="check" className="w-3.5 h-3.5" />Target tercapai</p>
-            ) : (
-              <p className="text-xs text-amber-600">Sisa {remaining.toLocaleString('id-ID')} responden</p>
-            )}
-          </div>
-        </div>
+      <div
+        className={`h-full rounded-full transition-all ${percentage >= 100 ? 'bg-green-500' : 'bg-primary-500'}`}
+        style={{ width: `${Math.min(100, percentage)}%` }}
+      />
+    </div>
+  );
+}
+
+// ─── Baris progres survei ─────────────────────────────────────────────────────
+function SurveyOverviewRow({ title, totalQuota, totalCollected, percentage, onClick }) {
+  const remaining = Math.max(0, totalQuota - totalCollected);
+  const isComplete = percentage >= 100;
+  const interactive = onClick
+    ? { onClick, role: 'button', tabIndex: 0, onKeyDown: (e) => e.key === 'Enter' && onClick() }
+    : {};
+
+  return (
+    <div className={`py-3 ${onClick ? 'group cursor-pointer' : ''}`} {...interactive}>
+      <div className="flex items-baseline justify-between gap-4 mb-1.5">
+        <p className="text-sm font-medium text-gray-900 truncate group-hover:text-primary-700" title={title}>{title}</p>
+        <p className="text-sm font-semibold text-gray-900 tabular-nums flex-shrink-0">{percentage}%</p>
       </div>
+      <ProgressBar percentage={percentage} />
+      <p className="text-xs text-gray-600 mt-1.5 tabular-nums">
+        {totalCollected.toLocaleString('id-ID')} dari {totalQuota.toLocaleString('id-ID')} responden
+        <span className="text-gray-500"> · </span>
+        {isComplete ? (
+          <span className="text-green-700 font-medium">Target tercapai</span>
+        ) : (
+          <>sisa {remaining.toLocaleString('id-ID')}</>
+        )}
+      </p>
     </div>
   );
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 function Skeleton({ className = '' }) {
-  return <div className={`animate-pulse bg-gray-100 rounded-xl ${className}`} aria-hidden="true" />;
+  return <div className={`animate-pulse bg-gray-100 rounded ${className}`} aria-hidden="true" />;
 }
 
-function StatCardSkeleton() {
+function MetricSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-      <Skeleton className="w-10 h-10 rounded-xl" />
-      <Skeleton className="h-7 w-20 mt-3" />
-      <Skeleton className="h-3 w-24 mt-2" />
+    <div className="bg-white px-5 py-4">
+      <Skeleton className="h-3 w-24" />
+      <Skeleton className="h-7 w-20 mt-2" />
     </div>
   );
 }
@@ -159,7 +100,7 @@ function StatCardSkeleton() {
 function BarLabel({ x, y, width, value }) {
   if (!value) return null;
   return (
-    <text x={x + width / 2} y={y - 6} fill="#6b7280" textAnchor="middle" fontSize={11} fontWeight={600}>
+    <text x={x + width / 2} y={y - 6} fill={CHART.axis} textAnchor="middle" fontSize={11}>
       {value}
     </text>
   );
@@ -285,134 +226,144 @@ function Dashboard() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <p className="text-sm text-gray-500">{dataScopeLabel}</p>
-            <span className="inline-flex items-center rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
-              {selectedSurvey ? 'Survei terpilih' : 'Semua survei aktif'}
-            </span>
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-sm text-gray-600 mt-0.5">{dataScopeLabel}</p>
+          </div>
+          {/* Filter ini mengubah SELURUH halaman, jadi tempatnya di atas. */}
+          <div className="w-full sm:w-80">
+            <label htmlFor="dashboard-survey" className="sr-only">Pilih survei</label>
+            <select
+              id="dashboard-survey"
+              value={selectedSurvey}
+              onChange={(e) => handleSurveyFilter(e.target.value)}
+              disabled={progressLoading}
+              className="border border-gray-300 bg-white rounded-md px-3 py-2 text-sm w-full"
+            >
+              {progressLoading ? (
+                <option>Memuat...</option>
+              ) : (
+                <>
+                  <option value="">Semua survei aktif ({activeSurveys.length})</option>
+                  {activeSurveys.map((s) => (
+                    <option key={s.id} value={s.id}>{s.title}</option>
+                  ))}
+                </>
+              )}
+            </select>
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4" role="alert">
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-md p-4" role="alert">
             <p className="font-medium">Terjadi kesalahan</p>
             <p className="text-sm mt-1">{error}</p>
           </div>
         )}
 
-        {/* ── Summary stat cards ── */}
+        {/* ── Ringkasan ── */}
         <section aria-label="Statistik ringkasan">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden">
             {statsLoading && !stats ? (
               <>
-                <StatCardSkeleton />
-                <StatCardSkeleton />
-                <StatCardSkeleton />
-                <StatCardSkeleton />
+                <MetricSkeleton />
+                <MetricSkeleton />
+                <MetricSkeleton />
+                <MetricSkeleton />
               </>
             ) : (
               <>
-                <StatCard title="Survei Aktif" value={stats?.activeSurveys} iconName="doc" tint="bg-primary-50 text-primary-600" />
-                <StatCard title="TPD Aktif" value={stats?.activeSurveyors} iconName="brief" tint="bg-emerald-50 text-emerald-600" />
-                <StatCard
-                  title="Responden Hari Ini"
-                  value={stats?.todayResponses}
-                  subtitle={`dari total ${(stats?.totalResponses || 0).toLocaleString('id-ID')} responden`}
-                  iconName="clipboard"
-                  tint="bg-amber-50 text-amber-600"
-                  trend={stats?.todayResponses > 0 ? `${stats.todayResponses.toLocaleString('id-ID')} hari ini` : undefined}
-                />
-                <StatCard
-                  title="Total Responden (N)"
+                <Metric label="Survei aktif" value={stats?.activeSurveys} />
+                <Metric label="TPD aktif" value={stats?.activeSurveyors} />
+                <Metric label="Responden hari ini" value={stats?.todayResponses} />
+                <Metric
+                  label="Total responden (N)"
                   value={stats?.totalResponses}
-                  subtitle={totalQuotaAll > 0 ? `Target: ${totalQuotaAll.toLocaleString('id-ID')} (${overallPercentage}%)` : undefined}
-                  iconName="users"
-                  tint="bg-violet-50 text-violet-600"
+                  note={totalQuotaAll > 0 ? `Target ${totalQuotaAll.toLocaleString('id-ID')} · ${overallPercentage}%` : undefined}
                 />
               </>
             )}
           </div>
         </section>
 
-        {/* ── Overall Progress Bar ── */}
-        {totalQuotaAll > 0 && (
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Progress keseluruhan">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold text-gray-700">Progress Keseluruhan</h2>
-              <span className="text-sm font-bold text-primary-700">
-                N = {totalCollectedAll.toLocaleString('id-ID')} / {totalQuotaAll.toLocaleString('id-ID')}
-              </span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-3">
-              <div
-                className={`h-3 rounded-full transition-all ${overallPercentage >= 100 ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-primary-500 to-indigo-600'}`}
-                style={{ width: `${Math.min(100, overallPercentage)}%` }}
-              />
-            </div>
-            <div className="flex justify-between mt-1">
-              <span className="text-xs text-gray-500">{overallPercentage}% tercapai</span>
-              <span className="text-xs text-gray-500">Sisa {Math.max(0, totalQuotaAll - totalCollectedAll).toLocaleString('id-ID')} responden</span>
-            </div>
-          </section>
-        )}
-
-        {/* ── Laju & Proyeksi ── */}
-        {paceTarget > 0 && (
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Laju dan proyeksi">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">Laju &amp; Proyeksi</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-xs text-gray-500 mb-1">Laju (7 hari)</p>
-                <p className="text-xl font-bold text-gray-800">{Math.round(avgPerDay).toLocaleString('id-ID')}<span className="text-sm font-normal text-gray-500"> /hari</span></p>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-xs text-gray-500 mb-1">Sisa target</p>
-                <p className="text-xl font-bold text-gray-800">{paceRemaining.toLocaleString('id-ID')}</p>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-xs text-gray-500 mb-1">Estimasi selesai</p>
-                {paceRemaining === 0 ? (
-                  <p className="text-xl font-bold text-green-600 inline-flex items-center gap-1.5">Tercapai<Icon name="check" className="w-5 h-5" /></p>
-                ) : projectedDate ? (
-                  <p className="text-xl font-bold text-gray-800">
-                    {projectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    <span className="text-sm font-normal text-gray-500"> · {daysNeeded} hari</span>
+        {/* ── Progres & proyeksi ── */}
+        {(totalQuotaAll > 0 || paceTarget > 0) && (
+          <section className={PANEL} aria-label="Progres dan proyeksi">
+            {totalQuotaAll > 0 && (
+              <>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-2">
+                  <h2 className="text-sm font-semibold text-gray-900">Progres keseluruhan</h2>
+                  <p className="text-sm text-gray-600 tabular-nums">
+                    <span className="font-semibold text-gray-900">{overallPercentage}%</span>
+                    {' · '}N = {totalCollectedAll.toLocaleString('id-ID')} dari {totalQuotaAll.toLocaleString('id-ID')}
                   </p>
-                ) : (
-                  <p className="text-sm text-gray-500">Belum bisa diestimasi (laju 0)</p>
-                )}
-              </div>
-            </div>
+                </div>
+                <ProgressBar percentage={overallPercentage} height="h-2" />
+              </>
+            )}
+            {paceTarget > 0 && (
+              <dl className={`grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 ${totalQuotaAll > 0 ? 'mt-5' : ''}`}>
+                <div>
+                  <dt className="text-xs text-gray-600">Laju 7 hari</dt>
+                  <dd className="text-lg font-semibold text-gray-900 tabular-nums mt-0.5">
+                    {Math.round(avgPerDay).toLocaleString('id-ID')}
+                    <span className="text-sm font-normal text-gray-600"> /hari</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-600">Sisa target</dt>
+                  <dd className="text-lg font-semibold text-gray-900 tabular-nums mt-0.5">{paceRemaining.toLocaleString('id-ID')}</dd>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <dt className="text-xs text-gray-600">Estimasi selesai</dt>
+                  {paceRemaining === 0 ? (
+                    <dd className="text-lg font-semibold text-green-700 inline-flex items-center gap-1.5 mt-0.5">Tercapai<Icon name="check" className="w-4 h-4" /></dd>
+                  ) : projectedDate ? (
+                    <dd className="text-lg font-semibold text-gray-900 tabular-nums mt-0.5">
+                      {projectedDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      <span className="text-sm font-normal text-gray-600"> · {daysNeeded} hari</span>
+                    </dd>
+                  ) : (
+                    <dd className="text-sm text-gray-600 mt-1">Belum bisa diestimasi (laju 0)</dd>
+                  )}
+                </div>
+              </dl>
+            )}
           </section>
         )}
 
-        {/* ── 7-day trend chart ── */}
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Tren 7 hari">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-gray-700">Tren Pengisian (7 Hari Terakhir)</h2>
-            <span className="text-sm text-gray-500">
-              Total: <span className="font-bold text-gray-700">{trendTotal}</span> responden
-            </span>
+        {/* ── Tren 7 hari ── */}
+        <section className={PANEL} aria-label="Tren 7 hari">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-4">
+            <h2 className="text-sm font-semibold text-gray-900">Tren pengisian, 7 hari terakhir</h2>
+            <p className="text-sm text-gray-600 tabular-nums">
+              Total <span className="font-semibold text-gray-900">{trendTotal.toLocaleString('id-ID')}</span> responden
+            </p>
           </div>
           {trendLoading && trend.length === 0 ? (
-            <Skeleton className="w-full h-[280px]" />
+            <Skeleton className="w-full h-[240px]" />
           ) : trendData.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-8">Belum ada data tren.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={trendData} margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={trendData} margin={{ top: 20, right: 0, left: -12, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke={CHART.grid} />
+                <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={AXIS_TICK} axisLine={false} tickLine={false} />
                 <Tooltip
-                  contentStyle={{ fontSize: 12 }}
+                  cursor={{ fill: 'rgb(26 25 23 / 0.04)' }}
+                  contentStyle={TOOLTIP_STYLE}
                   formatter={(value) => [`${value} responden`, 'Jumlah']}
                   labelFormatter={(label) => `Tanggal: ${label}`}
                 />
-                <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Responden" label={<BarLabel />} />
+                {/* Hari terbaru disorot; hari sebelumnya jadi konteks. */}
+                <Bar dataKey="count" radius={[2, 2, 0, 0]} name="Responden" maxBarSize={64} label={<BarLabel />}>
+                  {trendData.map((_, i) => (
+                    <Cell key={i} fill={i === trendData.length - 1 ? CHART.bar : CHART.barMuted} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -431,41 +382,21 @@ function Dashboard() {
           <DashboardDataQuality surveyId={selectedSurvey} />
         </LazyInView>
 
-        {/* ── Progress Survei Aktif ── */}
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Progress survei aktif">
-          <h2 className="text-base font-semibold text-gray-700 mb-4">Progress Survei Aktif</h2>
-
-          <div className="mb-4">
-            <select
-              value={selectedSurvey}
-              onChange={(e) => handleSurveyFilter(e.target.value)}
-              disabled={progressLoading}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-72"
-            >
-              {progressLoading ? (
-                <option>Memuat...</option>
-              ) : (
-                <>
-                  <option value="">Semua Survei ({activeSurveys.length})</option>
-                  {activeSurveys.map((s) => (
-                    <option key={s.id} value={s.id}>{s.title}</option>
-                  ))}
-                </>
-              )}
-            </select>
-          </div>
+        {/* ── Progres per survei ── */}
+        <section className={PANEL} aria-label="Progress survei aktif">
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">Progres survei aktif</h2>
 
           {progressLoading ? (
             <p className="text-sm text-gray-500 text-center py-8">Memuat data progress...</p>
           ) : progressError ? (
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4"><p className="text-sm">{progressError}</p></div>
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-md p-4"><p className="text-sm">{progressError}</p></div>
           ) : activeSurveys.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-8">Tidak ada survei aktif.</p>
           ) : selectedSurvey ? (
             <div>
               {progressMap[selectedSurvey] && (
-                <div className="mb-4">
-                  <SurveyOverviewCard
+                <div className="mb-3">
+                  <SurveyOverviewRow
                     title={progressMap[selectedSurvey].surveyTitle}
                     totalQuota={progressMap[selectedSurvey].totalQuota}
                     totalCollected={progressMap[selectedSurvey].totalCollected}
@@ -480,11 +411,11 @@ function Dashboard() {
               ) : null}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 xl:gap-x-10 divide-y divide-gray-100 xl:divide-y-0">
               {activeSurveys.map((s) => {
                 const p = progressMap[s.id];
                 return p ? (
-                  <SurveyOverviewCard
+                  <SurveyOverviewRow
                     key={s.id}
                     title={p.surveyTitle}
                     totalQuota={p.totalQuota}
@@ -498,12 +429,12 @@ function Dashboard() {
           )}
         </section>
 
-        {/* ── Top 5 TPD ── */}
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5" aria-label="Top 5 TPD">
-          <h2 className="text-base font-semibold text-gray-700 mb-4">Top 5 TPD</h2>
+        {/* ── 5 TPD teratas ── */}
+        <section className={PANEL} aria-label="Top 5 TPD">
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">5 TPD teratas</h2>
           {topLoading && topTPD.length === 0 ? (
             <div className="space-y-2">
-              {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+              {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
             </div>
           ) : topTPD.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-8">Belum ada data TPD.</p>
@@ -511,35 +442,22 @@ function Dashboard() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="pb-2 pr-4 font-medium text-gray-500 w-8">#</th>
-                    <th className="pb-2 pr-4 font-medium text-gray-500">Nama</th>
-                    <th className="pb-2 pr-4 font-medium text-gray-500">Email</th>
-                    <th className="pb-2 font-medium text-gray-500 text-right">Jumlah (N)</th>
+                  <tr className="border-b border-gray-200">
+                    <th className="pb-2 pr-3 font-medium text-xs text-gray-600 w-8">#</th>
+                    <th className="pb-2 pr-4 font-medium text-xs text-gray-600">Nama</th>
+                    <th className="pb-2 pr-4 font-medium text-xs text-gray-600">Email</th>
+                    <th className="pb-2 font-medium text-xs text-gray-600 text-right">N</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {topTPD.map((tpd, index) => {
-                    const initials = (tpd.name || tpd.email || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
-                    const rankTint = index === 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600';
-                    return (
-                    <tr key={tpd.email} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="py-2.5 pr-4 text-gray-500 font-medium">{index + 1}</td>
-                      <td className="py-2.5 pr-4 text-gray-800 font-medium">
-                        <span className="flex items-center gap-2.5">
-                          <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${rankTint}`}>{initials}</span>
-                          {tpd.name}
-                        </span>
-                      </td>
-                      <td className="py-2.5 pr-4 text-gray-500">{tpd.email}</td>
-                      <td className="py-2.5 text-right">
-                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary-50 text-primary-700">
-                          N={tpd.responseCount}
-                        </span>
-                      </td>
+                <tbody className="divide-y divide-gray-100">
+                  {topTPD.map((tpd, index) => (
+                    <tr key={tpd.email}>
+                      <td className="py-2 pr-3 text-gray-500 tabular-nums">{index + 1}</td>
+                      <td className="py-2 pr-4 text-gray-900 font-medium">{tpd.name}</td>
+                      <td className="py-2 pr-4 text-gray-600">{tpd.email}</td>
+                      <td className="py-2 text-right font-semibold text-gray-900 tabular-nums">{tpd.responseCount.toLocaleString('id-ID')}</td>
                     </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>

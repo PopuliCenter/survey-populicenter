@@ -262,7 +262,7 @@ function AnswerCard({ answer, index, mediaToken }) {
           <span className="text-gray-500 mr-2">{index + 1}.</span>
           {answer.question_text || '(Pertanyaan tidak tersedia)'}
         </p>
-        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-700">
+        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700">
           {typeLabel[answer.question_type] || answer.question_type}
         </span>
       </div>
@@ -563,7 +563,7 @@ function ResponseDetail() {
                           ({formatDurationMmSs(response.duration_seconds)})
                         </span>
                         {response.short_duration === true && (
-                          <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-2xs font-semibold align-middle">
+                          <span className="ml-1.5 inline-flex items-center rounded bg-amber-100 text-amber-700 px-1.5 py-0.5 text-2xs font-medium align-middle">
                             <Icon name="alert" className="w-3 h-3" />terlalu singkat
                           </span>
                         )}
@@ -755,7 +755,7 @@ function ResponseDetail() {
                       <button
                         onClick={handleSaveReview}
                         disabled={saving}
-                        className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:bg-gray-400 disabled:cursor-not-allowed"
                       >
                         {saving ? 'Menyimpan…' : 'Simpan Review'}
                       </button>

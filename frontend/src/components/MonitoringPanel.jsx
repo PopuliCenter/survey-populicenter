@@ -79,11 +79,11 @@ function MonitoringPanel({ surveyId, surveyTitle }) {
         {loading ? (
           <span className="text-xs text-gray-500">Memeriksa…</span>
         ) : isLive ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Aktif
           </span>
         ) : (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
             Nonaktif
           </span>
         )}
@@ -98,7 +98,7 @@ function MonitoringPanel({ surveyId, surveyTitle }) {
           type="button"
           onClick={enable}
           disabled={busy}
-          className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 rounded-lg"
+          className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 rounded-lg"
         >
           {busy ? 'Memproses…' : isLive ? 'Perbarui sekarang' : 'Aktifkan monitoring'}
         </button>
@@ -128,7 +128,7 @@ function MonitoringPanel({ surveyId, surveyTitle }) {
               <button
                 type="button"
                 onClick={() => copy(url, 'url')}
-                className="px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg whitespace-nowrap"
+                className="px-3 py-2 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg whitespace-nowrap"
               >
                 {copied === 'url' ? <><Icon name="check" className="w-3.5 h-3.5" />Tersalin</> : 'Salin'}
               </button>
@@ -147,7 +147,7 @@ function MonitoringPanel({ surveyId, surveyTitle }) {
               <button
                 type="button"
                 onClick={() => copy(snippet, 'embed')}
-                className="px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg whitespace-nowrap self-start"
+                className="px-3 py-2 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg whitespace-nowrap self-start"
               >
                 {copied === 'embed' ? <><Icon name="check" className="w-3.5 h-3.5" />Tersalin</> : 'Salin'}
               </button>

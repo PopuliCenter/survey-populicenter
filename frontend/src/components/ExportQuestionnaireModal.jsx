@@ -70,15 +70,15 @@ export default function ExportQuestionnaireModal({ survey, onClose }) {
 
         <div className="flex gap-3">
           <button type="button" disabled={busy} onClick={() => run('xlsx')}
-            className={`${btn} border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 focus:ring-emerald-300`}>
-            Excel<span className="block text-2xs font-normal text-emerald-600/80">.xlsx</span>
+            className={`${btn} border-gray-300 bg-white text-gray-800 hover:bg-gray-50 focus:ring-primary-300`}>
+            Excel<span className="block text-2xs font-normal text-gray-500">.xlsx</span>
           </button>
           <button type="button" disabled={busy} onClick={() => run('csv')}
-            className={`${btn} border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 focus:ring-primary-300`}>
-            CSV<span className="block text-2xs font-normal text-primary-600/80">.csv</span>
+            className={`${btn} border-gray-300 bg-white text-gray-800 hover:bg-gray-50 focus:ring-primary-300`}>
+            CSV<span className="block text-2xs font-normal text-gray-500">.csv</span>
           </button>
           <button type="button" disabled={busy} onClick={() => run('json')}
-            className={`${btn} border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 focus:ring-gray-300`}>
+            className={`${btn} border-gray-300 bg-white text-gray-800 hover:bg-gray-50 focus:ring-primary-300`}>
             JSON<span className="block text-2xs font-normal text-gray-500">lengkap</span>
           </button>
         </div>
@@ -90,7 +90,7 @@ export default function ExportQuestionnaireModal({ survey, onClose }) {
 
         <div className="mt-4 flex justify-end">
           <button type="button" onClick={onClose} disabled={busy}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50">
+            className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-50">
             {busy ? 'Menyiapkan…' : 'Tutup'}
           </button>
         </div>

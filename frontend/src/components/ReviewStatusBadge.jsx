@@ -5,21 +5,19 @@
  * @param {{ status: string }} props
  */
 export default function ReviewStatusBadge({ status }) {
-  const colorMap = {
-    flagged: 'bg-red-100 text-red-700',
-    verified: 'bg-green-100 text-green-700',
-    unreviewed: 'bg-gray-100 text-gray-600',
+  const dotMap = {
+    flagged: 'bg-red-500',
+    verified: 'bg-green-500',
+    unreviewed: 'bg-gray-400',
   };
   const labelMap = {
     flagged: 'Flagged',
     verified: 'Verified',
     unreviewed: 'Unreviewed',
   };
-  const cls = colorMap[status] || 'bg-gray-100 text-gray-600';
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}
-    >
+    <span className={`inline-flex items-center gap-1.5 text-xs whitespace-nowrap ${status === 'flagged' ? 'font-semibold text-red-700' : 'font-medium text-gray-800'}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${dotMap[status] || 'bg-gray-400'}`} aria-hidden="true" />
       {labelMap[status] || status || '—'}
     </span>
   );

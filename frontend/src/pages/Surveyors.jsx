@@ -37,8 +37,8 @@ function describeBoundDevice(label) {
 // Tipe/skala survei — selaras dengan halaman Manajemen Survei (nasional/daerah/lainnya).
 const SURVEY_TYPE_META = [
   { value: 'nasional', label: 'Nasional', dot: 'bg-primary-500' },
-  { value: 'daerah', label: 'Daerah', dot: 'bg-emerald-500' },
-  { value: 'lainnya', label: 'Lainnya', dot: 'bg-gray-400' },
+  { value: 'daerah', label: 'Daerah', dot: 'bg-gray-500' },
+  { value: 'lainnya', label: 'Lainnya', dot: 'bg-gray-300' },
 ];
 
 // ─── Password Validation ──────────────────────────────────────────────────────
@@ -475,7 +475,7 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
                     {maxAssignedNumeric() > 0 && (
                       <button type="button" onClick={handleContinueFromLast}
                         title="Isi rentang mulai dari nomor tertinggi + 1 agar tak bentrok dengan TPD lain"
-                        className="px-2.5 py-1.5 text-xs font-medium text-primary-700 bg-primary-100 hover:bg-primary-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300">
+                        className="px-2.5 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-300">
                         Lanjut dari terakhir ({maxAssignedNumeric() + 1})
                       </button>
                     )}
@@ -536,14 +536,14 @@ function TPDFormModal({ mode, initial, onClose, onSaved, surveys }) {
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+              className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               {submitting ? 'Menyimpan…' : isEdit ? 'Simpan Perubahan' : 'Buat TPD'}
             </button>
@@ -1009,19 +1009,19 @@ function Surveyors() {
     <Layout>
       <div className="space-y-5">
         {/* Page header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-800">Manajemen TPD</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <ViewToggle viewMode={viewMode} onViewChange={handleViewChange} />
             <button
               onClick={() => setBulkAssignOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
             >
               Upload Penugasan
             </button>
             <button
               onClick={() => setBulkUploadOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
             >
               Upload TPD
             </button>
@@ -1145,19 +1145,9 @@ function Surveyors() {
                         <SurveyStatusBadge status={s.status} />
                       </div>
                       <div className="mt-auto flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-medium">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                            </svg>
-                            {count} TPD
-                          </span>
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-6 4h6" />
-                            </svg>
-                            {(s.response_count ?? 0).toLocaleString('id-ID')} responden
-                          </span>
+                        <div className="flex items-center gap-3 flex-wrap text-xs text-gray-600 tabular-nums">
+                          <span>{count} TPD</span>
+                          <span>{(s.response_count ?? 0).toLocaleString('id-ID')} responden</span>
                         </div>
                         <span className="inline-flex items-center gap-1 text-xs text-primary-600 font-medium shrink-0">
                           Kelola
@@ -1308,7 +1298,7 @@ function Surveyors() {
                   type="button"
                   disabled={bulkBusy}
                   onClick={() => bulkActivate([...selectedIds])}
-                  className="px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-300"
                 >
                   Aktifkan
                 </button>
@@ -1316,7 +1306,7 @@ function Surveyors() {
                   type="button"
                   disabled={bulkBusy}
                   onClick={() => setBulkConfirm({ type: 'deactivate', ids: [...selectedIds] })}
-                  className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                  className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-300"
                 >
                   Nonaktifkan
                 </button>
@@ -1324,7 +1314,7 @@ function Surveyors() {
                   type="button"
                   disabled={bulkBusy}
                   onClick={() => setAssignPickerOpen(true)}
-                  className="px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-100 hover:bg-primary-200 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-300"
+                  className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-300"
                 >
                   Tugaskan ke Survei
                 </button>
@@ -1332,7 +1322,7 @@ function Surveyors() {
                   type="button"
                   disabled={bulkBusy}
                   onClick={() => { setMsgTitle(''); setMsgBody(''); setMsgOpen(true); }}
-                  className="px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-300"
                 >
                   Kirim Pesan
                 </button>
@@ -1341,7 +1331,7 @@ function Surveyors() {
                     type="button"
                     disabled={bulkBusy}
                     onClick={() => setBulkConfirm({ type: 'unassign', ids: [...selectedIds] })}
-                    className="px-3 py-1.5 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-300"
                   >
                     Lepas dari Survei
                   </button>
@@ -1409,10 +1399,10 @@ function Surveyors() {
                               const d = describeBoundDevice(tpd.device_label);
                               return (
                                 <span
-                                  className={`ml-2 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs font-semibold align-middle border ${
+                                  className={`ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs font-medium align-middle border ${
                                     d.isDesktop
                                       ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                      : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                      : 'bg-white text-gray-600 border-gray-300'
                                   }`}
                                   title={`Terkunci ke perangkat${tpd.device_label ? `: ${tpd.device_label}` : ''}${tpd.device_bound_at ? ` (sejak ${new Date(tpd.device_bound_at).toLocaleDateString('id-ID')})` : ''}${d.isDesktop ? ' — ini KOMPUTER/WEB, bukan HP lapangan. Reset lalu kunci dari HP TPD.' : ''}`}
                                 >
@@ -1488,7 +1478,7 @@ function Surveyors() {
                               {tpd.is_active ? (
                                 <IconButton
                                   icon="deactivate"
-                                  variant="danger"
+                                  variant="warning"
                                   label={`Nonaktifkan TPD ${tpd.name}`}
                                   onClick={() => setDeactivateTarget(tpd)}
                                 />
@@ -1566,7 +1556,7 @@ function Surveyors() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
-                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
                 aria-label="Halaman sebelumnya"
               >
                 Sebelumnya
@@ -1577,7 +1567,7 @@ function Surveyors() {
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
-                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+                className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
                 aria-label="Halaman berikutnya"
               >
                 Berikutnya
@@ -1756,11 +1746,11 @@ function Surveyors() {
 
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => setMsgOpen(false)} disabled={msgBusy}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50">
+                className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-50">
                 Batal
               </button>
               <button type="button" onClick={submitMessage} disabled={msgBusy}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-60">
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:bg-gray-400">
                 {msgBusy ? 'Mengirim…' : 'Kirim'}
               </button>
             </div>
@@ -1806,7 +1796,7 @@ function Surveyors() {
                       { label: 'Durasi singkat', value: historyModal.data.counts.quality, cls: 'bg-amber-50 text-amber-700' },
                       { label: 'Belum dibaca', value: historyModal.data.counts.unread, cls: 'bg-gray-100 text-gray-700' },
                     ].map((c) => (
-                      <span key={c.label} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${c.cls}`}>
+                      <span key={c.label} className={`inline-flex items-center gap-1.5 rounded px-3 py-1 text-xs font-medium ${c.cls}`}>
                         {c.label}
                         <span className="font-bold tabular-nums">{c.value}</span>
                       </span>
@@ -1822,7 +1812,7 @@ function Surveyors() {
                       {historyModal.data.notifications.map((n) => (
                         <li key={n.id} className="px-4 py-3">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`inline-flex rounded-full px-2 py-0.5 text-2xs font-semibold ${
+                            <span className={`inline-flex rounded px-2 py-0.5 text-2xs font-medium ${
                               n.type === 'manual' ? 'bg-primary-50 text-primary-700'
                                 : n.type === 'review' ? 'bg-red-50 text-red-700'
                                   : 'bg-amber-50 text-amber-700'
@@ -1830,7 +1820,7 @@ function Surveyors() {
                               {n.type === 'manual' ? 'Pesan' : n.type === 'review' ? 'Ditandai SPV' : 'Durasi singkat'}
                             </span>
                             {!n.read_at && (
-                              <span className="inline-flex rounded-full bg-gray-200 text-gray-600 px-2 py-0.5 text-2xs font-semibold" title="TPD belum membuka pemberitahuan ini">
+                              <span className="inline-flex rounded bg-gray-200 text-gray-600 px-2 py-0.5 text-2xs font-medium" title="TPD belum membuka pemberitahuan ini">
                                 Belum dibaca
                               </span>
                             )}
@@ -2056,11 +2046,11 @@ function Surveyors() {
 
               <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
                 <button type="button" onClick={() => { setAssignPickerOpen(false); setAssignPickMode(false); }} disabled={bulkBusy}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50">
+                  className="px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-50">
                   Batal
                 </button>
                 <button type="button" onClick={submitBulkAssign} disabled={bulkBusy}
-                  className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-60">
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:bg-gray-400">
                   {bulkBusy ? 'Memproses…' : (assignPickMode ? 'Tambahkan' : 'Tugaskan')}
                 </button>
               </div>

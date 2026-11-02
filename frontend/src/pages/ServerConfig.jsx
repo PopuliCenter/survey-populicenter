@@ -135,14 +135,14 @@ function ServerConfig() {
           <button
             onClick={handleTestConnection}
             disabled={!serverUrl.trim() || testing}
-            className="w-full px-4 py-2.5 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
+            className="w-full px-4 py-2.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
           >
             {testing ? 'Menguji koneksi…' : 'Tes Koneksi'}
           </button>
           <button
             onClick={handleSave}
             disabled={!serverUrl.trim() || testResult !== 'success'}
-            className="w-full px-4 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
+            className="w-full px-4 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400"
           >
             Simpan & Lanjutkan
           </button>

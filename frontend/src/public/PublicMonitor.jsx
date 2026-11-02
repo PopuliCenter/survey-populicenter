@@ -1,13 +1,14 @@
+import { STATUS } from '../theme/chartTheme';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import publicApi from '../services/publicApi';
 import ProvinceBubbleMap from './ProvinceBubbleMap';
 
 function pctColor(pct) {
-  if (pct == null) return '#9ca3af';
-  if (pct >= 90) return '#10b981';
-  if (pct >= 70) return '#2563eb';
-  return '#f59e0b';
+  if (pct == null) return STATUS.none;
+  if (pct >= 90) return STATUS.good;
+  if (pct >= 70) return STATUS.normal;
+  return STATUS.warn;
 }
 
 // Bar capaian vs target satu provinsi.

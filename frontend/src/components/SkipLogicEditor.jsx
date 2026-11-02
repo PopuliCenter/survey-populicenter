@@ -398,7 +398,7 @@ function SkipLogicEditor({ questions = [], skipLogic = [], onChange }) {
       <button
         type="button"
         onClick={addRule}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300"
       >
         <span aria-hidden="true">+</span> Tambah Aturan Lompat
       </button>

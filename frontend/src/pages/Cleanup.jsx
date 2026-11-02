@@ -18,18 +18,12 @@ function WarnIcon({ className = 'w-4 h-4' }) {
   );
 }
 
-function StatCard({ title, count, description, color = 'gray' }) {
-  const colors = {
-    gray: 'bg-gray-50 border-gray-200 text-gray-700',
-    yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
-    red: 'bg-red-50 border-red-200 text-red-700',
-    blue: 'bg-primary-50 border-primary-200 text-primary-700',
-  };
+function StatCard({ title, count, description }) {
   return (
-    <div className={`rounded-lg border p-4 ${colors[color]}`}>
-      <p className="text-xs font-medium uppercase tracking-wide opacity-70">{title}</p>
-      <p className="text-2xl font-bold mt-1 tabular-nums">{count.toLocaleString('id-ID')}</p>
-      <p className="text-xs mt-1 opacity-60">{description}</p>
+    <div className="bg-white p-4">
+      <p className="text-xs text-gray-600">{title}</p>
+      <p className="text-2xl font-semibold text-gray-900 mt-1 tabular-nums">{(count ?? 0).toLocaleString('id-ID')}</p>
+      <p className="text-xs text-gray-500 mt-1">{description}</p>
     </div>
   );
 }
@@ -166,20 +160,19 @@ function Cleanup() {
 
         {/* Stats overview */}
         {stats && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <StatCard title="Respons Pending" count={stats.pending_responses} description="Lebih dari 24 jam" color="yellow" />
-            <StatCard title="Job Ekspor Lama" count={stats.old_export_jobs} description="Lebih dari 7 hari" color="red" />
-            <StatCard title="Total Log Audit" count={stats.total_audit_logs} description="Semua waktu" color="blue" />
-            <StatCard title="Total Respons" count={stats.total_committed_responses} description="Ter-commit" color="gray" />
-            <StatCard title="Survei Nonaktif" count={stats.inactive_surveys} description="Bisa dihapus" color="red" />
-            <StatCard title="TPD Nonaktif" count={stats.inactive_tpd} description={`${(stats.deletable_inactive_tpd ?? 0).toLocaleString('id-ID')} bisa dihapus · sisanya punya respons`} color="yellow" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-gray-200 border border-gray-200 rounded-md overflow-hidden">
+            <StatCard title="Respons Pending" count={stats.pending_responses} description="Lebih dari 24 jam" />
+            <StatCard title="Job Ekspor Lama" count={stats.old_export_jobs} description="Lebih dari 7 hari" />
+            <StatCard title="Total Log Audit" count={stats.total_audit_logs} description="Semua waktu" />
+            <StatCard title="Total Respons" count={stats.total_committed_responses} description="Ter-commit" />
+            <StatCard title="Survei Nonaktif" count={stats.inactive_surveys} description="Bisa dihapus" />
+            <StatCard title="TPD Nonaktif" count={stats.inactive_tpd} description={`${(stats.deletable_inactive_tpd ?? 0).toLocaleString('id-ID')} bisa dihapus · sisanya punya respons`} />
           </div>
         )}
 
         {/* Auto Cleanup Section */}
         <div className="bg-white rounded-xl shadow p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+          <h2 className="text-sm font-semibold text-gray-800">
             Pembersihan Otomatis
           </h2>
           <p className="text-xs text-gray-500">
@@ -206,7 +199,7 @@ function Cleanup() {
                   </button>
                   <button
                     onClick={() => setConfirmAction(null)}
-                    className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+                    className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
                   >
                     Batal
                   </button>
@@ -215,7 +208,7 @@ function Cleanup() {
                 <button
                   onClick={() => setConfirmAction('pending')}
                   disabled={!stats?.pending_responses}
-                  className="px-4 py-2 text-xs font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Bersihkan Respons Pending ({stats?.pending_responses || 0})
                 </button>
@@ -241,7 +234,7 @@ function Cleanup() {
                   </button>
                   <button
                     onClick={() => setConfirmAction(null)}
-                    className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+                    className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
                   >
                     Batal
                   </button>
@@ -250,7 +243,7 @@ function Cleanup() {
                 <button
                   onClick={() => setConfirmAction('export')}
                   disabled={!stats?.old_export_jobs}
-                  className="px-4 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Bersihkan Job Ekspor ({stats?.old_export_jobs || 0})
                 </button>
@@ -261,8 +254,7 @@ function Cleanup() {
 
         {/* Manual Cleanup: Responses */}
         <div className="bg-white rounded-xl shadow p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-primary-500"></span>
+          <h2 className="text-sm font-semibold text-gray-800">
             Pembersihan Manual — Respons
           </h2>
           <p className="text-xs text-gray-500">
@@ -328,7 +320,7 @@ function Cleanup() {
             <button
               onClick={handlePreview}
               disabled={(!filterSurveyId && !filterYear) || previewLoading}
-              className="px-4 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {previewLoading ? 'Menghitung…' : 'Preview Jumlah'}
             </button>
@@ -362,7 +354,7 @@ function Cleanup() {
                 </button>
                 <button
                   onClick={() => setConfirmAction(null)}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+                  className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
                 >
                   Batal
                 </button>
@@ -380,8 +372,7 @@ function Cleanup() {
 
         {/* Manual Cleanup: Audit Logs */}
         <div className="bg-white rounded-xl shadow p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+          <h2 className="text-sm font-semibold text-gray-800">
             Pembersihan Manual — Log Audit
           </h2>
           <p className="text-xs text-gray-500">
@@ -444,7 +435,7 @@ function Cleanup() {
               </button>
               <button
                 onClick={() => setConfirmAction(null)}
-                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+                className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
               >
                 Batal
               </button>
@@ -453,7 +444,7 @@ function Cleanup() {
             <button
               onClick={() => setConfirmAction('audit')}
               disabled={!auditYear}
-              className="px-4 py-2 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Hapus Log Audit
             </button>
@@ -462,8 +453,7 @@ function Cleanup() {
 
         {/* Hapus Survei Nonaktif */}
         <div className="bg-white rounded-xl shadow p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+          <h2 className="text-sm font-semibold text-gray-800">
             Hapus Survei Nonaktif
           </h2>
           <p className="text-xs text-gray-500">
@@ -493,7 +483,7 @@ function Cleanup() {
                       </button>
                       <button
                         onClick={() => setConfirmAction(null)}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+                        className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
                       >
                         Batal
                       </button>
@@ -514,8 +504,7 @@ function Cleanup() {
 
         {/* Hapus TPD Nonaktif */}
         <div className="bg-white rounded-xl shadow p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+          <h2 className="text-sm font-semibold text-gray-800">
             Hapus TPD Nonaktif
           </h2>
           <p className="text-xs text-gray-500">
@@ -538,7 +527,7 @@ function Cleanup() {
               </button>
               <button
                 onClick={() => setConfirmAction(null)}
-                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+                className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
               >
                 Batal
               </button>
@@ -547,7 +536,7 @@ function Cleanup() {
             <button
               onClick={() => setConfirmAction('tpd')}
               disabled={!stats?.deletable_inactive_tpd}
-              className="px-4 py-2 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Hapus TPD Nonaktif ({stats?.deletable_inactive_tpd || 0})
             </button>

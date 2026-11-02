@@ -88,7 +88,7 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
           {s.title}
         </p>
         {s.status && (
-          <span className={`inline-block mt-1.5 text-2xs px-1.5 py-0.5 rounded-full ${
+          <span className={`inline-block mt-1.5 text-2xs px-1.5 py-0.5 rounded ${
             s.status === 'published'
               ? 'bg-green-100 text-green-700'
               : s.status === 'draft'
@@ -230,9 +230,9 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
                       key={year}
                       type="button"
                       onClick={() => handleYearClick(year)}
-                      className="text-left p-3 rounded-lg border-2 border-gray-200 bg-white hover:border-amber-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      className="text-left p-3 rounded-lg border border-gray-200 bg-white hover:border-gray-400 transition-colors"
                     >
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-sm bg-amber-100 text-amber-600">
+                      <div className="mb-2 text-gray-500">
                         <Icon name="folder" className="w-4 h-4" />
                       </div>
                       <p className="text-sm font-semibold text-gray-800">{year}</p>
@@ -256,9 +256,9 @@ function SurveySelector({ surveys = [], value, onChange, label = 'Survei', requi
                         key={month}
                         type="button"
                         onClick={() => handleMonthClick(month)}
-                        className="text-left p-3 rounded-lg border-2 border-gray-200 bg-white hover:border-primary-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-400"
+                        className="text-left p-3 rounded-lg border border-gray-200 bg-white hover:border-gray-400 transition-colors"
                       >
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-sm bg-primary-100 text-primary-600">
+                        <div className="mb-2 text-gray-500">
                           <Icon name="folderOpen" className="w-4 h-4" />
                         </div>
                         <p className="text-xs font-semibold text-gray-800">{MONTH_NAMES[month]}</p>

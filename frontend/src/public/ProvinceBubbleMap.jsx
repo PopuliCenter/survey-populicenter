@@ -1,3 +1,4 @@
+import { brand } from '../theme/palette';
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -37,9 +38,9 @@ function ProvinceBubbleMap({ regions }) {
       const radius = 6 + Math.sqrt(r.count / max) * 28;
       L.circleMarker([c.lat, c.lng], {
         radius,
-        color: '#1d4ed8',
+        color: brand[700],
         weight: 1,
-        fillColor: '#3b82f6',
+        fillColor: brand[500],
         fillOpacity: 0.5,
       })
         .bindTooltip(`${r.name}: ${r.count.toLocaleString('id-ID')} responden`, { direction: 'top' })

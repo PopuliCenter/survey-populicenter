@@ -267,7 +267,7 @@ function RandomSampling() {
         )}
 
         {/* 1. Data */}
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+        <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-700 text-xs font-semibold flex items-center justify-center">1</span>
             <h2 className="text-base font-semibold text-gray-700">Unggah data MFD</h2>
@@ -276,7 +276,7 @@ function RandomSampling() {
             <label className="block">
               <span className="text-sm text-gray-600">File MFD (.xlsx) — wajib</span>
               <input type="file" accept=".xlsx,.xls" onChange={(e) => handleMfd(e.target.files?.[0] || null)}
-                className="mt-1 block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary-50 file:text-primary-700 file:text-sm file:font-medium hover:file:bg-primary-100" />
+                className="mt-1 block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-800 file:text-sm file:font-medium hover:file:bg-gray-200" />
             </label>
             <label className="block">
               <span className="text-sm text-gray-600">Referensi DPT/Penduduk (opsional, .xlsx/.csv)</span>
@@ -301,7 +301,7 @@ function RandomSampling() {
         </section>
 
         {/* 2. Parameter */}
-        <section className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 ${inspect ? '' : 'opacity-50 pointer-events-none'}`}>
+        <section className={`bg-white rounded-lg border border-gray-200 p-6 space-y-5 ${inspect ? '' : 'opacity-50 pointer-events-none'}`}>
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-700 text-xs font-semibold flex items-center justify-center">2</span>
             <h2 className="text-base font-semibold text-gray-700">Rancang sampling</h2>
@@ -487,7 +487,7 @@ function RandomSampling() {
               {previewing ? 'Menghitung alokasi…' : 'Pratinjau Alokasi'}
             </button>
             <button type="button" onClick={handleRun} disabled={running || previewing || !inspect}
-              className="px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors inline-flex items-center justify-center gap-2">
+              className="px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white text-sm font-semibold transition-colors inline-flex items-center justify-center gap-2">
               <Icon name="target" className="w-4 h-4" />
               {running ? 'Menjalankan sampling…' : 'Lakukan Sampling'}
             </button>
@@ -500,7 +500,7 @@ function RandomSampling() {
 
         {/* 2b. Pratinjau alokasi (sebelum menjalankan) */}
         {preview && (
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+          <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-2">
                 <span className="w-6 h-6 rounded-lg bg-primary-50 text-primary-700 flex items-center justify-center shrink-0">
@@ -542,7 +542,7 @@ function RandomSampling() {
 
         {/* 3. Hasil */}
         {result && (
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+          <section className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-semibold flex items-center justify-center">3</span>
