@@ -44,7 +44,8 @@ OFFSITE_PULL="${OFFSITE_PULL:-}"           # model PULL (NAS menarik): set ke 1
 HC_PING_URL="${HC_PING_URL:-}"             # opsional: dead man's switch (Healthchecks.io)
 
 PROBLEMS=0
-warn() { echo "⚠  $*"; PROBLEMS=$((PROBLEMS + 1)); }
+WARNINGS=""
+warn() { echo "⚠  $*"; PROBLEMS=$((PROBLEMS + 1)); WARNINGS="${WARNINGS}⚠  $*"$'\n'; }
 ok()   { echo "✓  $*"; }
 
 if docker compose version >/dev/null 2>&1; then DC="docker compose"; else DC="docker-compose"; fi
@@ -83,7 +84,7 @@ check_fresh() {
   local age_h=$(( ( $(date +%s) - $(date -r "$newest" +%s) ) / 3600 ))
   local size; size="$(du -h "$newest" | cut -f1)"
   if [ "$age_h" -gt "$BACKUP_MAX_AGE_H" ]; then
-    warn "$label: BASI — terbaru ${age_h} jam lalu ($(basename "$newest")). Cron mati?"
+    warn "$label: BASI — terbaru ${age_h} jam lalu ($(basename "$newest")). Cek /var/log/populi-backup.log (cron mati atau skrip gagal)."
   else
     ok "$label: segar (${age_h} jam lalu, $size)"
   fi
@@ -92,7 +93,7 @@ check_fresh "Dump DB    " "$BACKUP_DIR/web_survey_platform_*.dump"
 check_fresh "Arsip media" "$BACKUP_DIR/uploads_*.tar.gz"
 # Backup MinIO hanya relevan bila media dilayani dari s3. Bila MEDIA_STORAGE=s3
 # tapi arsip minio_* basi/tak ada → media BARU tak ter-backup: bahaya senyap.
-MEDIA_STORAGE_MODE="$(grep -E '^MEDIA_STORAGE=' "$REPO_ROOT/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '\r')"
+MEDIA_STORAGE_MODE="$(grep -E '^MEDIA_STORAGE=' "$REPO_ROOT/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r')"  # compose memakai kunci terakhir
 if [ "${MEDIA_STORAGE_MODE:-disk}" = "s3" ]; then
   check_fresh "Arsip MinIO" "$BACKUP_DIR/minio_*.tar.gz"
 fi
@@ -123,7 +124,10 @@ fi
 # ── 4. Container ────────────────────────────────────────────────────────────
 echo
 echo "── Container"
-for svc in postgres redis backend worker nginx; do
+SERVICES="postgres redis backend worker nginx"
+# MinIO menyimpan seluruh media baru bila MEDIA_STORAGE=s3; mode disk tak butuh ia hidup.
+[ "${MEDIA_STORAGE_MODE:-disk}" = "s3" ] && SERVICES="$SERVICES minio"
+for svc in $SERVICES; do
   cid="$($DC ps -q "$svc" 2>/dev/null)"
   if [ -z "$cid" ]; then
     warn "$svc: TIDAK BERJALAN"
@@ -146,6 +150,7 @@ if [ "$PROBLEMS" -eq 0 ]; then
   exit 0
 fi
 echo "❌ $PROBLEMS masalah ditemukan — perlu tindakan."
-# Ping /fail → Healthchecks.io langsung mengirim alarm (email/WA/Telegram).
-[ -n "$HC_PING_URL" ] && curl -fsS -m 10 --retry 3 -o /dev/null "${HC_PING_URL}/fail" || true
+# Ping /fail → Healthchecks.io langsung mengirim alarm (email/WA/Telegram). Daftar
+# masalah ikut sebagai body, jadi sebabnya terbaca di detail event tanpa SSH.
+[ -n "$HC_PING_URL" ] && printf '%s' "$WARNINGS" | curl -fsS -m 10 --retry 3 -o /dev/null --data-binary @- "${HC_PING_URL}/fail" || true
 exit 1

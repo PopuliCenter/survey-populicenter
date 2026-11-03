@@ -65,6 +65,8 @@ services:
   # 127.0.0.1 (tak pernah ke internet); backend mengaksesnya lewat network
   # internal Docker (`minio:9000`). Idle ~70 MB — dipakai hanya bila
   # MEDIA_STORAGE=s3; sampai saat itu ia siaga tanpa efek.
+  # ⚠ Image ini tak lagi tersedia di registry publik. Salinan lokal di server &
+  # backups/image-minio-server_*.tar.gz = satu-satunya sumber (docs/ops/media-minio.md).
   minio:
     image: minio/minio:latest
     restart: unless-stopped

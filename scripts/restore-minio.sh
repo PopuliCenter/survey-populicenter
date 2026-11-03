@@ -21,8 +21,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
 MINIO_SERVICE="${MINIO_SERVICE:-minio}"
-BUCKET="${MINIO_BUCKET:-survey-media}"
-MC_IMAGE="${MC_IMAGE:-minio/mc:latest}"
+MIRROR_SERVICE="${MIRROR_SERVICE:-worker}"   # service berimage backend, tanpa RUN_MIGRATIONS
 
 DRY_RUN=0
 if [ "${1:-}" = "--dry-run" ]; then DRY_RUN=1; shift; fi
@@ -40,7 +39,9 @@ echo "  Berisi: $COUNT objek"
 
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "  Contoh isi:"
-  tar -tzf "$ARCHIVE" | grep -v '/$' | head -5 | sed 's/^/    · /'
+  # sed membaca sampai habis; `head` di sini memutus pipa, dan dengan pipefail + -e
+  # skrip mati sebelum sempat menyatakan arsip valid.
+  tar -tzf "$ARCHIVE" | grep -v '/$' | sed -n '1,5s/^/    · /p'
   echo "✅ Uji selesai — arsip VALID. Produksi tidak disentuh (--dry-run)."
   exit 0
 fi
@@ -52,22 +53,9 @@ if docker compose version >/dev/null 2>&1; then DC="docker compose"; else DC="do
 if ! $DC ps --status running --services 2>/dev/null | grep -qx "$MINIO_SERVICE"; then
   echo "✗ Service '$MINIO_SERVICE' tidak berjalan." >&2; exit 1
 fi
-MINIO_CID="$($DC ps -q "$MINIO_SERVICE")"
-
-# Kredensial dari container MinIO yang berjalan (kebal duplikat/parsing .env —
-# lihat catatan di backup-minio.sh).
-minio_env() {
-  docker inspect "$MINIO_CID" --format '{{range .Config.Env}}{{println .}}{{end}}' \
-    | grep "^$1=" | head -1 | cut -d= -f2-
-}
-MINIO_USER="$(minio_env MINIO_ROOT_USER)"
-MINIO_PASS="$(minio_env MINIO_ROOT_PASSWORD)"
-if [ -z "$MINIO_USER" ] || [ -z "$MINIO_PASS" ]; then
-  echo "✗ Kredensial MinIO tak terbaca dari container '$MINIO_SERVICE'." >&2; exit 1
-fi
 
 echo
-echo "⚠  Ini akan MENARUH KEMBALI $COUNT objek ke bucket produksi '$BUCKET'."
+echo "⚠  Ini akan MENARUH KEMBALI $COUNT objek ke bucket media produksi."
 read -r -p "   Ketik 'PULIHKAN' untuk lanjut: " CONFIRM
 [ "$CONFIRM" = "PULIHKAN" ] || { echo "Dibatalkan."; exit 1; }
 
@@ -78,11 +66,11 @@ trap cleanup EXIT
 echo "▶ Ekstrak arsip ke staging…"
 tar -xzf "$ARCHIVE" -C "$STAGE"
 
-echo "▶ Mirror staging → bucket '$BUCKET'…"
-docker run --rm \
-  --network "container:$MINIO_CID" \
-  -e "MC_HOST_m=http://${MINIO_USER}:${MINIO_PASS}@127.0.0.1:9000" \
+echo "▶ Mirror staging → bucket media…"
+# Alat & kredensial sama seperti backup-minio.sh: image backend kita + env worker.
+$DC run --rm --no-deps -T \
   -v "$STAGE:/in:ro" \
-  "$MC_IMAGE" mirror --overwrite /in "m/$BUCKET" >/dev/null
+  -v "$REPO_ROOT/backend/scripts/media-mirror.cjs:/app/scripts/media-mirror.cjs:ro" \
+  "$MIRROR_SERVICE" node scripts/media-mirror.cjs push /in "$COUNT"
 
-echo "✅ Selesai. $COUNT objek dipulihkan ke bucket '$BUCKET'."
+echo "✅ Selesai. $COUNT objek dipulihkan."

@@ -12,7 +12,9 @@ menyandera produksi, dan rollback jadi hitungan detik (tukar tag, bukan rebuild)
    - `ghcr.io/populicenter/survey-backend` (dipakai service **backend & worker**)
    - `ghcr.io/populicenter/survey-nginx` (SPA + reverse proxy)
    - Tiap image dua tag: **`latest`** (deploy default) + **`sha-<commit>`** (rollback).
-3. Server: `docker compose pull && docker compose up -d` — **tanpa build**.
+3. Server: `docker compose pull backend worker nginx && docker compose up -d` — **tanpa
+   build**. Sebut nama service-nya: `minio/minio` tak lagi bisa ditarik, jadi `pull`
+   tanpa nama akan gagal (lihat `media-minio.md`).
 
 `docker-compose.yml` menyimpan **`image:` DAN `build:`**:
 - Produksi → `pull` memakai `image:` dari GHCR.

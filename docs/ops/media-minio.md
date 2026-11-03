@@ -77,7 +77,8 @@ kehilangan data. Selidiki, lalu ulangi flip saat siap.
 ## ⚠️ Backup: sekarang ada DUA sumber → WAJIB `backup-minio.sh`
 Setelah flip, media baru hidup di **volume `miniodata`**, bukan lagi `uploads`.
 `backup-media.sh` (tar `uploads`) TIDAK mencakupnya. Penutupnya sudah ada:
-**`scripts/backup-minio.sh`** — `mc mirror` bucket → `backups/minio_*.tar.gz`.
+**`scripts/backup-minio.sh`** — salin seluruh bucket → `backups/minio_*.tar.gz`,
+memakai `backend/scripts/media-mirror.cjs` di dalam image backend kita sendiri.
 
 Aktifkan SEBELUM survei masal:
 ```bash
@@ -94,6 +95,25 @@ bash scripts/backup-minio.sh
 ⚠️ **Baru setelah `backup-minio.sh` berjalan rutin**, langkah 5 (pangkas disk)
 boleh dipertimbangkan. Sebelum itu, disk = satu-satunya salinan ter-backup untuk
 media pra-migrasi.
+
+## 🚨 Image MinIO sudah tak bisa ditarik lagi (sejak Okt 2026)
+`minio/minio` dan `minio/mc` tidak lagi tersedia di Docker Hub (404) dan binary di
+`dl.min.io` membalas 410. Akibatnya backup media berhenti 24 Okt–3 Nov 2026 begitu
+image `minio/mc` lokal di VPS hilang; alat backup kini tak lagi memakai `mc`.
+
+Yang harus diingat:
+- **`minio/minio:latest` di server adalah salinan terakhir.** Selama container-nya
+  ada, `docker image prune -a` tak menghapusnya. Jangan menjalankan prune setelah
+  `docker compose down`, karena image yang tak terpakai ikut terhapus.
+- **Jangan `docker compose pull` tanpa nama service**, karena akan gagal pada minio.
+  Pakai bentuk baku `docker compose pull backend worker nginx`.
+- `backup-minio.sh` mengarsipkan image ini ke `backups/image-minio-server_*.tar.gz`
+  (ikut ditarik QNAP). Di server baru, muat dulu sebelum `docker compose up -d`:
+  ```bash
+  gunzip -c backups/image-minio-server_*.tar.gz | docker load
+  ```
+- Rencana jangka panjang: MinIO komunitas tak lagi menerima rilis image, jadi perlu
+  keputusan pindah ke image lain atau penyimpanan S3 lain. Belum dikerjakan.
 
 ## Batasan yang diketahui (jujur)
 - **Reaper media yatim** (`maintenance.js`) menyapu disk; di mode s3 ia no-op aman

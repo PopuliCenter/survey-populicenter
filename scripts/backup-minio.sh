@@ -9,13 +9,18 @@
 #   kehilangan server = kehilangan seluruh media pasca-flip.
 #
 # CARA KERJA (bukan tar volume mentah):
-#   Memakai `mc mirror` untuk menyalin OBJEK ASLI (nama = uploads/<jenis>/…) ke
-#   folder sementara, lalu menge-tar-nya. Keuntungan vs tar volume opaque:
+#   Menyalin OBJEK ASLI (nama = uploads/<jenis>/…) ke folder sementara, lalu
+#   menge-tar-nya. Keuntungan vs tar volume opaque:
 #     · berkas bisa diperiksa/dipakai langsung (jpg/webm/png sungguhan);
-#     · restore fleksibel: ke MinIO (mc mirror balik) ATAU ke disk (mode 'disk');
+#     · restore fleksibel: ke MinIO (restore-minio.sh) ATAU ke disk (mode 'disk');
 #     · struktur identik layout disk lama → kompatibel restore-media.sh.
-#   mc dijalankan via container minio/mc yang berbagi netns container minio
-#   (akses 127.0.0.1:9000), kredensial via env MC_HOST_* (tak perlu alias).
+#   Penyalinan memakai backend/scripts/media-mirror.cjs di dalam image backend
+#   kita sendiri (punya paket minio + env MINIO_*).
+#
+# KENAPA BUKAN `mc`: image minio/mc & minio/minio ditarik dari registry publik
+#   (Docker Hub 404, dl.min.io 410). Backup berhenti 24 Okt 2026 begitu image mc
+#   lokal hilang dari server. Karena minio/minio juga tak bisa ditarik lagi, skrip
+#   ini sekaligus mengarsipkan image server MinIO agar server baru bisa dipulihkan.
 #
 # Jalankan di VPS produksi:
 #   bash scripts/backup-minio.sh
@@ -35,10 +40,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
 MINIO_SERVICE="${MINIO_SERVICE:-minio}"
-BUCKET="${MINIO_BUCKET:-survey-media}"
+MIRROR_SERVICE="${MIRROR_SERVICE:-worker}"   # service berimage backend, tanpa RUN_MIGRATIONS
 BACKUP_DIR="${BACKUP_DIR:-$REPO_ROOT/backups}"
 RETENTION="${BACKUP_RETENTION:-14}"
-MC_IMAGE="${MC_IMAGE:-minio/mc:latest}"
 HC_PING_URL="${HC_MINIO_PING_URL:-}"   # opsional: dead man's switch khusus (boleh kosong)
 
 if docker compose version >/dev/null 2>&1; then
@@ -58,21 +62,6 @@ fi
 MINIO_CID="$($DC ps -q "$MINIO_SERVICE")"
 if [ -z "$MINIO_CID" ]; then echo "✗ Container minio tak ditemukan." >&2; exit 1; fi
 
-# Kredensial dari CONTAINER MinIO yang BERJALAN — sumber kebenaran. Membaca .env
-# rapuh: bila .env punya key ganda, compose (dan MinIO) memakai kemunculan
-# TERAKHIR, sedangkan `grep|head -1` mengambil yang pertama → signature mismatch
-# (bug 2026-07-16). docker inspect memberi nilai yang benar-benar dipakai MinIO.
-minio_env() {
-  docker inspect "$MINIO_CID" --format '{{range .Config.Env}}{{println .}}{{end}}' \
-    | grep "^$1=" | head -1 | cut -d= -f2-
-}
-MINIO_USER="$(minio_env MINIO_ROOT_USER)"
-MINIO_PASS="$(minio_env MINIO_ROOT_PASSWORD)"
-if [ -z "$MINIO_USER" ] || [ -z "$MINIO_PASS" ]; then
-  echo "✗ MINIO_ROOT_USER/PASSWORD tak terbaca dari container '$MINIO_SERVICE'." >&2
-  exit 1
-fi
-
 mkdir -p "$BACKUP_DIR"
 TS="$(date +%Y%m%d_%H%M%S)"
 OUT="$BACKUP_DIR/minio_${TS}.tar.gz"
@@ -80,17 +69,16 @@ STAGE="$(mktemp -d "$BACKUP_DIR/.minio_stage_${TS}.XXXXXX")"
 cleanup() { rm -rf "$STAGE"; }
 trap cleanup EXIT
 
-echo "▶ Mirror bucket '$BUCKET' → staging sementara…"
-# mc di container yang berbagi netns minio → 127.0.0.1:9000. MC_HOST_m menyetel
-# alias 'm' inline (kredensial di env, bukan argumen → tak bocor ke `ps`).
-# Password kita hex (openssl rand -hex) → aman di URL. Bila kelak diganti ke
-# karakter khusus, perlu URL-encode.
-if ! docker run --rm \
-      --network "container:$MINIO_CID" \
-      -e "MC_HOST_m=http://${MINIO_USER}:${MINIO_PASS}@127.0.0.1:9000" \
+echo "▶ Mirror bucket media → staging sementara…"
+# Alat dipasang dari checkout ini, jadi perbaikan backup cukup `git pull` dan tak
+# menunggu image baru. Kredensial & nama bucket datang dari env service worker,
+# sumber yang sama dengan aplikasi. Pesan error sengaja TIDAK dibuang: menyembunyikannya
+# membuat insiden Okt 2026 terbaca sebagai "bucket/kredensial" selama 10 hari.
+if ! $DC run --rm --no-deps -T \
       -v "$STAGE:/out" \
-      "$MC_IMAGE" mirror --overwrite "m/$BUCKET" /out >/dev/null 2>&1; then
-  echo "✗ mc mirror gagal (bucket kosong/kredensial/koneksi). Cek 'docker compose logs minio'." >&2
+      -v "$REPO_ROOT/backend/scripts/media-mirror.cjs:/app/scripts/media-mirror.cjs:ro" \
+      "$MIRROR_SERVICE" node scripts/media-mirror.cjs pull /out; then
+  echo "✗ Mirror bucket gagal — lihat pesan di atas." >&2
   exit 1
 fi
 
@@ -112,7 +100,7 @@ if [ "$ARCHIVED" -ne "$FILE_COUNT" ]; then
   rm -f "$OUT"; exit 1
 fi
 if [ "$FILE_COUNT" -eq 0 ]; then
-  echo "⚠ Bucket '$BUCKET' KOSONG — arsip berisi 0 media. Bila ini tak diduga," >&2
+  echo "⚠ Bucket media KOSONG — arsip berisi 0 media. Bila ini tak diduga," >&2
   echo "  cek MEDIA_STORAGE & apakah migrasi sudah dijalankan." >&2
 fi
 
@@ -124,6 +112,25 @@ mapfile -t OLD < <(ls -1t "$BACKUP_DIR"/minio_*.tar.gz 2>/dev/null | tail -n +"$
 if [ "${#OLD[@]}" -gt 0 ]; then
   echo "▶ Rotasi: hapus ${#OLD[@]} arsip lama (retensi=$RETENTION)"
   for f in "${OLD[@]}"; do rm -f "$f" && echo "  · $(basename "$f")"; done
+fi
+
+# ── Arsip image server MinIO ─────────────────────────────────────────────────
+# Salinan image di server ini satu-satunya sumber untuk MinIO yang sedang dipakai.
+# Hanya ditulis bila image berubah. Kegagalan di sini tak menggagalkan backup
+# media yang sudah selesai di atas, tapi dicetak agar terlihat di log.
+IMAGE_REF="$(docker inspect -f '{{.Config.Image}}' "$MINIO_CID")"
+IMAGE_ID="$(docker inspect -f '{{.Image}}' "$MINIO_CID" | sed 's/^sha256://' | cut -c1-12)"
+IMAGE_OUT="$BACKUP_DIR/image-minio-server_${IMAGE_ID}.tar.gz"
+if [ ! -s "$IMAGE_OUT" ]; then
+  echo "▶ Arsipkan image server MinIO ($IMAGE_REF)…"
+  if docker save "$IMAGE_REF" | gzip > "$IMAGE_OUT.tmp" && gzip -t "$IMAGE_OUT.tmp"; then
+    mv "$IMAGE_OUT.tmp" "$IMAGE_OUT"
+    find "$BACKUP_DIR" -maxdepth 1 -name 'image-minio-server_*.tar.gz' ! -name "$(basename "$IMAGE_OUT")" -delete
+    echo "  ✓ $(basename "$IMAGE_OUT") ($(du -h "$IMAGE_OUT" | cut -f1))"
+  else
+    rm -f "$IMAGE_OUT.tmp"
+    echo "⚠ Gagal mengarsipkan image server MinIO — backup media tetap sah." >&2
+  fi
 fi
 
 echo "✅ Selesai. Total arsip MinIO: $(ls -1 "$BACKUP_DIR"/minio_*.tar.gz 2>/dev/null | wc -l)"
