@@ -78,6 +78,19 @@
   }
 }
 
+/* Kolom yang diisi otomatis browser: warna bawaannya tak bisa ditimpa background-color,
+   dan di tema gelap tampil mencolok. Bayangan dalam menutupinya; variabel ring dipertahankan
+   agar cincin fokus Tailwind tetap terlihat. */
+@media not print {
+  html.dark input:-webkit-autofill,
+  html.dark textarea:-webkit-autofill,
+  html.dark select:-webkit-autofill {
+    -webkit-text-fill-color: rgb(var(--fg-ink-900));
+    caret-color: rgb(var(--fg-ink-900));
+    box-shadow: inset 0 0 0 1000px rgb(var(--bg-white)), var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000);
+  }
+}
+
 /* ── Leaflet saat gelap ─────────────────────────────────────────────────────────
    Di luar @layer: leaflet.css dimuat belakangan (chunk lazy), jadi aturan ini menang
    lewat spesifisitas, bukan urutan. Warna bubble tetap hex di JS karena dipakai embed. */

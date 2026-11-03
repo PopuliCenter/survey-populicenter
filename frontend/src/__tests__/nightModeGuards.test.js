@@ -39,6 +39,20 @@ describe('elemen yang wajib tetap putih / gelap', () => {
   });
 });
 
+describe('isian otomatis browser', () => {
+  test('tertutup warna permukaan saat gelap, dan cincin fokus tetap ada', () => {
+    const css = read('index.css');
+    expect(css).toMatch(/html\.dark input:-webkit-autofill/);
+    expect(css).toMatch(/box-shadow: inset 0 0 0 1000px rgb\(var\(--bg-white\)\), var\(--tw-ring-offset-shadow/);
+  });
+});
+
+describe('logo di panel brand Login', () => {
+  test('memakai masker putih dan tetap punya nama aksesibel', () => {
+    expect(read('pages/Login.jsx')).toMatch(/role="img" aria-label="Populi Center" className="[^"]*bg-paper/);
+  });
+});
+
 describe('halaman publik selalu terang', () => {
   test('src/public tidak memakai token var()', () => {
     const imp = read('public/PublicResults.jsx').match(/import \{([^}]*)\} from '..\/theme\/chartTheme'/)[1];

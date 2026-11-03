@@ -6,6 +6,11 @@ import ThemeToggle from '../components/ThemeToggle';
 import ConfirmSheet from '../components/ConfirmSheet';
 import AppVersionLabel from '../components/AppVersionLabel';
 import AppFooterLinks from '../components/AppFooterLinks';
+
+const LOGO_MASK = {
+  WebkitMask: 'url(/logo-populi-center.png) center / contain no-repeat',
+  mask: 'url(/logo-populi-center.png) center / contain no-repeat',
+};
 import { setSentryUser } from '../config/sentry';
 import { persistAuth } from '../utils/authStorage';
 import { getValidSession, homePathForUser } from '../utils/session';
@@ -95,12 +100,10 @@ function Login() {
         <div
           aria-hidden="true"
           className="absolute -right-48 -bottom-48 w-[720px] h-[720px] bg-primary-600 opacity-30"
-          style={{
-            WebkitMask: 'url(/logo-populi-center.png) center / contain no-repeat',
-            mask: 'url(/logo-populi-center.png) center / contain no-repeat',
-          }}
+          style={LOGO_MASK}
         />
-        <p className="relative text-sm font-semibold">Populi Center</p>
+        {/* Logo asli oranye tak terlihat di panel oranye, jadi bentuknya dipakai sebagai masker putih. */}
+        <div role="img" aria-label="Populi Center" className="relative h-11 w-11 bg-paper" style={LOGO_MASK} />
         <div className="relative max-w-md">
           <p className="font-bold leading-snug" style={{ fontSize: 'clamp(1.75rem, 2.6vw, 2.5rem)' }}>
             Dari titik sampel sampai laporan.
