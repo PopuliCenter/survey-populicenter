@@ -2,6 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
 
+// Hapus survei tak bisa dibatalkan, dan setelah satu survei terhapus baris berikutnya
+// naik ke posisi yang sama. Kata ketikan mencegah dua klik beruntun menghapus survei lain.
+const SURVEY_DELETE_WORD = 'HAPUS';
+
 function CheckCircleIcon({ className = 'w-4 h-4' }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -49,6 +53,8 @@ function Cleanup() {
 
   // Confirmation state
   const [confirmAction, setConfirmAction] = useState(null);
+  const [surveyConfirmText, setSurveyConfirmText] = useState('');
+  const surveyConfirmed = surveyConfirmText.trim().toUpperCase() === SURVEY_DELETE_WORD;
 
   const fetchStats = useCallback(async () => {
     try {
@@ -466,34 +472,62 @@ function Cleanup() {
           ) : (
             <div className="space-y-3">
               {surveys.filter((s) => s.status === 'inactive').map((survey) => (
-                <div key={survey.id} className="border border-gray-200 rounded-lg p-4 flex items-center justify-between gap-4">
-                  <div className="min-w-0">
+                <div key={survey.id} className="border border-gray-200 rounded-lg p-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-800 truncate">{survey.title}</p>
                     <p className="text-xs text-gray-500">Status: Nonaktif</p>
                   </div>
                   {confirmAction === `survey-${survey.id}` ? (
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-red-600">Hapus permanen?</span>
-                      <button
-                        onClick={() => handleAction(`/cleanup/survey/${survey.id}`)}
-                        disabled={actionLoading === `/cleanup/survey/${survey.id}`}
-                        className="px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md disabled:opacity-50"
-                      >
-                        {actionLoading === `/cleanup/survey/${survey.id}` ? 'Menghapus…' : 'Ya, Hapus'}
-                      </button>
-                      <button
-                        onClick={() => setConfirmAction(null)}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
-                      >
-                        Batal
-                      </button>
-                    </div>
+                    <form
+                      className="w-full space-y-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (surveyConfirmed) handleAction(`/cleanup/survey/${survey.id}`);
+                      }}
+                    >
+                      <label htmlFor={`confirm-survey-${survey.id}`} className="block text-xs text-red-700">
+                        Ketik <strong>{SURVEY_DELETE_WORD}</strong> untuk menghapus survei ini permanen
+                        {survey.response_count > 0 && <> beserta <strong>{survey.response_count.toLocaleString('id-ID')} respons</strong> dan medianya</>}.
+                        Tindakan ini tidak dapat dibatalkan.
+                      </label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          id={`confirm-survey-${survey.id}`}
+                          type="text"
+                          value={surveyConfirmText}
+                          onChange={(e) => setSurveyConfirmText(e.target.value)}
+                          placeholder={SURVEY_DELETE_WORD}
+                          autoFocus
+                          autoComplete="off"
+                          spellCheck={false}
+                          className="w-28 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!surveyConfirmed}
+                          className="px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Hapus Permanen
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmAction(null)}
+                          className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    </form>
                   ) : (
                     <button
-                      onClick={() => setConfirmAction(`survey-${survey.id}`)}
-                      className="px-4 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors shrink-0"
+                      onClick={() => {
+                        setSurveyConfirmText('');
+                        setConfirmAction(`survey-${survey.id}`);
+                      }}
+                      disabled={actionLoading === `/cleanup/survey/${survey.id}`}
+                      className="px-4 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg disabled:opacity-50 transition-colors shrink-0"
                     >
-                      Hapus Survei
+                      {actionLoading === `/cleanup/survey/${survey.id}` ? 'Menghapus…' : 'Hapus Survei'}
                     </button>
                   )}
                 </div>
