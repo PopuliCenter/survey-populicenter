@@ -445,13 +445,13 @@ function RandomSampling() {
             {!hasPop && !hasDpt && <p className="text-xs text-amber-700 mt-1">Data Penduduk/DPT tak ada — alokasi memakai jumlah desa (MFD). Unggah referensi untuk basis Penduduk/DPT.</p>}
             <div className="grid sm:grid-cols-3 gap-4 mt-2">
               <label className="block"><span className="text-xs text-gray-500">Bobot Penduduk</span>
-                <input type="range" min="0" max="1" step="0.1" value={wPop} disabled={!hasPop} onChange={(e) => setWPop(e.target.value)} className="w-full accent-primary-600" />
+                <input type="range" min="0" max="1" step="0.1" value={wPop} disabled={!hasPop} onChange={(e) => setWPop(e.target.value)} className="w-full accent-primary-600 dark:accent-primary-500" />
                 <span className="text-xs text-gray-600">{Number(wPop).toFixed(1)}</span></label>
               <label className="block"><span className="text-xs text-gray-500">Bobot DPT</span>
-                <input type="range" min="0" max="1" step="0.1" value={wDpt} disabled={!hasDpt} onChange={(e) => setWDpt(e.target.value)} className="w-full accent-primary-600" />
+                <input type="range" min="0" max="1" step="0.1" value={wDpt} disabled={!hasDpt} onChange={(e) => setWDpt(e.target.value)} className="w-full accent-primary-600 dark:accent-primary-500" />
                 <span className="text-xs text-gray-600">{Number(wDpt).toFixed(1)}</span></label>
               <label className="block"><span className="text-xs text-gray-500">Bobot Jumlah Desa (MFD)</span>
-                <input type="range" min="0" max="1" step="0.1" value={wMfd} onChange={(e) => setWMfd(e.target.value)} className="w-full accent-primary-600" />
+                <input type="range" min="0" max="1" step="0.1" value={wMfd} onChange={(e) => setWMfd(e.target.value)} className="w-full accent-primary-600 dark:accent-primary-500" />
                 <span className="text-xs text-gray-600">{Number(wMfd).toFixed(1)}</span></label>
             </div>
             {wsum > 0 && (

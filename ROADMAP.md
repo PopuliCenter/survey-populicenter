@@ -279,6 +279,7 @@ Dibangun langsung dari kebutuhan lapangan TPD dan permintaan klien, tanpa spec K
 | — | Tarik ke Spreadsheet (feed CSV bertoken: rekap/monitoring/mentah untuk Google Sheets & Excel) | Laporan | ✅ Selesai |
 | — | Random Sampling microservice — 3 metode (Proporsional+bobot, √N+bobot, PPS Sistematik) | Sampling | ✅ Selesai |
 | — | Font formulir per survei (skala + jenis, Atkinson Hyperlegible dibundel) | Tampilan | ✅ Selesai |
+| — | Mode gelap web & APK (token warna dari satu palet, embed & tanda tangan tetap terang) | Tampilan | ✅ Selesai |
 | — | Penugasan TPD massal di dashboard | Manajemen | ✅ Selesai |
 | — | Role Partner Lokal & Asisten Supervisor (pewarisan hak akses) | Role | ✅ Selesai |
 | — | Distribusi Android APK ber-versionCode (rilis berkala ke TPD) | Distribusi | ✅ Selesai |

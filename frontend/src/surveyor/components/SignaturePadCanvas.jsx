@@ -22,7 +22,7 @@ function SignaturePadCanvas({ signaturePad, required = false, hasError = false }
       <div className="w-full">
         <canvas
           ref={canvasRef}
-          className={`w-full rounded-lg bg-gray-50 ${
+          className={`w-full rounded-lg bg-paper ${
             showError ? 'border-red-500 border-2' : 'border border-gray-300'
           }`}
           style={{

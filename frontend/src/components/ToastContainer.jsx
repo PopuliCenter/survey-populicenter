@@ -44,7 +44,7 @@ function ToastContainer() {
       {toasts.map((t) => (
         <div
           key={t.id}
-          className={`pointer-events-auto flex items-center gap-2 max-w-md w-full sm:w-auto rounded-xl shadow-lg px-4 py-2.5 text-sm font-medium ${TONE_CLASS[t.tone] || TONE_CLASS.info}`}
+          className={`flex items-center gap-2 max-w-md w-full sm:w-auto rounded-xl shadow-lg px-4 py-2.5 text-sm font-medium ${TONE_CLASS[t.tone] || TONE_CLASS.info}`}
           style={{ animation: 'toastIn 0.2s ease-out' }}
         >
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">

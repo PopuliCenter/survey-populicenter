@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { addBackButtonListener } from '../utils/capacitorBridge';
-import useStatusBar from '../hooks/useStatusBar';
+import ThemeToggle from '../components/ThemeToggle';
 import ConfirmSheet from '../components/ConfirmSheet';
 import AppVersionLabel from '../components/AppVersionLabel';
 import AppFooterLinks from '../components/AppFooterLinks';
@@ -44,9 +44,6 @@ function Login() {
     }).then((fn) => { cleanup = fn; });
     return () => cleanup();
   }, []);
-
-  // Layar login berlatar putih → ikon status bar gelap (tema default).
-  useStatusBar('light');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -94,7 +91,7 @@ function Login() {
   return (
     <div className="min-h-screen bg-white lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
       {/* Panel brand — layar lebar saja. Di HP layar penuh dipakai untuk formulir. */}
-      <aside className="hidden lg:flex relative overflow-hidden flex-col justify-between bg-primary-500 text-gray-900 p-12">
+      <aside className="hidden lg:flex relative overflow-hidden flex-col justify-between bg-primary-500 text-paper-ink p-12">
         <div
           aria-hidden="true"
           className="absolute -right-48 -bottom-48 w-[720px] h-[720px] bg-primary-600 opacity-30"
@@ -115,7 +112,11 @@ function Login() {
       </aside>
 
       {/* Kolom formulir */}
-      <main className="min-h-screen flex flex-col px-6 pt-[calc(env(safe-area-inset-top)+2.5rem)] pb-[calc(env(safe-area-inset-bottom)+1.5rem)] lg:px-12">
+      <main className="relative min-h-screen flex flex-col px-6 pt-[calc(env(safe-area-inset-top)+2.5rem)] pb-[calc(env(safe-area-inset-bottom)+1.5rem)] lg:px-12">
+        <ThemeToggle
+          className="absolute right-3 top-[calc(env(safe-area-inset-top)+0.5rem)] min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+          iconClassName="w-5 h-5"
+        />
         <div className="flex-1 flex flex-col justify-center w-full max-w-sm mx-auto">
           <img
             src="/logo-populi-center.png"
@@ -183,7 +184,7 @@ function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:text-gray-600 text-white font-semibold rounded-md transition-colors"
+              className="w-full h-12 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:text-gray-700 text-white font-semibold rounded-md transition-colors"
             >
               {loading ? 'Memproses…' : 'Masuk'}
             </button>

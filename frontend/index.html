@@ -7,6 +7,19 @@
     <title>Populi Center</title>
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#ffffff" />
+    <!-- Cegah kilatan putih: harus inline agar ikut precache & aset APK. Pasangannya src/theme/themeMode.js. -->
+    <style>@media not print{html.dark{background:#141312}}</style>
+    <script>
+(function(){try{var r=document.documentElement,p=location.pathname,m=null,n=false,k=false;
+if(p.indexOf('/embed/')===0){r.style.colorScheme='only light';return}
+try{n=window.Capacitor.isNativePlatform()===true}catch(e){}
+try{m=window.localStorage.getItem('theme_mode')}catch(e){}
+if(m!=='light'&&m!=='dark'&&m!=='system')m=n?'light':'system';
+if(m==='dark')k=true;
+else if(m==='system'){try{k=window.matchMedia('(prefers-color-scheme: dark)').matches===true}catch(e){}}
+if(k){r.classList.add('dark');var t=document.querySelector('meta[name="theme-color"]');if(t)t.setAttribute('content','#1c1b19')}
+}catch(e){}})();
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="apple-touch-icon" href="/logo-populi-center.png" />

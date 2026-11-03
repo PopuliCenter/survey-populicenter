@@ -340,17 +340,26 @@ export async function getAppVersion() {
  * Set status bar style for Android.
  * @param {{ style?: 'DARK' | 'LIGHT', color?: string }} options
  */
+let statusBarSeq = 0;
+
 export async function setStatusBarStyle(options = {}) {
   if (!isAndroid()) return;
+  const seq = ++statusBarSeq;
 
   try {
-    const { StatusBar, Style } = await import('@capacitor/status-bar');
+    const style = options.style === 'DARK' ? 'DARK' : 'LIGHT';
+    const { StatusBar } = await import('@capacitor/status-bar');
+    const { SystemBars } = await import('@capacitor/core');
+    if (seq !== statusBarSeq) return; // tema sudah berganti lagi saat impor berjalan
     if (options.color) {
       await StatusBar.setBackgroundColor({ color: options.color });
     }
-    await StatusBar.setStyle({
-      style: options.style === 'DARK' ? Style.Dark : Style.Light,
-    });
+    await StatusBar.setStyle({ style });
+    // SystemBars.java memulihkan gayanya sendiri saat konfigurasi berubah (putar layar,
+    // tema OS), jadi tanpa ini ikon bisa kembali ke warna yang salah.
+    await SystemBars.setStyle({ style, bar: 'StatusBar' });
+    // Tanpa ini Android 15+ memberi pita terang di bilah navigasi saat aplikasi gelap di OS terang.
+    await SystemBars.setStyle({ style: style === 'DARK' ? 'DARK' : 'DEFAULT', bar: 'NavigationBar' });
   } catch {
     // Non-critical
   }

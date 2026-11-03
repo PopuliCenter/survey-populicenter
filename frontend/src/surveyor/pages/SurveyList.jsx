@@ -8,6 +8,7 @@ import { buildOfflineChecklist } from '../../utils/offlineReadiness';
 import { initPushNotifications, clearDeliveredNotifications } from '../../utils/pushNotifications';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import Icon from '../../components/Icon';
+import ThemeToggle from '../../components/ThemeToggle';
 import ConfirmSheet from '../../components/ConfirmSheet';
 import PermissionOnboarding, { permissionOnboardingDone } from '../components/PermissionOnboarding';
 import { addBackButtonListener, addResumeListener, isNativePlatform } from '../../utils/capacitorBridge';
@@ -631,10 +632,17 @@ function SurveyList() {
                     Sesi: <span className="font-medium text-gray-700 tabular-nums">{sessionCount}</span>
                   </p>
                 )}
+                {/* Di kolom ini, bukan kolom kanan: dengan sakelar tema, baris atas tak muat di 360px. */}
+                <div className="mt-1">
+                  <OfflineStatusBar isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <OfflineStatusBar isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
+              <ThemeToggle
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                iconClassName="w-5 h-5"
+              />
               {/* Lonceng pemberitahuan (pesan SPV/admin + peringatan otomatis) */}
               <button
                 onClick={() => { setNotifOpen(true); fetchNotifications(); }}

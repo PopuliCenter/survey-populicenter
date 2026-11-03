@@ -710,6 +710,14 @@ docker compose restart backend worker
 2. Pastikan HP TPD sudah pakai APK terbaru dan token FCM tercatat (tabel `fcm_tokens`).
 3. Lonceng dashboard tetap berfungsi walau push nonaktif — keduanya jalur terpisah.
 
+### Mode gelap
+
+Tombol tema ada di kaki sidebar (web), layar Daftar Survei (APK), dan halaman Login. Sekali ketuk berpindah Terang → Gelap → Ikuti sistem. Bawaan web mengikuti sistem, bawaan APK terang karena layar gelap sulit dibaca di bawah terik matahari. Pilihan tersimpan per perangkat.
+
+Warna hanya diubah di `frontend/src/theme/palette.js`; kontrasnya dijaga `palette.test.js`. Yang sengaja selalu terang: halaman `/embed/*`, kanvas dan gambar tanda tangan, hasil cetak, ekspor, dan laporan PPTX.
+
+**Berkas kerja di `frontend/public/`** (laporan, tema PPTX, dump SQL) otomatis dibuang dari hasil build, dan `npm run cap:release` gagal bila masih ada yang lolos ke aset APK. APK bisa dibongkar siapa pun yang memegangnya.
+
 ### "Pengaturan survei tidak berlaku di APK"
 
 Biasanya **cache survei basi** di HP, bukan bug. Minta TPD menekan **Perbarui** saat online agar menarik pengaturan terbaru (font, field tools, kunci perangkat). Server tetap menegakkan aturan saat submit.

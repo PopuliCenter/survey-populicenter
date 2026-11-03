@@ -77,3 +77,45 @@
     margin-right: calc(-1 * max(1.25rem, env(safe-area-inset-right)));
   }
 }
+
+/* ── Leaflet saat gelap ─────────────────────────────────────────────────────────
+   Di luar @layer: leaflet.css dimuat belakangan (chunk lazy), jadi aturan ini menang
+   lewat spesifisitas, bukan urutan. Warna bubble tetap hex di JS karena dipakai embed. */
+@media not print {
+  html.dark .leaflet-container { background: rgb(var(--bg-ink-50)); }
+  /* WAJIB di tile-pane: .leaflet-tile{filter:inherit} membuat filter di tile-container
+     terpasang dua kali dan peta kembali terang. */
+  html.dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.7); }
+  html.dark .leaflet-bar { box-shadow: 0 0 0 1px rgb(var(--bd-ink-300)); }
+  html.dark .leaflet-bar a {
+    background-color: rgb(var(--bg-white));
+    border-bottom-color: rgb(var(--bd-ink-200));
+    color: rgb(var(--fg-ink-900));
+  }
+  html.dark .leaflet-bar a:hover, html.dark .leaflet-bar a:focus { background-color: rgb(var(--bg-ink-100)); }
+  html.dark .leaflet-bar a.leaflet-disabled { background-color: rgb(var(--bg-white)); color: rgb(var(--fg-ink-300)); }
+  html.dark .leaflet-popup-content-wrapper, html.dark .leaflet-popup-tip {
+    background: rgb(var(--bg-white));
+    color: rgb(var(--fg-ink-900));
+    box-shadow: 0 0 0 1px rgb(var(--bd-ink-300)), 0 3px 14px rgb(0 0 0 / 0.5);
+  }
+  html.dark .leaflet-container a.leaflet-popup-close-button { color: rgb(var(--fg-ink-500)); }
+  html.dark .leaflet-container a.leaflet-popup-close-button:hover,
+  html.dark .leaflet-container a.leaflet-popup-close-button:focus { color: rgb(var(--fg-ink-900)); }
+  html.dark .leaflet-tooltip {
+    background-color: rgb(var(--bg-white));
+    border-color: rgb(var(--bd-ink-300));
+    color: rgb(var(--fg-ink-900));
+  }
+  html.dark .leaflet-tooltip-top:before { border-top-color: rgb(var(--bd-ink-300)); }
+  html.dark .leaflet-tooltip-bottom:before { border-bottom-color: rgb(var(--bd-ink-300)); }
+  html.dark .leaflet-tooltip-left:before { border-left-color: rgb(var(--bd-ink-300)); }
+  html.dark .leaflet-tooltip-right:before { border-right-color: rgb(var(--bd-ink-300)); }
+  html.dark .leaflet-container .leaflet-control-attribution {
+    background: rgb(var(--bg-white) / 0.8);
+    color: rgb(var(--fg-ink-500));
+  }
+  /* Jangan .leaflet-container a: itu menimpa warna tombol zoom. */
+  html.dark .leaflet-control-attribution a, html.dark .leaflet-popup-content a { color: rgb(var(--fg-info-300)); }
+  html.dark .leaflet-overlay-pane path.leaflet-interactive { stroke: rgb(var(--fg-brand-300)); }
+}

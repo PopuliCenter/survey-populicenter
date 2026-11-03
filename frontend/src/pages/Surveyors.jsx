@@ -38,7 +38,7 @@ function describeBoundDevice(label) {
 const SURVEY_TYPE_META = [
   { value: 'nasional', label: 'Nasional', dot: 'bg-primary-500' },
   { value: 'daerah', label: 'Daerah', dot: 'bg-gray-500' },
-  { value: 'lainnya', label: 'Lainnya', dot: 'bg-gray-300' },
+  { value: 'lainnya', label: 'Lainnya', dot: 'bg-gray-400' },
 ];
 
 // ─── Password Validation ──────────────────────────────────────────────────────

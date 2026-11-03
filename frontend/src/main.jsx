@@ -5,6 +5,7 @@ import GlobalNotifications from './components/GlobalNotifications.jsx';
 import './index.css';
 import { initSentry, setSentryUser } from './config/sentry.js';
 import { restoreAuthIfMissing } from './utils/authStorage.js';
+import { initTheme } from './theme/themeMode.js';
 
 // Initialize Sentry error tracking (before anything else)
 initSentry();
@@ -13,6 +14,9 @@ try {
   const storedUser = localStorage.getItem('user');
   if (storedUser) setSentryUser(JSON.parse(storedUser));
 } catch { /* abaikan */ }
+
+// Sinkron dan tak pernah melempar: pasangan skrip boot di index.html.
+initTheme();
 
 // Register PWA Service Worker — HANYA di web/PWA, JANGAN di APK native.
 // Insiden layar putih 2026-07-18: SW ikut aktif di WebView APK dan bertahan

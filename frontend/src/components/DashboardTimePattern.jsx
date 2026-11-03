@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import api from '../services/api';
-import { CHART, AXIS_TICK, TOOLTIP_STYLE } from '../theme/chartTheme';
+import { CHART_THEMED as CHART, AXIS_TICK, TOOLTIP_PROPS } from '../theme/chartTheme';
 
 const WEEKDAYS = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
@@ -45,7 +45,7 @@ function DashboardTimePattern({ surveyId }) {
                 <CartesianGrid vertical={false} stroke={CHART.grid} />
                 <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={AXIS_TICK} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgb(26 25 23 / 0.04)' }} formatter={(v) => [`${v} responden`, 'Jumlah']} />
+                <Tooltip {...TOOLTIP_PROPS} formatter={(v) => [`${v} responden`, 'Jumlah']} />
                 <Bar dataKey="count" fill={CHART.bar} radius={[2, 2, 0, 0]} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer>
@@ -57,7 +57,7 @@ function DashboardTimePattern({ surveyId }) {
                 <CartesianGrid vertical={false} stroke={CHART.grid} />
                 <XAxis dataKey="label" tick={{ ...AXIS_TICK, fontSize: 11 }} axisLine={false} tickLine={false} interval={2} />
                 <YAxis allowDecimals={false} tick={AXIS_TICK} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgb(26 25 23 / 0.04)' }} formatter={(v) => [`${v} responden`, 'Jumlah']} labelFormatter={(l) => `Jam ${l}:00`} />
+                <Tooltip {...TOOLTIP_PROPS} formatter={(v) => [`${v} responden`, 'Jumlah']} labelFormatter={(l) => `Jam ${l}:00`} />
                 <Bar dataKey="count" fill={CHART.bar} radius={[1, 1, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

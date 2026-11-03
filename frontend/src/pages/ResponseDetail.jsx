@@ -668,7 +668,7 @@ function ResponseDetail() {
                   {response.signature_path && (
                     <div>
                       <p className="text-sm font-medium text-gray-600 mb-2 inline-flex items-center gap-1.5"><Icon name="pen" className="w-4 h-4" />Tanda Tangan</p>
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 inline-block">
+                      <div className="bg-paper border border-gray-200 rounded-lg p-3 inline-block">
                         <img src={mediaUrl(response.signature_path)} alt="Tanda tangan responden"
                           className="max-w-xs max-h-32 object-contain" loading="lazy" />
                       </div>

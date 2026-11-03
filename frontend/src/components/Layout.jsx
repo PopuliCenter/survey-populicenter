@@ -4,6 +4,7 @@ import api from '../services/api';
 import { clearSentryUser } from '../config/sentry';
 import { clearAuth } from '../utils/authStorage';
 import { ICON_PATHS } from './Icon';
+import ThemeToggle from './ThemeToggle';
 
 const NAV_ITEMS_BY_ROLE = {
   admin: [
@@ -221,7 +222,7 @@ function Layout({ children }) {
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* ── Overlay mobile (memudar; ikut redup saat digeser) ── */}
       <div
-        className={`fixed inset-0 z-20 bg-gray-900/40 md:hidden ${dragX !== null ? '' : 'transition-opacity duration-300'} ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 z-20 bg-black/40 md:hidden ${dragX !== null ? '' : 'transition-opacity duration-300'} ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         style={dragX !== null ? { opacity: Math.max(0, 1 + dragX / DRAWER_WIDTH) } : undefined}
         onClick={() => setSidebar(false)}
         aria-hidden="true"
@@ -316,6 +317,7 @@ function Layout({ children }) {
                 {getInitials(user)}
               </div>
             )}
+            <ThemeToggle />
             <button
               onClick={handleLogout}
               className="p-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors flex-shrink-0"

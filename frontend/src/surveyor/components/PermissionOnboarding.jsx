@@ -73,7 +73,7 @@ function PermissionOnboarding({ onDone }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-gray-900/50 p-0 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-6">
       <div
         role="dialog"
         aria-modal="true"

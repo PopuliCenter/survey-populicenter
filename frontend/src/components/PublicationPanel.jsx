@@ -274,7 +274,7 @@ function PublicationPanel({ surveyId, surveyTitle }) {
               id="embed-order"
               value={embedOrder}
               onChange={(e) => setEmbedOrder(e.target.value)}
-              className="w-full sm:w-auto border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-700 mb-2"
+              className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-700 mb-2"
             >
               <option value="urutan">Urutan asli (sesuai susunan pertanyaan/matriks)</option>
               <option value="terbanyak">Peringkat (dari jawaban terbanyak)</option>

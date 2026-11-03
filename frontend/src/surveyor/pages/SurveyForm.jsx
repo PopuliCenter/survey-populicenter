@@ -709,7 +709,7 @@ function UniqueIdField({ question, answer, onChange, hasError, surveyId, isOnlin
             <span className="w-2.5 h-2.5 rounded-full bg-accent-500 inline-block" /> Terpilih
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block" /> Tersedia
+            <span className="w-2.5 h-2.5 rounded-full bg-gray-400 inline-block" /> Tersedia
           </span>
         </div>
 
@@ -987,7 +987,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                 } ${parityLocked && !isSel ? 'opacity-40' : ''} ${parityLocked ? 'cursor-not-allowed' : ''}`}
               >
                 <span className={`flex-shrink-0 w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center transition-colors ${isSel ? 'border-accent-500 bg-accent-500' : 'border-gray-300'}`}>
-                  {isSel && <span className="w-2 h-2 rounded-full bg-white" />}
+                  {isSel && <span className="w-2 h-2 rounded-full bg-paper" />}
                 </span>
                 <span className={`text-base ${isSel ? 'text-accent-900 font-medium' : 'text-gray-800'}`}>{opt.label}</span>
               </button>
@@ -1005,7 +1005,7 @@ function QuestionField({ question, answer, onChange, hasError, displayOptions, s
                 }`}
               >
                 <span className={`flex-shrink-0 w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center ${otherSel ? 'border-accent-500 bg-accent-500' : 'border-gray-300'}`}>
-                  {otherSel && <span className="w-2 h-2 rounded-full bg-white" />}
+                  {otherSel && <span className="w-2 h-2 rounded-full bg-paper" />}
                 </span>
                 <span className={`text-base ${otherSel ? 'text-accent-900 font-medium' : 'text-gray-800'}`}>Lainnya</span>
               </button>

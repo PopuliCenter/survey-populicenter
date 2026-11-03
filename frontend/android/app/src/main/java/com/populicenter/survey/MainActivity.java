@@ -1,12 +1,19 @@
 package com.populicenter.survey;
 
+import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.os.Bundle;
+import android.view.View;
+import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
 
 import java.io.File;
 
 public class MainActivity extends BridgeActivity {
+
+  // SharedPreferences hanya memegang referensi lemah: listener wajib disimpan di field.
+  private SharedPreferences.OnSharedPreferenceChangeListener themeListener;
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -24,6 +31,48 @@ public class MainActivity extends BridgeActivity {
     // main.jsx), jadi direktori ini akan tetap kosong ke depannya.
     purgeServiceWorkerState();
     super.onCreate(savedInstanceState);
+    applySavedThemeBackground();
+    themeListener = (prefs, key) -> {
+      if ("theme_mode".equals(key)) applySavedThemeBackground();
+    };
+    getSharedPreferences("CapacitorStorage", MODE_PRIVATE).registerOnSharedPreferenceChangeListener(themeListener);
+  }
+
+  @Override
+  public void onConfigurationChanged(Configuration newConfig) {
+    super.onConfigurationChanged(newConfig);
+    applySavedThemeBackground(); // mode "ikuti sistem" saat tema OS berganti
+  }
+
+  @Override
+  public void onDestroy() {
+    if (themeListener != null) {
+      getSharedPreferences("CapacitorStorage", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(themeListener);
+    }
+    super.onDestroy();
+  }
+
+  /**
+   * Warna di belakang WebView. Mencegah kilatan putih saat dibuka dalam mode gelap, dan
+   * di Android 15+ dengan WebView di bawah 140 warna ini terlihat di bawah status bar,
+   * jadi harus ikut saat tema berganti. Mode dibaca dari Preferences (dicerminkan oleh
+   * src/theme/themeMode.js). Warna gelap sama dengan surface.page di palette.js (dijaga
+   * themeBoot.test.jsx).
+   */
+  private void applySavedThemeBackground() {
+    try {
+      if (getBridge() == null) return; // jalur tanpa WebView
+      WebView webView = getBridge().getWebView();
+      if (webView == null) return;
+      String mode = getSharedPreferences("CapacitorStorage", MODE_PRIVATE).getString("theme_mode", "light");
+      boolean systemDark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+      boolean dark = "dark".equals(mode) || ("system".equals(mode) && systemDark);
+      int color = dark ? 0xFF141312 : 0xFFFFFFFF;
+      webView.setBackgroundColor(color);
+      if (webView.getParent() instanceof View) ((View) webView.getParent()).setBackgroundColor(color);
+    } catch (Exception ignored) {
+      // Warna latar bukan syarat startup.
+    }
   }
 
   private void purgeServiceWorkerState() {

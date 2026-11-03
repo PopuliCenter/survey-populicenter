@@ -17,7 +17,7 @@ import DashboardTimePattern from '../components/DashboardTimePattern';
 import DashboardDataQuality from '../components/DashboardDataQuality';
 import LazyInView from '../components/LazyInView';
 import api from '../services/api';
-import { CHART, AXIS_TICK, TOOLTIP_STYLE } from '../theme/chartTheme';
+import { CHART_THEMED as CHART, AXIS_TICK, TOOLTIP_PROPS } from '../theme/chartTheme';
 
 const PANEL = 'bg-white rounded-lg border border-gray-200 p-5';
 
@@ -353,8 +353,7 @@ function Dashboard() {
                 <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={AXIS_TICK} axisLine={false} tickLine={false} />
                 <Tooltip
-                  cursor={{ fill: 'rgb(26 25 23 / 0.04)' }}
-                  contentStyle={TOOLTIP_STYLE}
+                  {...TOOLTIP_PROPS}
                   formatter={(value) => [`${value} responden`, 'Jumlah']}
                   labelFormatter={(label) => `Tanggal: ${label}`}
                 />
