@@ -8,35 +8,34 @@
  * "Cannot read properties of null (reading 'getItem')" SEBELUM render →
  * layar putih permanen.
  *
- * Wrapper ini: pakai storage asli bila tersedia & bisa ditulis; selain itu
- * fallback ke Map di memori (bertahan selama tab hidup — cukup agar aplikasi
- * tetap BERFUNGSI walau sesi tak persisten di perangkat seperti itu).
+ * Wrapper ini: pakai storage asli bila bisa dibaca; tulisan yang ditolak jatuh ke
+ * Map di memori (bertahan selama tab hidup — cukup agar aplikasi tetap BERFUNGSI
+ * walau sesi tak persisten di perangkat seperti itu). Storage penuh menolak tulis
+ * tetapi datanya masih sah, jadi tak boleh dianggap hilang: token & preferensi
+ * yang sudah tersimpan tetap terbaca.
  */
 
 function makeStore(kind) {
   let store = null;
   try {
     store = typeof window !== 'undefined' ? window[kind] : null;
-    if (store) {
-      // Probe tulis: sebagian browser menyediakan objeknya tapi menolak operasi.
-      const probe = '__storage_probe__';
-      store.setItem(probe, '1');
-      store.removeItem(probe);
-    }
+    // Probe baca: sebagian browser menyediakan objeknya tapi melempar saat diakses.
+    if (store) store.getItem('__storage_probe__');
   } catch {
     store = null;
   }
   const mem = new Map();
   return {
     getItem(key) {
+      if (mem.has(key)) return mem.get(key); // nilai terbaru yang gagal ditulis ke store
       try {
         if (store) return store.getItem(key);
-      } catch { /* jatuh ke memori */ }
-      return mem.has(key) ? mem.get(key) : null;
+      } catch { /* anggap kosong */ }
+      return null;
     },
     setItem(key, value) {
       try {
-        if (store) { store.setItem(key, value); return; }
+        if (store) { store.setItem(key, value); mem.delete(key); return; }
       } catch { /* jatuh ke memori */ }
       mem.set(key, String(value));
     },

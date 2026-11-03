@@ -74,3 +74,57 @@ describe('authStorage.restoreAuthIfMissing saat storage NULL', () => {
     await expect(persistAuth('t', { id: 1 })).resolves.toBeUndefined();
   });
 });
+
+describe('safeStorage saat storage PENUH (baca bisa, tulis ditolak)', () => {
+  function fullStorage(initial) {
+    const data = new Map(Object.entries(initial));
+    let full = true;
+    return {
+      getItem: (k) => (data.has(k) ? data.get(k) : null),
+      setItem: (k, v) => {
+        if (full) throw new DOMException('quota', 'QuotaExceededError');
+        data.set(k, String(v));
+      },
+      removeItem: (k) => data.delete(k),
+      free() { full = false; },
+    };
+  }
+
+  test('data yang sudah tersimpan tetap terbaca (sesi tidak terlempar ke login)', async () => {
+    setStorage('localStorage', fullStorage({ token: 'jwt-lama' }));
+    vi.resetModules();
+    const { localStore } = await import('../safeStorage');
+    expect(localStore.getItem('token')).toBe('jwt-lama');
+  });
+
+  test('tulisan yang ditolak terbaca dari memori, bukan nilai lama', async () => {
+    setStorage('localStorage', fullStorage({ theme_mode: 'light' }));
+    vi.resetModules();
+    const { localStore } = await import('../safeStorage');
+    localStore.setItem('theme_mode', 'dark');
+    expect(localStore.getItem('theme_mode')).toBe('dark');
+  });
+
+  test('setelah ada ruang, store kembali menjadi sumber dan cadangan memori dibuang', async () => {
+    const storage = fullStorage({ theme_mode: 'light' });
+    setStorage('localStorage', storage);
+    vi.resetModules();
+    const { localStore } = await import('../safeStorage');
+    localStore.setItem('theme_mode', 'dark');
+    storage.free();
+    localStore.setItem('theme_mode', 'system');
+    expect(storage.getItem('theme_mode')).toBe('system');
+    expect(localStore.getItem('theme_mode')).toBe('system');
+  });
+
+  test('removeItem menghapus nilai di memori dan di store', async () => {
+    const storage = fullStorage({ token: 'jwt-lama' });
+    setStorage('localStorage', storage);
+    vi.resetModules();
+    const { localStore } = await import('../safeStorage');
+    localStore.setItem('token', 'jwt-baru');
+    localStore.removeItem('token');
+    expect(localStore.getItem('token')).toBeNull();
+    expect(storage.getItem('token')).toBeNull();
+  });
+});
