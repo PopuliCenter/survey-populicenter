@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import Layout from '../components/Layout';
+import TypedDeleteConfirm from '../components/TypedDeleteConfirm';
 import api from '../services/api';
 
 function formatBytes(bytes) {
@@ -198,18 +199,12 @@ function Storage() {
             {/* Konfirmasi hapus */}
             {confirmPurge && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <p className="text-sm text-red-800 font-medium">Hapus permanen respons & media untuk {selected.size} survei?</p>
-                <p className="text-xs text-red-600 mt-1">Definisi survei & pertanyaan tetap ada. Data respons + file media dihapus dan disk dilegakan. Tindakan ini tidak bisa dibatalkan — arsipkan dulu bila perlu.</p>
-                <div className="mt-3 flex gap-2">
-                  <button type="button" onClick={handlePurge} disabled={purging}
-                    className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg">
-                    {purging ? 'Menghapus…' : 'Ya, hapus permanen'}
-                  </button>
-                  <button type="button" onClick={() => setConfirmPurge(false)}
-                    className="px-3 py-1.5 text-sm font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg">
-                    Batal
-                  </button>
-                </div>
+                <TypedDeleteConfirm onConfirm={handlePurge} onCancel={() => setConfirmPurge(false)} loading={purging}>
+                  <span className="block text-sm text-red-800 font-medium">
+                    Hapus permanen {surveys.filter((s) => selected.has(s.id)).reduce((n, s) => n + s.responses, 0).toLocaleString('id-ID')} respons & media dari {selected.size} survei?
+                  </span>
+                  <span className="block mt-1">Definisi survei & pertanyaan tetap ada. Data respons + file media dihapus dan disk dilegakan. Arsipkan dulu bila perlu.</span>
+                </TypedDeleteConfirm>
               </div>
             )}
 

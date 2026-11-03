@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
+import TypedDeleteConfirm from '../components/TypedDeleteConfirm';
 import api from '../services/api';
-
-// Hapus survei tak bisa dibatalkan, dan setelah satu survei terhapus baris berikutnya
-// naik ke posisi yang sama. Kata ketikan mencegah dua klik beruntun menghapus survei lain.
-const SURVEY_DELETE_WORD = 'HAPUS';
 
 function CheckCircleIcon({ className = 'w-4 h-4' }) {
   return (
@@ -53,8 +50,6 @@ function Cleanup() {
 
   // Confirmation state
   const [confirmAction, setConfirmAction] = useState(null);
-  const [surveyConfirmText, setSurveyConfirmText] = useState('');
-  const surveyConfirmed = surveyConfirmText.trim().toUpperCase() === SURVEY_DELETE_WORD;
 
   const fetchStats = useCallback(async () => {
     try {
@@ -340,37 +335,27 @@ function Cleanup() {
 
           {previewCount > 0 && (
             confirmAction === 'responses' ? (
-              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <WarnIcon className="w-4 h-4 text-red-600 shrink-0" />
-                <span className="text-xs text-red-700">
-                  Yakin hapus <strong>{previewCount.toLocaleString('id-ID')}</strong> respons? Tindakan ini tidak dapat dibatalkan.
-                </span>
-                <button
-                  onClick={() => {
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <TypedDeleteConfirm
+                  onConfirm={() => {
                     const body = {};
                     if (filterSurveyId) body.survey_id = filterSurveyId;
                     if (filterYear) body.year = Number(filterYear);
                     if (filterMonth) body.month = Number(filterMonth);
                     handleAction('/cleanup/responses', body);
                   }}
-                  disabled={actionLoading === '/cleanup/responses'}
-                  className="px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md disabled:opacity-50"
+                  onCancel={() => setConfirmAction(null)}
                 >
-                  {actionLoading === '/cleanup/responses' ? 'Menghapus…' : 'Ya, Hapus Permanen'}
-                </button>
-                <button
-                  onClick={() => setConfirmAction(null)}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
-                >
-                  Batal
-                </button>
+                  Hapus permanen <strong>{previewCount.toLocaleString('id-ID')} respons</strong> beserta medianya.
+                </TypedDeleteConfirm>
               </div>
             ) : (
               <button
                 onClick={() => setConfirmAction('responses')}
-                className="px-4 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                disabled={actionLoading === '/cleanup/responses'}
+                className="px-4 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg disabled:opacity-50 transition-colors"
               >
-                Hapus {previewCount.toLocaleString('id-ID')} Respons
+                {actionLoading === '/cleanup/responses' ? 'Menghapus…' : `Hapus ${previewCount.toLocaleString('id-ID')} Respons`}
               </button>
             )
           )}
@@ -478,52 +463,18 @@ function Cleanup() {
                     <p className="text-xs text-gray-500">Status: Nonaktif</p>
                   </div>
                   {confirmAction === `survey-${survey.id}` ? (
-                    <form
-                      className="w-full space-y-2"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        if (surveyConfirmed) handleAction(`/cleanup/survey/${survey.id}`);
-                      }}
-                    >
-                      <label htmlFor={`confirm-survey-${survey.id}`} className="block text-xs text-red-700">
-                        Ketik <strong>{SURVEY_DELETE_WORD}</strong> untuk menghapus survei ini permanen
+                    <div className="w-full">
+                      <TypedDeleteConfirm
+                        onConfirm={() => handleAction(`/cleanup/survey/${survey.id}`)}
+                        onCancel={() => setConfirmAction(null)}
+                      >
+                        Hapus survei ini permanen
                         {survey.response_count > 0 && <> beserta <strong>{survey.response_count.toLocaleString('id-ID')} respons</strong> dan medianya</>}.
-                        Tindakan ini tidak dapat dibatalkan.
-                      </label>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input
-                          id={`confirm-survey-${survey.id}`}
-                          type="text"
-                          value={surveyConfirmText}
-                          onChange={(e) => setSurveyConfirmText(e.target.value)}
-                          placeholder={SURVEY_DELETE_WORD}
-                          autoFocus
-                          autoComplete="off"
-                          spellCheck={false}
-                          className="w-28 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
-                        />
-                        <button
-                          type="submit"
-                          disabled={!surveyConfirmed}
-                          className="px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Hapus Permanen
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmAction(null)}
-                          className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
-                        >
-                          Batal
-                        </button>
-                      </div>
-                    </form>
+                      </TypedDeleteConfirm>
+                    </div>
                   ) : (
                     <button
-                      onClick={() => {
-                        setSurveyConfirmText('');
-                        setConfirmAction(`survey-${survey.id}`);
-                      }}
+                      onClick={() => setConfirmAction(`survey-${survey.id}`)}
                       disabled={actionLoading === `/cleanup/survey/${survey.id}`}
                       className="px-4 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg disabled:opacity-50 transition-colors shrink-0"
                     >

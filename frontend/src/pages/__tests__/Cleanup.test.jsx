@@ -33,16 +33,69 @@ async function renderPage() {
   await screen.findAllByRole('button', { name: 'Hapus Survei' });
 }
 
+/** Pilih survei, hitung jumlah, lalu buka konfirmasi hapus massal respons. */
+async function openBulkConfirm() {
+  fireEvent.change(screen.getByLabelText('Survei'), { target: { value: 's1' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Preview Jumlah' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Hapus 412 Respons' }));
+}
+
 const openConfirm = (index = 0) => fireEvent.click(screen.getAllByRole('button', { name: 'Hapus Survei' })[index]);
 const typeWord = (value) => fireEvent.change(screen.getByPlaceholderText('HAPUS'), { target: { value } });
 const deleteCalls = () => api.post.mock.calls.filter(([url]) => url.startsWith('/cleanup/survey/'));
+const bulkCalls = () => api.post.mock.calls.filter(([url]) => url === '/cleanup/responses');
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  api.get.mockImplementation((url) => Promise.resolve({ data: url === '/surveys' ? SURVEYS : {} }));
+  api.post.mockImplementation((url) => Promise.resolve({
+    data: url === '/cleanup/responses/preview' ? { count: 412 } : { message: 'Terhapus' },
+  }));
+});
+
+describe('Cleanup — konfirmasi hapus massal respons', () => {
+  test('menyebut jumlah dan tombol hapus nonaktif sampai kata yang benar diketik', async () => {
+    await renderPage();
+    await openBulkConfirm();
+    expect(screen.getByText('412 respons')).toBeInTheDocument();
+    const submit = screen.getByRole('button', { name: 'Hapus Permanen' });
+    expect(submit).toBeDisabled();
+    typeWord('HAPU');
+    expect(submit).toBeDisabled();
+    typeWord('HAPUS');
+    expect(submit).toBeEnabled();
+  });
+
+  test('tidak mengirim apa pun saat Enter ditekan dengan kata yang salah', async () => {
+    await renderPage();
+    await openBulkConfirm();
+    typeWord('ya');
+    fireEvent.submit(screen.getByPlaceholderText('HAPUS').closest('form'));
+    expect(bulkCalls()).toHaveLength(0);
+  });
+
+  test('mengirim filter yang dipilih setelah kata yang benar diketik', async () => {
+    await renderPage();
+    await openBulkConfirm();
+    typeWord('hapus');
+    fireEvent.click(screen.getByRole('button', { name: 'Hapus Permanen' }));
+    await waitFor(() => expect(bulkCalls()).toHaveLength(1));
+    expect(bulkCalls()[0][1]).toEqual({ survey_id: 's1' });
+  });
+
+  test('mengubah filter menutup konfirmasi dan membuang ketikan', async () => {
+    await renderPage();
+    await openBulkConfirm();
+    typeWord('HAPUS');
+    fireEvent.change(screen.getByLabelText('Survei'), { target: { value: 's2' } });
+    expect(screen.queryByPlaceholderText('HAPUS')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Jumlah' }));
+    expect(await screen.findByPlaceholderText('HAPUS')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Hapus Permanen' })).toBeDisabled();
+  });
+});
 
 describe('Cleanup — konfirmasi hapus survei', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    api.get.mockImplementation((url) => Promise.resolve({ data: url === '/surveys' ? SURVEYS : {} }));
-    api.post.mockResolvedValue({ data: { message: 'Survei dihapus' } });
-  });
 
   test('hanya survei nonaktif yang punya tombol hapus', async () => {
     await renderPage();
