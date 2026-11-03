@@ -3,13 +3,27 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { readFileSync } from 'fs';
+import { readFileSync, rmSync } from 'fs';
+import { createRequire } from 'module';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// CJS agar bisa dipakai bersama release-android.cjs; impor ESM biasa gagal saat config dibundel.
+const { findPrivateAssets } = createRequire(import.meta.url)('./scripts/privateAssets.cjs');
 
 // Versi aplikasi dari package.json → di-inject sebagai konstanta __APP_VERSION__
 // (dipakai sebagai fallback web; di native diambil dari APK via @capacitor/app).
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'));
+
+// Jaring pengaman semua jalur build, termasuk `vite build && cap sync` untuk APK.
+function stripPrivateAssets() {
+  return {
+    name: 'strip-private-assets',
+    apply: 'build',
+    closeBundle() {
+      for (const file of findPrivateAssets(path.resolve(__dirname, 'dist'))) rmSync(file);
+    },
+  };
+}
 
 export default defineConfig({
   define: {
@@ -17,6 +31,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    stripPrivateAssets(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,

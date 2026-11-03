@@ -21,6 +21,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { findPrivateAssets } = require('./privateAssets.cjs');
 
 const FRONTEND_DIR = path.resolve(__dirname, '..');
 const ANDROID_DIR = path.join(FRONTEND_DIR, 'android');
@@ -97,6 +98,10 @@ function run(cmd, args, cwd) {
 
 // ── 1) Build web + sync Capacitor ────────────────────────────────────────────
 run('npm', ['run', 'cap:build'], FRONTEND_DIR);
+
+// APK bisa dibongkar siapa pun yang memegangnya: berkas kerja tak boleh ikut.
+const leaked = findPrivateAssets(path.join(ANDROID_DIR, 'app/src/main/assets/public'));
+if (leaked.length) die(`Berkas kerja ikut aset APK, rilis dibatalkan:\n  ${leaked.join('\n  ')}`);
 
 // ── 2) Gradle build rilis dengan versi eksplisit ─────────────────────────────
 // Path ABSOLUT ke gradlew — jangan mengandalkan pencarian di direktori kerja:
