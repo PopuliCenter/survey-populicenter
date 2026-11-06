@@ -22,7 +22,7 @@
 
 | Software | Versi Minimum | Keterangan |
 |---|---|---|
-| **Node.js** | 18.x+ | [nodejs.org](https://nodejs.org) |
+| **Node.js** | 24.x+ | [nodejs.org](https://nodejs.org) — produksi & CI memakai 26 LTS |
 | **npm** | 9.x+ | Sudah termasuk dalam Node.js |
 | **PostgreSQL** | 14.x+ | [postgresql.org](https://www.postgresql.org) |
 | **Redis** | 6.x+ | [redis.io](https://redis.io) |
@@ -319,8 +319,8 @@ ssh root@IP_SERVER
 
 sudo apt update && sudo apt upgrade -y
 
-# Node.js 20
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+# Node.js 26 LTS
+curl -fsSL https://deb.nodesource.com/setup_26.x | sudo -E bash -
 sudo apt install -y nodejs
 
 # PostgreSQL

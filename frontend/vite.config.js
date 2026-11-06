@@ -115,5 +115,8 @@ export default defineConfig({
     // suite penuh, timeout default 5s bisa terlampaui. Beri headroom.
     testTimeout: 20000,
     hookTimeout: 20000,
+    // Node 25+ punya localStorage bawaan yang tak bisa dipakai tanpa berkas, dan Vitest
+    // tak menimpanya dengan milik jsdom: 239 tes gagal. Dimatikan agar tes memakai jsdom.
+    execArgv: ['--no-experimental-webstorage'],
   },
 });

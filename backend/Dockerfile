@@ -1,10 +1,10 @@
-FROM node:22-alpine
+FROM node:26-alpine
 
 WORKDIR /app
 
 # Install dependencies
 # Build tools SEMENTARA untuk modul native (bcrypt): di Alpine/musl prebuilt
-# binary untuk ABI Node 22 bisa tidak tersedia → bcrypt dikompilasi dari source.
+# binary bisa tidak tersedia → bcrypt dikompilasi dari source.
 # Dipasang lalu dihapus dalam satu layer agar image tetap ramping.
 COPY package.json package-lock.json* ./
 RUN apk add --no-cache --virtual .build-deps python3 make g++ \

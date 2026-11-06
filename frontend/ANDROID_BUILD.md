@@ -4,7 +4,7 @@
 
 1. **Android Studio** — download dari https://developer.android.com/studio
 2. **Java JDK 17+** — biasanya sudah termasuk di Android Studio
-3. **Node.js 18+** dan **npm**
+3. **Node.js 22+** dan **npm** (Capacitor CLI 8 mensyaratkan minimal 22; disarankan 24 atau 26)
 
 ## Langkah Build APK
 

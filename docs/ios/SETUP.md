@@ -15,7 +15,7 @@ yang tersisa **wajib** dikerjakan di **macOS** (batasan Apple, bukan Capacitor).
 | **macOS + Xcode** | Mac fisik, **cloud Mac** (MacinCloud/MacStadium), atau **CI macOS runner** (GitHub Actions `macos-latest`, Codemagic, Bitrise) |
 | **Apple Developer Program** | ~$99/tahun — wajib untuk signing, TestFlight, & App Store |
 | **CocoaPods** | `sudo gem install cocoapods` (dipakai Capacitor untuk dependensi native) |
-| **Node 18+** | sama seperti build Android |
+| **Node 22+** | sama seperti build Android (Capacitor CLI 8) |
 
 Bundle ID yang dipakai: **`com.populicenter.survey`** (sama dengan Android — daftarkan
 di Apple Developer → Identifiers).
