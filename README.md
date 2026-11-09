@@ -13,7 +13,7 @@ Platform survei lapangan full-stack untuk Populi Center — dirancang khusus unt
 | **Offline-First** | Survey diunduh & diisi tanpa internet; antrian sinkron otomatis saat online; **checklist pra-lapangan "siap offline"** di aplikasi TPD |
 | **Field Tools** | GPS lokasi wawancara (start & submit), rekaman audio (multi-klip), foto kamera native, tanda tangan digital, **undian RT** (replika Form A + grid verifikasi visual, mode offline bertiket seed) |
 | **Kontrol Lapangan** | **Kunci perangkat** (1 akun TPD = 1 HP), badge durasi wawancara, kuota + nomor kuesioner per TPD, kebijakan GPS wajib (APK hard-block, web best-effort + penanda kuning) |
-| **Notifikasi** | **Lonceng dashboard** (pesan admin/SPV, respons ditandai review) + **push FCM** ke HP TPD (Firebase), cermin ke tray saat aplikasi terbuka |
+| **Notifikasi** | **Kotak pesan (ikon amplop)** — pesan satu arah admin/SPV + respons ditandai review; **push FCM** ke HP TPD dengan nada & getar khusus (kanal "Pesan Admin"); admin dapat menghapus riwayat (tercatat di audit log) |
 | **Android** | APK native via Capacitor 8; kamera + kompresi otomatis, GPS watchPosition, notifikasi lokal + FCM |
 | **Dashboard** | Statistik real-time (WIB), tren 7 hari, progress per survei & TPD, Top 5 TPD, peta sebaran GPS |
 | **Laporan & Analisis** | Export Excel/CSV per survei (filter tanggal/TPD), **generator laporan PPTX otomatis** (template Populi), **hasil publik** (snapshot agregat opt-in + embed iframe ke website), **Tarik ke Spreadsheet** (feed CSV bertoken untuk Google Sheets `IMPORTDATA`/Excel — rekap, monitoring, data mentah opt-in) |
@@ -234,7 +234,7 @@ npx cap open android     # buka di Android Studio → Build → Generate Signed 
 | `answers` | Jawaban per pertanyaan |
 | `rt_selections` | Hasil undian RT (replika Form A, deterministik per seed) |
 | `rt_seed_tickets` | Tiket seed undian RT mode offline |
-| `tpd_notifications` | Lonceng pemberitahuan per TPD (pesan admin/SPV, review) |
+| `tpd_notifications` | Kotak pesan per TPD (pesan satu arah admin/SPV, review, durasi singkat) |
 | `fcm_tokens` | Token perangkat FCM untuk push notification |
 | `published_results` | Snapshot hasil agregat yang ditayangkan publik (embed) |
 | `monitoring_reports` | Laporan PPTX termonitor per survei |

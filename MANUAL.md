@@ -522,7 +522,7 @@ Min. 8 karakter, huruf besar, huruf kecil, dan angka. Contoh: `Admin123!`, `Surv
 | `UPLOAD_DIR` | `uploads/photos` | Direktori upload |
 | `MAX_FILE_SIZE_MB` | `5` | Max ukuran file upload |
 | `SAMPLING_SERVICE_URL` | `http://sampling:8000` | URL internal microservice Random Sampling |
-| `FIREBASE_SERVICE_ACCOUNT_PATH` | — | Path file service account JSON untuk push FCM. Kosong = push nonaktif (fitur lonceng tetap jalan) |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` | — | Path file service account JSON untuk push FCM. Kosong = push nonaktif (kotak pesan di aplikasi tetap jalan) |
 | `MEDIA_STORAGE` | `local` | `local` (folder `UPLOAD_DIR`) atau `minio` (object storage S3) |
 | `MINIO_ENDPOINT` / `MINIO_PORT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` / `MINIO_USE_SSL` | — | Konfigurasi MinIO bila `MEDIA_STORAGE=minio` |
 | `LOGIN_RATE_LIMIT_MAX` | `10` | Batas login per IP+email / 15 mnt |
@@ -582,8 +582,9 @@ Bila diaktifkan per survei, akun TPD terikat ke **perangkat pertama** yang mengi
 
 ### 10.11 Notifikasi TPD
 
-- **Lonceng di dashboard TPD**: pesan dari admin/SPV + notifikasi otomatis saat responsnya ditandai review.
-- **Push FCM ke HP** (bila `FIREBASE_SERVICE_ACCOUNT_PATH` diisi): notifikasi tetap tampil walau aplikasi sedang dibuka (dicermin ke tray).
+- **Ikon amplop (kotak pesan) di aplikasi TPD**: pesan **satu arah** dari admin/SPV (TPD tidak dapat membalas) + notifikasi otomatis saat responsnya ditandai review atau durasinya terlalu singkat.
+- **Push FCM ke HP** (bila `FIREBASE_SERVICE_ACCOUNT_PATH` diisi): notifikasi tetap tampil walau aplikasi sedang dibuka (dicermin ke tray). Sejak APK code 27 pesan masuk ke kanal **"Pesan Admin"** dengan nada khusus + getar + banner. APK lama tetap menerima pesan, hanya dengan nada bawaan.
+- **Hapus riwayat (khusus admin)**: Manajemen TPD → ikon amplop di baris TPD → hapus satu pesan (konfirmasi di barisnya) atau **Hapus semua riwayat** (ketik `HAPUS`). Pesan ikut hilang dari aplikasi TPD saat ia online; jejaknya tercatat di Audit Log ("Hapus Pesan TPD" / "Hapus Riwayat Pesan TPD"). SPV hanya bisa melihat riwayat.
 
 ### 10.12 Kecualikan Respons dari Laporan
 
@@ -708,7 +709,8 @@ docker compose restart backend worker
 
 1. Pastikan `FIREBASE_SERVICE_ACCOUNT_PATH` terisi dan file JSON ada di server → cek log backend saat start (`[Push] FCM aktif` vs `NONAKTIF`).
 2. Pastikan HP TPD sudah pakai APK terbaru dan token FCM tercatat (tabel `fcm_tokens`).
-3. Lonceng dashboard tetap berfungsi walau push nonaktif — keduanya jalur terpisah.
+3. Kotak pesan (ikon amplop) di aplikasi tetap berfungsi walau push nonaktif — keduanya jalur terpisah.
+4. Notifikasi masuk tapi **tanpa nada**: di HP buka Setelan → Aplikasi → Survei Populi Center → Notifikasi → kanal **"Pesan Admin"**, pastikan suara & getar aktif (pengguna bisa mematikannya sendiri). Kanal ini dibuat saat izin notifikasi diberikan di APK code 27+.
 
 ### Mode gelap
 

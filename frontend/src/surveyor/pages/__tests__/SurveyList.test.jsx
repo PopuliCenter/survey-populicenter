@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 // Mock the api module
@@ -278,5 +278,42 @@ describe('SurveyList', () => {
     await waitFor(() => {
       expect(screen.getByText('Tidak ada survei aktif saat ini.')).toBeInTheDocument();
     });
+  });
+});
+
+// ─── Kotak pesan (ikon amplop, menggantikan lonceng) ─────────────────────────
+describe('SurveyList — kotak pesan', () => {
+  beforeEach(() => {
+    api.get.mockImplementation((url) => {
+      if (url === '/notifications') {
+        return Promise.resolve({
+          data: {
+            notifications: [{
+              id: 'n1', type: 'manual', title: 'Data belum masuk', body: 'Mohon sinkronkan.',
+              read_at: null, created_at: '2026-11-09T04:00:00Z',
+            }],
+            unread_count: 1,
+          },
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
+  });
+
+  test('tombol berlabel "Pesan" + jumlah belum dibaca (bukan lagi "Pemberitahuan"/lonceng)', async () => {
+    renderSurveyList();
+
+    expect(await screen.findByRole('button', { name: 'Pesan, 1 belum dibaca' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /pemberitahuan/i })).not.toBeInTheDocument();
+  });
+
+  test('panel menjelaskan pesan SATU ARAH dari admin', async () => {
+    renderSurveyList();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pesan, 1 belum dibaca' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Pemberitahuan' });
+    expect(dialog).toHaveAccessibleDescription(/pesan satu arah dari admin/i);
+    expect(within(dialog).getByText('Data belum masuk')).toBeInTheDocument();
   });
 });

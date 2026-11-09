@@ -8,6 +8,7 @@ import SurveyorCard from '../components/SurveyorCard';
 import BulkUploadModal from '../components/BulkUploadModal';
 import BulkAssignModal from '../components/BulkAssignModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import TypedDeleteConfirm from '../components/TypedDeleteConfirm';
 import IconButton from '../components/IconButton';
 import PasswordInput from '../components/PasswordInput';
 import BulkActionBar from '../components/BulkActionBar';
@@ -628,7 +629,7 @@ function Surveyors() {
   const [assignPickMode, setAssignPickMode] = useState(false);
   const [addPickIds, setAddPickIds] = useState(new Set());
   const [addPickSearch, setAddPickSearch] = useState('');
-  // Kirim pesan (pemberitahuan lonceng app TPD) ke TPD terpilih.
+  // Kirim pesan (kotak pesan / ikon amplop app TPD) ke TPD terpilih.
   const [msgOpen, setMsgOpen] = useState(false);
   const [msgTitle, setMsgTitle] = useState('');
   const [msgBody, setMsgBody] = useState('');
@@ -636,7 +637,86 @@ function Surveyors() {
   // Riwayat peringatan/pesan seorang TPD — bahan pembinaan: mengulang
   // kesalahan yang sama atau tidak, sudah ditegur berapa kali, sudah dibaca?
   const [historyModal, setHistoryModal] = useState(null); // { tpd, data?, error? }
+  // Hapus riwayat (KHUSUS admin): satu pesan = konfirmasi dua klik di barisnya;
+  // seluruh riwayat = ketik HAPUS. Hilang dari kotak pesan aplikasi TPD saat ia
+  // online berikutnya; notifikasi yang sudah tampil di HP-nya tidak ditarik.
+  const [historyConfirmId, setHistoryConfirmId] = useState(null);
+  const [historyConfirmAll, setHistoryConfirmAll] = useState(false);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const historyRef = useRef(null);
+  // Stabil (useCallback): useModalA11y bergantung pada onClose — fungsi baru
+  // tiap render membuat efeknya berulang dan fokus melompat ke elemen pertama.
+  const closeHistory = useCallback(() => {
+    setHistoryModal(null);
+    setHistoryConfirmId(null);
+    setHistoryConfirmAll(false);
+  }, []);
+  useModalA11y(!!historyModal, closeHistory, historyRef);
+  // Tombol yang difokus bisa lenyap dari DOM (tempat sampah → baris konfirmasi,
+  // baris terhapus). Pindahkan fokus secara eksplisit agar tak jatuh ke <body>.
+  function focusInHistory(selector) {
+    requestAnimationFrame(() => {
+      const root = historyRef.current;
+      const el = root && (root.querySelector(selector) || root.querySelector('#tpd-history-title'));
+      if (el) el.focus();
+    });
+  }
+  async function deleteHistoryItem(tpd, n) {
+    setHistoryBusy(true);
+    try {
+      await api.delete(`/notifications/${n.id}`);
+      // Rekap disesuaikan di tempat (tanpa memuat ulang): hitungannya mencakup
+      // seluruh riwayat, jadi kurangi jenis & status-baca baris yang dihapus.
+      setHistoryModal((cur) => {
+        if (!cur || cur.tpd.id !== tpd.id || !cur.data) return cur;
+        const counts = { ...cur.data.counts };
+        if (counts[n.type] > 0) counts[n.type] -= 1;
+        if (!n.read_at && counts.unread > 0) counts.unread -= 1;
+        return {
+          ...cur,
+          data: {
+            ...cur.data,
+            counts,
+            notifications: cur.data.notifications.filter((x) => x.id !== n.id),
+          },
+        };
+      });
+      toast.success('Pesan dihapus dari riwayat.');
+      focusInHistory('#tpd-history-title');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal menghapus pesan.');
+      focusInHistory(`[data-trash-for="${n.id}"]`);
+    } finally {
+      setHistoryBusy(false);
+      setHistoryConfirmId(null);
+    }
+  }
+  async function deleteHistoryAll(tpd) {
+    setHistoryBusy(true);
+    try {
+      const res = await api.delete(`/notifications/surveyor/${tpd.id}`);
+      setHistoryModal((cur) => (cur && cur.tpd.id === tpd.id && cur.data
+        ? {
+          ...cur,
+          data: {
+            ...cur.data,
+            counts: { manual: 0, review: 0, quality: 0, unread: 0 },
+            notifications: [],
+          },
+        }
+        : cur));
+      toast.success(`Riwayat ${tpd.name} dihapus (${res.data?.deleted ?? 0} pesan).`);
+      focusInHistory('#tpd-history-title');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal menghapus riwayat.');
+    } finally {
+      setHistoryBusy(false);
+      setHistoryConfirmAll(false);
+    }
+  }
   async function openHistory(tpd) {
+    setHistoryConfirmId(null);
+    setHistoryConfirmAll(false);
     setHistoryModal({ tpd });
     try {
       const res = await api.get(`/notifications/surveyor/${tpd.id}`);
@@ -833,7 +913,7 @@ function Surveyors() {
         title: msgTitle.trim(),
         body: msgBody.trim(),
       });
-      toast.success(`Pesan terkirim ke ${res.data.sent} TPD (muncul di lonceng aplikasinya).`);
+      toast.success(`Pesan terkirim ke ${res.data.sent} TPD (muncul di ikon amplop aplikasinya).`);
       setMsgOpen(false);
       clearSelection();
     } catch (err) {
@@ -1449,7 +1529,7 @@ function Surveyors() {
                               <IconButton
                                 icon="history"
                                 variant="accent"
-                                label={`Riwayat peringatan ${tpd.name}`}
+                                label={`Riwayat pesan ${tpd.name}`}
                                 onClick={() => openHistory(tpd)}
                               />
 
@@ -1710,15 +1790,16 @@ function Surveyors() {
         onCancel={() => setBulkConfirm(null)}
       />
 
-      {/* Kirim pesan ke TPD terpilih → lonceng aplikasi mereka */}
+      {/* Kirim pesan ke TPD terpilih → ikon amplop aplikasi mereka */}
       {msgOpen && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Kirim pesan ke TPD">
           <button type="button" aria-label="Tutup" onClick={() => setMsgOpen(false)} className="absolute inset-0 bg-black/50 cursor-default" />
           <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-1">Kirim Pesan ke {selectedIds.size} TPD</h3>
             <p className="text-sm text-gray-500 mb-4">
-              Muncul di lonceng aplikasi TPD saat mereka online — mis. &quot;data Anda belum masuk&quot;,
-              teguran, atau instruksi lapangan.
+              Pesan satu arah: muncul di ikon amplop aplikasi TPD dengan nada notifikasi,
+              dan TPD tidak dapat membalas. Mis. &quot;data Anda belum masuk&quot;, teguran,
+              atau instruksi lapangan.
             </p>
 
             <label htmlFor="msg-title" className="block text-sm font-medium text-gray-700 mb-1">Judul</label>
@@ -1761,19 +1842,19 @@ function Surveyors() {
       {/* Riwayat peringatan/pesan seorang TPD — bahan pembinaan */}
       {historyModal && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" aria-labelledby="tpd-history-title">
-          <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl max-h-[90vh] flex flex-col">
+          <div ref={historyRef} className="w-full max-w-2xl bg-white rounded-xl shadow-xl max-h-[90vh] flex flex-col">
             <div className="flex items-start justify-between gap-3 p-5 pb-3 border-b border-gray-100">
               <div>
-                <h3 id="tpd-history-title" className="text-lg font-bold text-gray-900">
-                  Riwayat Peringatan — {historyModal.tpd.name}
+                <h3 id="tpd-history-title" tabIndex={-1} className="text-lg font-bold text-gray-900 focus:outline-none">
+                  Riwayat Pesan — {historyModal.tpd.name}
                 </h3>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  Semua pesan & teguran yang pernah dikirim ke TPD ini, beserta status dibacanya.
+                  Semua pesan satu arah & teguran yang pernah dikirim ke TPD ini, beserta status dibacanya.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setHistoryModal(null)}
+                onClick={closeHistory}
                 aria-label="Tutup"
                 className="shrink-0 p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
               >
@@ -1827,6 +1908,16 @@ function Surveyors() {
                             <span className="text-2xs text-gray-500 ml-auto">
                               {new Date(n.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
                             </span>
+                            {currentUser.role === 'admin' && historyConfirmId !== n.id && (
+                              <IconButton
+                                icon="trash"
+                                variant="danger"
+                                label={`Hapus pesan "${n.title}"`}
+                                disabled={historyBusy}
+                                data-trash-for={n.id}
+                                onClick={() => { setHistoryConfirmAll(false); setHistoryConfirmId(n.id); }}
+                              />
+                            )}
                           </div>
                           <p className="text-sm font-semibold text-gray-800 mt-1">{n.title}</p>
                           <p className="text-sm text-gray-600 whitespace-pre-wrap">{n.body}</p>
@@ -1836,6 +1927,31 @@ function Surveyors() {
                               {n.survey_title ? ` · ${n.survey_title}` : ''}
                             </p>
                           )}
+                          {historyConfirmId === n.id && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-red-50 px-3 py-2" role="group" aria-label="Konfirmasi hapus pesan">
+                              <span className="text-xs text-red-700 mr-auto">
+                                Hapus pesan ini? Hilang dari kotak pesan aplikasi TPD saat ia online berikutnya.
+                              </span>
+                              <button
+                                type="button"
+                                disabled={historyBusy}
+                                onClick={() => deleteHistoryItem(historyModal.tpd, n)}
+                                className="px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md disabled:opacity-50"
+                              >
+                                {historyBusy ? 'Menghapus…' : 'Hapus'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={historyBusy}
+                                // Fokus ke pilihan AMAN: tombol pemicunya baru saja lenyap dari DOM.
+                                autoFocus
+                                onClick={() => { setHistoryConfirmId(null); focusInHistory(`[data-trash-for="${n.id}"]`); }}
+                                className="px-3 py-1.5 text-xs font-medium text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 rounded-md"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -1843,6 +1959,32 @@ function Surveyors() {
                 </>
               )}
             </div>
+
+            {/* Hapus SELURUH riwayat — khusus admin, ketik HAPUS (menyapu banyak baris) */}
+            {currentUser.role === 'admin' && historyModal.data && historyModal.data.notifications.length > 0 && (
+              <div className="border-t border-gray-100 px-5 py-3">
+                {historyConfirmAll ? (
+                  <TypedDeleteConfirm
+                    onConfirm={() => deleteHistoryAll(historyModal.tpd)}
+                    onCancel={() => setHistoryConfirmAll(false)}
+                    loading={historyBusy}
+                  >
+                    Semua {historyModal.data.counts.manual + historyModal.data.counts.review + historyModal.data.counts.quality} pesan
+                    &amp; teguran untuk {historyModal.tpd.name} akan dihapus, juga dari kotak pesan aplikasinya
+                    saat ia online berikutnya (notifikasi yang sudah tampil di HP tidak ditarik).
+                  </TypedDeleteConfirm>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={historyBusy}
+                    onClick={() => { setHistoryConfirmId(null); setHistoryConfirmAll(true); }}
+                    className="text-sm font-medium text-red-700 hover:underline disabled:opacity-50"
+                  >
+                    Hapus semua riwayat
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

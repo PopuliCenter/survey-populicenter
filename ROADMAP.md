@@ -273,6 +273,7 @@ Dibangun langsung dari kebutuhan lapangan TPD dan permintaan klien, tanpa spec K
 | — | Checklist pra-lapangan "siap offline" di aplikasi TPD | Offline | ✅ Selesai |
 | — | Lonceng pemberitahuan TPD (manual + otomatis saat respons ditandai review) | Notifikasi | ✅ Selesai |
 | — | Push notification FCM ke HP TPD (Firebase) + cermin ke tray | Notifikasi | ✅ Selesai |
+| — | Kotak pesan satu arah (ikon amplop) + nada & getar khusus kanal "Pesan Admin" + admin hapus riwayat pesan (audit log) | Notifikasi | ✅ Selesai |
 | — | Kecualikan respons dari laporan (oversampling/fraud) + hapus permanen khusus admin | Integritas Data | ✅ Selesai |
 | — | Generator laporan PPTX otomatis (template Populi) | Laporan | ✅ Selesai |
 | — | Hasil publik (snapshot agregat opt-in + embed iframe ke website) | Laporan | ✅ Selesai |

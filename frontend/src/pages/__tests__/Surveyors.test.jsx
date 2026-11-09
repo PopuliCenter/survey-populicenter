@@ -258,3 +258,78 @@ describe('Delete surveyor functionality', () => {
     expect(api.get.mock.calls.length).toBeGreaterThan(initialGetCallCount);
   });
 });
+
+// ─── Riwayat pesan TPD — hapus KHUSUS admin ──────────────────────────────────
+describe('Riwayat pesan — hapus (khusus admin)', () => {
+  const riwayat = {
+    surveyor: { id: '1', name: 'Surveyor One' },
+    counts: { manual: 2, review: 0, quality: 0, unread: 1 },
+    notifications: [
+      { id: 'n1', type: 'manual', title: 'Data belum masuk', body: 'Mohon sinkronkan.', read_at: null, created_at: '2026-11-09T04:00:00Z', sender_name: 'Admin', survey_title: null },
+      { id: 'n2', type: 'manual', title: 'Terima kasih', body: 'Kerja bagus.', read_at: '2026-11-09T05:00:00Z', created_at: '2026-11-09T04:30:00Z', sender_name: 'Admin', survey_title: null },
+    ],
+  };
+
+  async function bukaRiwayat(role) {
+    setUser(role, '99');
+    api.get.mockImplementation((url) => Promise.resolve({
+      data: url.startsWith('/notifications/surveyor/') ? riwayat : mockSurveyors,
+    }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Riwayat pesan Surveyor One' }));
+    const dialog = await screen.findByRole('dialog', { name: /riwayat pesan — surveyor one/i });
+    await within(dialog).findByText('Data belum masuk');
+    return dialog;
+  }
+
+  test('admin: hapus satu pesan → DELETE /notifications/:id, baris & rekap ikut berkurang', async () => {
+    api.delete.mockResolvedValue({ data: { deleted: 1 } });
+    const dialog = await bukaRiwayat('admin');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hapus pesan "Data belum masuk"' }));
+    const konfirmasi = within(dialog).getByRole('group', { name: /konfirmasi hapus pesan/i });
+    fireEvent.click(within(konfirmasi).getByRole('button', { name: 'Hapus' }));
+
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/notifications/n1'));
+    await waitFor(() => expect(within(dialog).queryByText('Data belum masuk')).not.toBeInTheDocument());
+    expect(within(dialog).getByText('Terima kasih')).toBeInTheDocument();
+    // Rekap: pesan manual 2→1, belum dibaca 1→0 (yang dihapus belum dibaca).
+    expect(within(dialog).getByText('Pesan manual').querySelector('span')).toHaveTextContent('1');
+    expect(within(dialog).getByText('Belum dibaca', { selector: 'span.rounded' }).querySelector('span')).toHaveTextContent('0');
+  });
+
+  test('admin: hapus semua wajib ketik HAPUS → DELETE /notifications/surveyor/:id', async () => {
+    api.delete.mockResolvedValue({ data: { deleted: 2 } });
+    const dialog = await bukaRiwayat('admin');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hapus semua riwayat' }));
+    const tombol = within(dialog).getByRole('button', { name: 'Hapus Permanen' });
+    expect(tombol).toBeDisabled();
+    fireEvent.change(within(dialog).getByPlaceholderText('HAPUS'), { target: { value: 'hapus' } });
+    fireEvent.click(tombol);
+
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/notifications/surveyor/1'));
+    expect(await within(dialog).findByText(/riwayatnya bersih/i)).toBeInTheDocument();
+  });
+
+  test('supervisor: bisa melihat riwayat, TIDAK ada tombol hapus', async () => {
+    const dialog = await bukaRiwayat('supervisor');
+
+    expect(within(dialog).queryByRole('button', { name: /^Hapus pesan/ })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Hapus semua riwayat' })).not.toBeInTheDocument();
+  });
+
+  test('konfirmasi hapus: fokus ke "Batal" (bukan jatuh ke body); Escape menutup modal', async () => {
+    const dialog = await bukaRiwayat('admin');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hapus pesan "Data belum masuk"' }));
+    const konfirmasi = within(dialog).getByRole('group', { name: /konfirmasi hapus pesan/i });
+    expect(within(konfirmasi).getByRole('button', { name: 'Batal' })).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /riwayat pesan/i })).not.toBeInTheDocument();
+    });
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+});

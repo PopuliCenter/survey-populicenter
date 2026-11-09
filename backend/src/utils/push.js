@@ -17,6 +17,14 @@
 const fs = require('fs');
 const { FcmToken } = require('../models');
 
+// Kanal & nada notifikasi pesan di APK. WAJIB sama dengan PESAN_CHANNEL_ID /
+// PESAN_SOUND di frontend/src/utils/pushNotifications.js (kanal dibuat aplikasi
+// saat izin notifikasi diberikan; nadanya res/raw/pesan_masuk.wav).
+// APK lama yang belum punya kanal ini: Android memakai kanal bawaan aplikasi,
+// jadi pesan tetap sampai — hanya tanpa nada khusus.
+const ANDROID_CHANNEL_ID = 'pesan-masuk';
+const ANDROID_SOUND = 'pesan_masuk';
+
 let messagingInstance = null; // lazy — hanya dibuat bila kunci tersedia
 let initTried = false;
 
@@ -89,7 +97,21 @@ async function sendPushToUser(userId, { title, body, data = {} }) {
       data: Object.fromEntries(Object.entries(data)
         .filter(([, v]) => v != null)
         .map(([k, v]) => [k, String(v)])),
-      android: { priority: 'high' },
+      // channelId: Android 8+ memutar nada & getar milik kanal (banner tinggi).
+      // sound/priority/defaultVibrateTimings: hanya dipakai Android 7 (tanpa
+      // kanal) agar setara — bernada, bergetar, banner. Android 8+ mengabaikan
+      // ketiganya. Nama kanal/nada tak divalidasi FCM → aman untuk APK lama.
+      // AWAS: field tak valid = messaging/invalid-argument = SEMUA token
+      // dipangkas di bawah; ubah hanya dengan field yang ada di typings.
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: ANDROID_CHANNEL_ID,
+          sound: ANDROID_SOUND,
+          priority: 'high',
+          defaultVibrateTimings: true,
+        },
+      },
     });
 
     // Bersihkan token yang sudah hangus (aplikasi di-uninstall / token dirotasi)

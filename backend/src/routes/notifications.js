@@ -7,6 +7,10 @@
  * - GET /             : TPD membaca pemberitahuan MILIKNYA (+ unread_count).
  * - PATCH /read-all   : tandai semua dibaca.
  * - PATCH /:id/read   : tandai satu dibaca (hanya miliknya).
+ * - DELETE /:id                    : admin hapus satu pesan dari riwayat.
+ * - DELETE /surveyor/:surveyorId   : admin hapus SELURUH riwayat seorang TPD.
+ *   Keduanya tercatat di audit_logs (isi pesan disimpan di old_value) dan
+ *   ikut hilang dari aplikasi TPD pada pengambilan berikutnya.
  *
  * Pemberitahuan otomatis (review flagged, durasi singkat) TIDAK lewat rute ini
  * — dibuat langsung oleh routes/responses.js pada peristiwanya.
@@ -14,7 +18,7 @@
 
 const express = require('express');
 const { Op } = require('sequelize');
-const { TpdNotification, User, FcmToken, Survey, sequelize } = require('../models');
+const { TpdNotification, User, FcmToken, Survey, AuditLog, sequelize } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { sendPushToUser } = require('../utils/push');
 
@@ -23,6 +27,9 @@ const router = express.Router();
 const MAX_TITLE = 150;
 const MAX_BODY = 2000;
 const MAX_TARGETS = 200;
+// id = UUID. Teks lain langsung 404 — tanpa ini Postgres melempar 22P02
+// ("invalid input syntax for type uuid") dan klien menerima 500.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ── POST /notifications — kirim manual (admin/SPV, asisten mewarisi) ─────────
 router.post('/', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res) => {
@@ -163,6 +170,82 @@ router.get('/surveyor/:surveyorId', authMiddleware, requireRole(['admin', 'super
     });
   } catch {
     return res.status(500).json({ error: 'Gagal memuat riwayat pemberitahuan.' });
+  }
+});
+
+// ── DELETE /notifications/surveyor/:surveyorId — hapus seluruh riwayat (admin) ─
+// Khusus admin (SPV & asisten tidak): riwayat ini bahan pembinaan, jadi yang
+// boleh menghapusnya sama dengan yang boleh menghapus data lain. Penghapusan &
+// catatan auditnya satu transaksi — tak ada hapus tanpa jejak.
+router.delete('/surveyor/:surveyorId', authMiddleware, requireRole('admin'), async (req, res) => {
+  const { surveyorId } = req.params;
+  if (!UUID_RE.test(surveyorId)) {
+    return res.status(404).json({ error: 'Akun TPD tidak ditemukan' });
+  }
+  try {
+    const surveyor = await User.findOne({
+      where: { id: surveyorId, role: 'surveyor' },
+      attributes: ['id', 'name'],
+    });
+    if (!surveyor) {
+      return res.status(404).json({ error: 'Akun TPD tidak ditemukan' });
+    }
+
+    const deleted = await sequelize.transaction(async (transaction) => {
+      const count = await TpdNotification.destroy({ where: { surveyor_id: surveyorId }, transaction });
+      await AuditLog.create({
+        user_id: req.user.id,
+        action: 'DELETE_TPD_NOTIFICATIONS',
+        entity_type: 'surveyor',
+        entity_id: surveyorId,
+        old_value: { surveyor_name: surveyor.name, deleted: count },
+        new_value: null,
+        ip_address: req.ip,
+      }, { transaction });
+      return count;
+    });
+
+    return res.json({ deleted });
+  } catch {
+    return res.status(500).json({ error: 'Gagal menghapus riwayat pesan.' });
+  }
+});
+
+// ── DELETE /notifications/:id — hapus satu pesan dari riwayat (admin) ─────────
+router.delete('/:id', authMiddleware, requireRole('admin'), async (req, res) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ error: 'Pesan tidak ditemukan' });
+  }
+  try {
+    const row = await TpdNotification.findByPk(id);
+    if (!row) {
+      return res.status(404).json({ error: 'Pesan tidak ditemukan' });
+    }
+
+    await sequelize.transaction(async (transaction) => {
+      await row.destroy({ transaction });
+      await AuditLog.create({
+        user_id: req.user.id,
+        action: 'DELETE_TPD_NOTIFICATION',
+        entity_type: 'tpd_notification',
+        entity_id: row.id,
+        old_value: {
+          surveyor_id: row.surveyor_id,
+          type: row.type,
+          title: row.title,
+          body: row.body,
+          read_at: row.read_at,
+          created_at: row.created_at,
+        },
+        new_value: null,
+        ip_address: req.ip,
+      }, { transaction });
+    });
+
+    return res.json({ deleted: 1 });
+  } catch {
+    return res.status(500).json({ error: 'Gagal menghapus pesan.' });
   }
 });
 

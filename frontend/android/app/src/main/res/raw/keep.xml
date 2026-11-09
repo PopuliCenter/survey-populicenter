@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Nada pesan hanya dirujuk lewat NAMA (URI android.resource://…/raw/pesan_masuk
+  dari kanal notifikasi, dan field `sound` push FCM), tidak lewat R.raw di kode.
+  Build rilis memakai shrinkResources → tanpa keep ini berkasnya bisa dibuang
+  dan notifikasi berbunyi nada bawaan (atau senyap) tanpa error apa pun.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/pesan_masuk" />

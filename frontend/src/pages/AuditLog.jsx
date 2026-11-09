@@ -20,6 +20,8 @@ const ACTION_OPTIONS = [
   { value: 'ACTIVATE_SURVEY', label: 'Aktifkan Survei' },
   { value: 'DEACTIVATE_SURVEY', label: 'Nonaktifkan Survei' },
   { value: 'DELETE_SURVEY', label: 'Hapus Survei' },
+  { value: 'DELETE_TPD_NOTIFICATION', label: 'Hapus Pesan TPD' },
+  { value: 'DELETE_TPD_NOTIFICATIONS', label: 'Hapus Riwayat Pesan TPD' },
 ];
 
 const ENTITY_TYPE_OPTIONS = [
@@ -28,6 +30,7 @@ const ENTITY_TYPE_OPTIONS = [
   { value: 'admin', label: 'Admin' },
   { value: 'surveyor', label: 'TPD' },
   { value: 'survey', label: 'Survei' },
+  { value: 'tpd_notification', label: 'Pesan TPD' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

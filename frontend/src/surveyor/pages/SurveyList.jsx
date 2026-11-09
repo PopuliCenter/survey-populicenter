@@ -131,7 +131,7 @@ function SurveyList() {
   // Data wilayah tersimpan permanen (IndexedDB) & siap dipakai tanpa sinyal.
   const [regionReady, setRegionReady] = useState(false);
 
-  // ─── Pemberitahuan (lonceng) — pesan dashboard/otomatis untuk TPD ini ───────
+  // ─── Pemberitahuan (ikon amplop) — pesan dashboard/otomatis untuk TPD ini ──
   // Diambil saat online; di-cache agar tetap terbaca offline. Sumber: kiriman
   // manual admin/SPV, respons ditandai bermasalah, dan teguran durasi singkat.
   const [notifItems, setNotifItems] = useState(() => {
@@ -147,13 +147,13 @@ function SurveyList() {
       setNotifItems(items);
       setNotifUnread(unread);
       try { localStorage.setItem('tpd_notifications', JSON.stringify(items.slice(0, 50))); } catch { /* penuh */ }
-      if (unread > 0) toastInfo(`Anda punya ${unread} pemberitahuan baru — ketuk lonceng.`);
+      if (unread > 0) toastInfo(`Ada ${unread} pesan belum dibaca — ketuk ikon amplop di kanan atas.`);
     } catch { /* offline — pakai cache */ }
   }, []);
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
-  // Push FCM (APK): daftar token perangkat + segarkan lonceng saat push tiba.
-  // No-op di web; TPD yang menolak izin tetap dapat lonceng dalam-aplikasi.
+  // Push FCM (APK): daftar token perangkat + segarkan kotak pesan saat push tiba.
+  // No-op di web; TPD yang menolak izin tetap dapat kotak pesan dalam-aplikasi.
   useEffect(() => {
     initPushNotifications({ onNotificationReceived: fetchNotifications });
   }, [fetchNotifications]);
@@ -384,7 +384,7 @@ function SurveyList() {
     let cleanup = () => {};
     let active = true;
     (async () => {
-      // fetchNotifications ikut di sini: tanpanya, lonceng hanya dimuat saat
+      // fetchNotifications ikut di sini: tanpanya, kotak pesan hanya dimuat saat
       // cold start — push yang tiba selagi aplikasi di latar belakang tak
       // terlihat di panel meski notifikasi sistemnya masuk (lapangan 2026-07-23).
       const unsub = await addResumeListener(() => { if (active) { fetchData(); refreshDrafts(); fetchNotifications(); } });
@@ -643,15 +643,13 @@ function SurveyList() {
                 className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
                 iconClassName="w-5 h-5"
               />
-              {/* Lonceng pemberitahuan (pesan SPV/admin + peringatan otomatis) */}
+              {/* Kotak pesan (amplop): pesan satu arah SPV/admin + peringatan otomatis */}
               <button
                 onClick={() => { setNotifOpen(true); fetchNotifications(); }}
-                aria-label={notifUnread > 0 ? `Pemberitahuan, ${notifUnread} belum dibaca` : 'Pemberitahuan'}
+                aria-label={notifUnread > 0 ? `Pesan, ${notifUnread} belum dibaca` : 'Pesan'}
                 className="relative min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                </svg>
+                <Icon name="mail" className="w-5 h-5" />
                 {notifUnread > 0 && (
                   <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-2xs font-bold flex items-center justify-center tabular-nums">
                     {notifUnread > 9 ? '9+' : notifUnread}
@@ -1237,14 +1235,17 @@ function SurveyList() {
         </p>
       </ConfirmSheet>
 
-      {/* Panel pemberitahuan (lonceng) */}
+      {/* Panel pemberitahuan (ikon amplop) — pesan SATU ARAH, tak ada balasan */}
       {notifOpen && (
-        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Pemberitahuan">
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="tpd-notif-title" aria-describedby="tpd-notif-desc">
           <button type="button" aria-label="Tutup" onClick={() => setNotifOpen(false)} className="absolute inset-0 bg-black/40 animate-backdrop-in cursor-default" />
           <div className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-xl max-h-[80vh] flex flex-col animate-sheet-up">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-gray-800">Pemberitahuan</h2>
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
+              <div className="min-w-0">
+                <h2 id="tpd-notif-title" className="text-base font-semibold text-gray-800">Pemberitahuan</h2>
+                <p id="tpd-notif-desc" className="text-xs text-gray-500">Pesan satu arah dari admin — tidak dapat dibalas.</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
                 {notifUnread > 0 && (
                   <button onClick={markAllNotifRead} className="text-xs font-medium text-accent-700 hover:underline">
                     Tandai semua dibaca
