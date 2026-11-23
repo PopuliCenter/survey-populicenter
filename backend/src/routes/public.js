@@ -30,7 +30,11 @@ const MONITORING_TTL_MS = 15 * 60 * 1000;
 // kredensial) — agar bisa di-fetch dari WordPress/Elementor maupun server-side.
 router.use((req, res, next) => {
   res.set('Access-Control-Allow-Origin', '*');
-  res.set('Cache-Control', 'public, max-age=300');
+  // Cache publik HANYA untuk hasil agregat yang memang diterbitkan. Rute bertoken
+  // (feed CSV — termasuk data mentah per responden — & monitor) tidak boleh
+  // tersimpan di Cloudflare/proxy: setelah token diganti/dimatikan, salinan di
+  // edge masih bisa tersaji (audit 2026-11-23).
+  res.set('Cache-Control', req.path.startsWith('/results') ? 'public, max-age=300' : 'private, no-store');
   if (req.method === 'OPTIONS') {
     res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
     return res.status(204).end();

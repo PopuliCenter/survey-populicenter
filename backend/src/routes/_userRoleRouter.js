@@ -19,6 +19,12 @@ const SALT_ROUNDS = 12;
 
 function buildUserRoleRouter({ role, label }) {
   const router = express.Router();
+  // Mengelola akun Partner Lokal & Asisten SPV (buat, ubah termasuk password,
+  // aktif/nonaktif) KHUSUS admin — selaras UI Manajemen Pengguna (supervisor hanya
+  // melihat tab Viewer). Dulu admin+supervisor, dan asisten SPV ikut lolos lewat
+  // pewarisan role → bisa membuat akun setara dirinya atau mengambil alih asisten
+  // lain dengan mengganti password-nya (audit 2026-11-23).
+  const MANAGE = requireRole('admin');
   const ACT = role.toUpperCase(); // mis. PARTNER_LOKAL → action CREATE_PARTNER_LOKAL
   const notFound = `${label} tidak ditemukan`;
 
@@ -39,7 +45,7 @@ function buildUserRoleRouter({ role, label }) {
   });
 
   // POST / — buat akun
-  router.post('/', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  router.post('/', authMiddleware, MANAGE, async (req, res, next) => {
     try {
       const { name, email, password } = req.body;
       if (!validatePassword(password)) {
@@ -60,7 +66,7 @@ function buildUserRoleRouter({ role, label }) {
   });
 
   // PUT /:id — ubah data
-  router.put('/:id', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+  router.put('/:id', authMiddleware, MANAGE, async (req, res, next) => {
     try {
       const { id } = req.params;
       const { name, email, password } = req.body;
@@ -107,8 +113,8 @@ function buildUserRoleRouter({ role, label }) {
       } catch (error) { next(error); }
     };
   }
-  router.patch('/:id/activate', authMiddleware, requireRole(['admin', 'supervisor']), setActive(true, 'ACTIVATE'));
-  router.patch('/:id/deactivate', authMiddleware, requireRole(['admin', 'supervisor']), setActive(false, 'DEACTIVATE'));
+  router.patch('/:id/activate', authMiddleware, MANAGE, setActive(true, 'ACTIVATE'));
+  router.patch('/:id/deactivate', authMiddleware, MANAGE, setActive(false, 'DEACTIVATE'));
 
   // DELETE /:id — hanya admin
   router.delete('/:id', authMiddleware, requireRole('admin'), async (req, res, next) => {

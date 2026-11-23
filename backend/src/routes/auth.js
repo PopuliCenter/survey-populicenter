@@ -8,6 +8,7 @@ const redis = require('../config/redis');
 const { authMiddleware } = require('../middleware/auth');
 const { createAuditLog } = require('../middleware/auditLog');
 const { readDeviceHeaders, checkBoundDevice } = require('../utils/deviceLock');
+const { tokenTtlSec } = require('../utils/sessionRevocation');
 
 const router = express.Router();
 
@@ -17,8 +18,11 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-// IP asli klien (dari Cloudflare), bukan IP nginx internal.
-const clientIp = (req) => req.headers['cf-connecting-ip'] || req.ip;
+// IP klien TERVALIDASI: nginx (real_ip, hanya rentang Cloudflare) menaruhnya di
+// ujung X-Forwarded-For dan Express (trust proxy 1) membacanya sebagai req.ip.
+// JANGAN baca header cf-connecting-ip mentah: bila origin diakses langsung lewat
+// IP, header itu bebas dipalsukan → limiter login bisa diakali tanpa batas.
+const clientIp = (req) => req.ip;
 
 // ── Limiter login dua lapis ───────────────────────────────────────────────────
 // Operator seluler Indonesia memakai CGNAT: puluhan TPD di satu wilayah bisa
@@ -128,10 +132,12 @@ router.post('/login', loginIpLimiter, loginLimiter, async (req, res, next) => {
     // Issue JWT with different expiry based on role.
     // TPD (surveyor): 30 HARI — kerja lapangan berhari-hari; token 12 jam membuat
     // TPD "keluar sendiri" tiap pagi & sinkron offline gagal. Aman karena sesi
-    // tetap bisa dicabut kapan pun: blacklist saat logout + cek akun nonaktif
-    // (isUserRevoked, M1) di setiap request + kunci perangkat per survei.
-    // Role dashboard (admin/supervisor/viewer): tetap 8 jam (lebih sensitif).
-    const expiresIn = user.role === 'surveyor' ? '30d' : '8h';
+    // tetap bisa dicabut kapan pun: blacklist saat logout + akun nonaktif / password
+    // diganti (sessionRejection, M1) di setiap request + kunci perangkat per survei.
+    // Role dashboard (admin/supervisor/viewer): 8 jam (lebih sensitif).
+    // Umur token didefinisikan di utils/sessionRevocation agar TTL pencabutan selalu
+    // ≥ umur token (dulu 12 jam vs 30 hari → pencabutan TPD hangus setelah 12 jam).
+    const expiresIn = tokenTtlSec(user.role);
     const token = jwt.sign(
       { id: user.id, role: user.role, email: user.email },
       JWT_SECRET,

@@ -22,6 +22,7 @@ jest.mock('../../src/models', () => ({
   ExportJob: { create: jest.fn() },
   PublishedResult: { findAll: jest.fn(), findOne: jest.fn() },
   MonitoringReport: { findOne: jest.fn() },
+  AuditLog: { create: jest.fn() },
   Sequelize: { Op: { ne: Symbol('ne'), like: Symbol('like'), notLike: Symbol('notLike'), and: Symbol('and'), or: Symbol('or'), eq: Symbol('eq'), gte: Symbol('gte'), lte: Symbol('lte'), in: Symbol('in') } },
 }));
 
@@ -40,13 +41,15 @@ jest.mock('../../src/config/redis', () => ({
 jest.mock('../../src/config/queue', () => ({ queue: { add: jest.fn() } }));
 
 const app = require('../../src/app');
-const { Survey, Question, Response } = require('../../src/models');
+const { Survey, Question, Response, AuditLog } = require('../../src/models');
 const { buildSnapshot, buildMonitoringSnapshot } = require('../../src/utils/aggregateResults');
 const { aggregateToCsv, monitoringToCsv } = require('../../src/utils/reportFeedCsv');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const adminToken = jwt.sign({ id: 'a1', role: 'admin', email: 'a@b.c' }, JWT_SECRET, { expiresIn: '8h' });
 const viewerToken = jwt.sign({ id: 'v1', role: 'viewer', email: 'v@b.c' }, JWT_SECRET, { expiresIn: '8h' });
+const spvToken = jwt.sign({ id: 's9', role: 'supervisor', email: 's@b.c' }, JWT_SECRET, { expiresIn: '8h' });
+const asistenToken = jwt.sign({ id: 'as1', role: 'asisten_supervisor', email: 'as@b.c' }, JWT_SECRET, { expiresIn: '8h' });
 
 function makeSurvey(init) {
   const s = { ...init };
@@ -129,6 +132,56 @@ describe('PUT /reports/surveys/:id/feed', () => {
     expect(res.status).toBe(200);
     expect(res.body.token).toBeTruthy();
     expect(res.body.token).not.toBe('lama');
+    expect(AuditLog.create.mock.calls[0][0].action).toBe('ROTATE_REPORT_FEED');
+  });
+
+  // Audit 2026-11-23: feed data mentah = PII tanpa login.
+  test('supervisor TIDAK boleh menyalakan data mentah (403), tak ada yang berubah', async () => {
+    const survey = makeSurvey({ id: 's1', report_feed_token: 't', report_feed_enabled: true, report_feed_include_raw: false });
+    Survey.findByPk.mockResolvedValue(survey);
+    const res = await request(app)
+      .put('/reports/surveys/s1/feed')
+      .set('Authorization', `Bearer ${spvToken}`)
+      .send({ include_raw: true });
+    expect(res.status).toBe(403);
+    expect(survey.update).not.toHaveBeenCalled();
+  });
+
+  test('supervisor boleh MEMATIKAN data mentah', async () => {
+    const survey = makeSurvey({ id: 's1', report_feed_token: 't', report_feed_enabled: true, report_feed_include_raw: true });
+    Survey.findByPk.mockResolvedValue(survey);
+    const res = await request(app)
+      .put('/reports/surveys/s1/feed')
+      .set('Authorization', `Bearer ${spvToken}`)
+      .send({ include_raw: false });
+    expect(res.status).toBe(200);
+    expect(res.body.include_raw).toBe(false);
+  });
+
+  test('admin menyalakan data mentah → tercatat di audit TANPA token', async () => {
+    const survey = makeSurvey({ id: 's1', report_feed_token: 'rahasia', report_feed_enabled: true, report_feed_include_raw: false });
+    Survey.findByPk.mockResolvedValue(survey);
+    const res = await request(app)
+      .put('/reports/surveys/s1/feed')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ include_raw: true });
+    expect(res.status).toBe(200);
+    const audit = AuditLog.create.mock.calls[0][0];
+    expect(audit).toMatchObject({
+      action: 'UPDATE_REPORT_FEED', entity_id: 's1',
+      old_value: { enabled: true, include_raw: false }, new_value: { enabled: true, include_raw: true },
+    });
+    expect(JSON.stringify(audit)).not.toContain('rahasia');
+  });
+
+  test.each([
+    ['get', '/reports/surveys/s1/feed'],
+    ['put', '/reports/surveys/s1/feed'],
+    ['post', '/reports/surveys/s1/feed/rotate'],
+  ])('asisten SPV ditolak: %s %s', async (method, url) => {
+    Survey.findByPk.mockResolvedValue(makeSurvey({ id: 's1' }));
+    const res = await request(app)[method](url).set('Authorization', `Bearer ${asistenToken}`).send({ enabled: true });
+    expect(res.status).toBe(403);
   });
 });
 
@@ -181,5 +234,13 @@ describe('GET /public/feed/:token/*.csv', () => {
     expect(res.headers['content-type']).toMatch(/text\/csv/);
     // Header metadata ekspor mentah selalu ada walau nol responden.
     expect(res.text).toContain('ID Responden');
+    // PII per responden: tak boleh tersimpan di cache Cloudflare/proxy.
+    expect(res.headers['cache-control']).toBe('private, no-store');
+  });
+
+  test('rekap/monitoring bertoken juga no-store; hasil terbit tetap publik-cache', async () => {
+    Survey.findOne.mockResolvedValue(null);
+    const feed = await request(app).get('/public/feed/salah/rekap.csv');
+    expect(feed.headers['cache-control']).toBe('private, no-store');
   });
 });

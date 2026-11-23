@@ -62,8 +62,11 @@ module.exports = (sequelize) => {
 
   // M1: cabut sesi aktif saat akun dinonaktifkan/dihapus (terpusat via hook agar
   // tak ada jalur yang terlewat). Re-aktivasi membersihkan pembatalan.
-  const { revokeUser, clearRevocation } = require('../utils/sessionRevocation');
+  const { revokeUser, clearRevocation, invalidateSessionsBefore } = require('../utils/sessionRevocation');
   User.afterUpdate(async (user) => {
+    // Password diganti (reset admin / ganti sendiri) → sesi lama mati, sehingga
+    // pemegang token curian tak bisa terus masuk. Login ulang tetap jalan.
+    if (user.changed('password_hash')) await invalidateSessionsBefore(user.id);
     if (!user.changed('is_active')) return;
     if (user.is_active === false) await revokeUser(user.id);
     else await clearRevocation(user.id);

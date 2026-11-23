@@ -36,7 +36,6 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
-const path = require('path');
 const rateLimit = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis').default;
 const redis = require('./config/redis');
@@ -141,8 +140,9 @@ if (process.env.NODE_ENV !== 'test' && process.env.RATE_LIMIT_DISABLED !== 'true
         // token tidak valid → jatuh ke key IP
       }
     }
-    // IP klien asli dari Cloudflare (bukan IP nginx internal).
-    return req.headers['cf-connecting-ip'] || req.ip;
+    // IP klien tervalidasi nginx (lihat M2 di atas) — bukan header cf-connecting-ip
+    // mentah, yang bisa dipalsukan bila origin diakses langsung lewat IP.
+    return req.ip;
   };
 
   const globalLimiter = rateLimit({
@@ -178,24 +178,31 @@ app.get('/auth/media-token', authMiddleware, requireRole(MEDIA_ROLES), (req, res
   res.json({ token, expiresInSec: MEDIA_TTL_SEC });
 });
 
-// Gerbang media: jalur utama = media-token via ?t=; fallback = JWT sesi
-// (header, atau ?t= untuk kompat mundur). Keduanya butuh role peninjau.
+// Gerbang media: media-token berumur-pendek via ?t=, atau JWT sesi di header
+// Authorization. JWT sesi lewat ?t= TIDAK lagi diterima: URL masuk log akses &
+// riwayat browser, dan token sesi berumur jam/hari (audit 2026-11-23; semua
+// halaman sudah memakai media-token). Peran dicek dengan pewarisan role
+// (asisten SPV/partner lokal) dan akun nonaktif ditolak walau token belum habis.
+const { isUserRevoked } = require('./utils/sessionRevocation');
 async function mediaAuth(req, res, next) {
   const t = req.query.t;
   if (t) {
     const payload = verifyMediaToken(t);
-    if (payload) {
-      if (!MEDIA_ROLES.includes(payload.role)) {
-        return res.status(403).json({ error: 'Anda tidak memiliki izin untuk mengakses resource ini' });
-      }
-      req.user = { id: payload.id, role: payload.role };
-      return next();
+    if (!payload) {
+      return res.status(401).json({ error: 'Sesi telah berakhir, silakan login kembali' });
     }
-    // Bukan media-token valid → perlakukan sebagai kemungkinan JWT sesi (kompat).
-    if (!req.headers.authorization) req.headers.authorization = `Bearer ${t}`;
+    if (await isUserRevoked(payload.id)) {
+      return res.status(401).json({ error: 'Akun Anda tidak lagi aktif. Silakan login kembali.' });
+    }
+    req.user = { id: payload.id, role: payload.role };
+    return requireRole(MEDIA_ROLES)(req, res, next);
   }
   return authMiddleware(req, res, () => requireRole(MEDIA_ROLES)(req, res, next));
 }
+
+// Media yang boleh TAMPIL di browser. Selain ini (html, svg, js, …) dipaksa unduh:
+// berkas unggahan tak boleh pernah dirender sebagai halaman di domain aplikasi.
+const INLINE_MEDIA_TYPE = /^(image\/(jpeg|png|webp|gif)|audio\/(webm|mp4|mpeg|ogg|x-m4a|wav)|video\/(webm|mp4))$/;
 
 // Penyajian via mediaStorage (driver disk/s3 sesuai MEDIA_STORAGE) — dengan
 // fallback dua arah: mode s3 tetap membaca file lama dari disk; mode disk
@@ -203,11 +210,26 @@ async function mediaAuth(req, res, next) {
 const mediaStorage = require('./utils/mediaStorage');
 app.get('/uploads/*', mediaAuth, async (req, res) => {
   const relPath = decodeURIComponent(req.path.replace(/^\//, ''));
+  // Berkas ekspor/arsip hanya lewat rute unduh yang memeriksa pemilik job
+  // (/reports/exports/:id/download), bukan lewat gerbang media umum.
+  if (relPath.startsWith('uploads/exports/')) {
+    return res.status(404).json({ error: 'File tidak ditemukan' });
+  }
   try {
     const { stream, contentType, size } = await mediaStorage.getStream(relPath);
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    if (contentType) res.type(contentType);
-    else res.type(path.extname(relPath) || 'application/octet-stream');
+    // PII: jangan disimpan Cloudflare/proxy/cache browser bersama.
+    res.setHeader('Cache-Control', 'private, no-store');
+    // Andai pun dirender, tak ada skrip/form/plugin yang bisa jalan.
+    res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; media-src 'self'; sandbox");
+    const type = String(contentType || express.static.mime.lookup(relPath) || '')
+      .split(';')[0].trim().toLowerCase();
+    if (INLINE_MEDIA_TYPE.test(type)) {
+      res.type(type);
+    } else {
+      res.type('application/octet-stream');
+      res.setHeader('Content-Disposition', 'attachment');
+    }
     if (size != null) res.setHeader('Content-Length', size);
     stream.on('error', () => {
       if (!res.headersSent) res.status(404).json({ error: 'File tidak ditemukan' });

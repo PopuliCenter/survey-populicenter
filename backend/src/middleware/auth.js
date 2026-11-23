@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const redis = require('../config/redis');
-const { isUserRevoked } = require('../utils/sessionRevocation');
+const { sessionRejection } = require('../utils/sessionRevocation');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -43,10 +43,15 @@ async function authMiddleware(req, res, next) {
       return res.status(401).json({ error: 'Sesi telah berakhir, silakan login kembali' });
     }
 
-    // M1: tolak bila akun sudah dinonaktifkan/dihapus (revoke berbasis user),
-    // meski token belum kedaluwarsa. Gagal-aman: Redis mati → tak memblokir.
-    if (await isUserRevoked(decoded.id)) {
+    // M1: tolak bila akun dinonaktifkan/dihapus, atau token terbit SEBELUM
+    // password diganti — meski token belum kedaluwarsa. Gagal-aman: Redis mati →
+    // tak memblokir.
+    const rejection = await sessionRejection(decoded);
+    if (rejection === 'revoked') {
       return res.status(401).json({ error: 'Akun Anda tidak lagi aktif. Silakan login kembali.' });
+    }
+    if (rejection === 'stale') {
+      return res.status(401).json({ error: 'Password akun ini sudah diganti. Silakan login kembali.' });
     }
 
     // Attach user payload to request

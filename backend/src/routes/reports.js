@@ -6,7 +6,7 @@ const path = require('path');
 const { Op } = require('sequelize');
 const ExcelJS = require('exceljs');
 const { stringify } = require('csv-stringify');
-const { Response, Answer, Question, User, Survey, ExportJob } = require('../models');
+const { Response, Answer, Question, User, Survey, ExportJob, AuditLog } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { queue: exportQueue } = require('../config/queue');
 const { buildSnapshot } = require('../utils/aggregateResults');
@@ -734,7 +734,11 @@ function feedStatus(survey) {
  * GET /reports/surveys/:id/feed
  * Status feed CSV survei (untuk panel "Tarik ke Spreadsheet").
  */
-router.get('/surveys/:id/feed', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+// Feed CSV bertoken = jalan keluar data TANPA login, jadi asisten SPV (tak boleh
+// mengelola survei) tidak ikut mengaturnya. Data mentah per responden khusus admin.
+const FEED_ROLE_GUARD = requireRole(['admin', 'supervisor'], { deny: ['asisten_supervisor'] });
+
+router.get('/surveys/:id/feed', authMiddleware, FEED_ROLE_GUARD, async (req, res, next) => {
   try {
     const survey = await Survey.findByPk(req.params.id, {
       attributes: ['id', 'report_feed_token', 'report_feed_enabled', 'report_feed_include_raw'],
@@ -752,7 +756,7 @@ router.get('/surveys/:id/feed', authMiddleware, requireRole(['admin', 'superviso
  * Mengaktifkan/menonaktifkan feed & izin data mentah. Token dibuat otomatis
  * saat pertama kali diaktifkan.
  */
-router.put('/surveys/:id/feed', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.put('/surveys/:id/feed', authMiddleware, FEED_ROLE_GUARD, async (req, res, next) => {
   try {
     const survey = await Survey.findByPk(req.params.id);
     if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
@@ -767,9 +771,25 @@ router.put('/surveys/:id/feed', authMiddleware, requireRole(['admin', 'superviso
       }
     }
     if (typeof include_raw === 'boolean') {
+      // MENYALAKAN data mentah (PII per responden, tanpa login) khusus admin —
+      // setara "terbitkan hasil". Supervisor tetap boleh MEMATIKANNYA.
+      if (include_raw && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Hanya admin yang dapat mengizinkan tarik data mentah.' });
+      }
       patch.report_feed_include_raw = include_raw;
     }
+    const before = { enabled: !!survey.report_feed_enabled, include_raw: !!survey.report_feed_include_raw };
     await survey.update(patch);
+    // Jejak siapa membuka/menutup jalur data — TANPA token (token = kunci akses).
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'UPDATE_REPORT_FEED',
+      entity_type: 'survey',
+      entity_id: survey.id,
+      old_value: before,
+      new_value: { enabled: !!survey.report_feed_enabled, include_raw: !!survey.report_feed_include_raw },
+      ip_address: req.ip,
+    });
     res.json(feedStatus(survey));
   } catch (error) {
     next(error);
@@ -780,11 +800,20 @@ router.put('/surveys/:id/feed', authMiddleware, requireRole(['admin', 'superviso
  * POST /reports/surveys/:id/feed/rotate
  * Ganti token feed — semua link lama langsung mati. Untuk mencabut akses.
  */
-router.post('/surveys/:id/feed/rotate', authMiddleware, requireRole(['admin', 'supervisor']), async (req, res, next) => {
+router.post('/surveys/:id/feed/rotate', authMiddleware, FEED_ROLE_GUARD, async (req, res, next) => {
   try {
     const survey = await Survey.findByPk(req.params.id);
     if (!survey) return res.status(404).json({ error: 'Survei tidak ditemukan' });
     await survey.update({ report_feed_token: crypto.randomBytes(24).toString('hex') });
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'ROTATE_REPORT_FEED',
+      entity_type: 'survey',
+      entity_id: survey.id,
+      old_value: null,
+      new_value: null,
+      ip_address: req.ip,
+    });
     res.json(feedStatus(survey));
   } catch (error) {
     next(error);

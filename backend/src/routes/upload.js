@@ -16,6 +16,22 @@ const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads', 'photos');
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
+// Ekstensi berkas DITURUNKAN dari MIME yang sudah lolos filter — BUKAN dari nama
+// berkas kiriman klien. Dulu "x.html" berlabel image/png tersimpan sebagai .html
+// lalu tersaji sebagai HTML di domain aplikasi (stored XSS, audit 2026-11-23).
+const EXT_BY_MIME = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'audio/webm': '.webm',
+  'audio/mp4': '.m4a',
+  'audio/mpeg': '.mp3',
+  'audio/ogg': '.ogg',
+};
+function extForMime(mimetype, fallback) {
+  return EXT_BY_MIME[String(mimetype || '').toLowerCase()] || fallback;
+}
+
 // --- Audio upload config ---
 const AUDIO_UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads', 'audio');
 const AUDIO_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -88,7 +104,7 @@ const storage = USE_S3 ? multer.memoryStorage() : multer.diskStorage({
   destination: shardedDestination(UPLOAD_DIR),
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = extForMime(file.mimetype, '.jpg');
     cb(null, `photo-${uniqueSuffix}${ext}`);
   },
 });
@@ -129,7 +145,7 @@ router.post('/photo', authMiddleware, requireRole(['admin', 'supervisor', 'surve
       return res.status(422).json({ error: 'File tidak ditemukan dalam request' });
     }
 
-    const ext = path.extname(req.file.originalname || '').toLowerCase() || '.jpg';
+    const ext = extForMime(req.file.mimetype, '.jpg');
     finishUpload(req, res, { kind: 'photos', prefix: 'photo', ext }).catch(next);
   });
 });
@@ -139,7 +155,7 @@ const audioStorage = USE_S3 ? multer.memoryStorage() : multer.diskStorage({
   destination: shardedDestination(AUDIO_UPLOAD_DIR),
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname).toLowerCase() || '.webm';
+    const ext = extForMime(file.mimetype, '.webm');
     cb(null, `audio-${uniqueSuffix}${ext}`);
   },
 });
@@ -180,7 +196,7 @@ router.post('/audio', authMiddleware, requireRole(['admin', 'supervisor', 'surve
       return res.status(422).json({ error: 'File tidak ditemukan dalam request' });
     }
 
-    const audioExt = path.extname(req.file.originalname || '').toLowerCase() || '.webm';
+    const audioExt = extForMime(req.file.mimetype, '.webm');
     finishUpload(req, res, { kind: 'audio', prefix: 'audio', ext: audioExt }).catch(next);
   });
 });
