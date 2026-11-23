@@ -65,7 +65,12 @@ function FeedRow({ title, url, note }) {
   );
 }
 
-function SpreadsheetFeedPanel({ surveyId }) {
+/**
+ * @param {{ surveyId: string, canEnableRaw?: boolean }} props
+ *   canEnableRaw — hanya admin yang boleh MENYALAKAN data mentah (server menolak
+ *   selain admin); supervisor tetap bisa mematikannya bila sudah menyala.
+ */
+function SpreadsheetFeedPanel({ surveyId, canEnableRaw = false }) {
   const [status, setStatus] = useState(null); // { enabled, include_raw, token, paths }
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -165,7 +170,7 @@ function SpreadsheetFeedPanel({ surveyId }) {
               <input
                 type="checkbox"
                 checked={!!status.include_raw}
-                disabled={busy}
+                disabled={busy || (!status.include_raw && !canEnableRaw)}
                 onChange={(e) => patch({ include_raw: e.target.checked })}
                 className="mt-0.5"
               />
@@ -175,6 +180,11 @@ function SpreadsheetFeedPanel({ surveyId }) {
                   SENSITIF — satu baris per responden termasuk koordinat GPS &amp; waktu. Bagikan hanya
                   ke pihak berwenang. Kalau ragu, biarkan mati.
                 </span>
+                {!canEnableRaw && !status.include_raw && (
+                  <span className="block text-xs text-amber-800 mt-0.5 font-medium">
+                    Hanya admin yang dapat menyalakan opsi ini.
+                  </span>
+                )}
               </span>
             </label>
             {status.include_raw && (

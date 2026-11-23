@@ -723,7 +723,8 @@ function Reports() {
           </div>
         )}
 
-        {!isViewer && (
+        {/* Feed bertoken = jalur data tanpa login: asisten SPV tak ikut mengatur. */}
+        {!isViewer && currentUser.role !== 'asisten_supervisor' && (
           <div className="bg-white rounded-xl shadow p-5 space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-gray-700">Tarik ke Spreadsheet</h2>
@@ -732,7 +733,7 @@ function Reports() {
               </p>
             </div>
             {selectedSurveyId ? (
-              <SpreadsheetFeedPanel surveyId={selectedSurveyId} />
+              <SpreadsheetFeedPanel surveyId={selectedSurveyId} canEnableRaw={isAdmin} />
             ) : (
               <p className="text-sm text-gray-500">Pilih survei terlebih dahulu.</p>
             )}

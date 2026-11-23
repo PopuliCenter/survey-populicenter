@@ -14,6 +14,7 @@ const LOGO_MASK = {
 import { setSentryUser } from '../config/sentry';
 import { persistAuth } from '../utils/authStorage';
 import { getValidSession, homePathForUser } from '../utils/session';
+import { checkLoginAllowed, claimDeviceForUser } from '../utils/deviceOwner';
 
 /**
  * Login page with email + password form.
@@ -56,8 +57,20 @@ function Login() {
     setLoading(true);
 
     try {
+      // HP bergantian: jangan biarkan akun lain masuk selama data TPD sebelumnya
+      // belum terkirim (lihat utils/deviceOwner.js). Dicek SEBELUM menghubungi
+      // server agar akun ini pun tidak ikut terikat ke HP orang lain.
+      const gate = await checkLoginAllowed(email);
+      if (!gate.allowed) {
+        setError(gate.message);
+        return;
+      }
+
       const response = await api.post('/auth/login', { email, password });
       const { token, user } = response.data;
+
+      // Data lokal per-TPD milik akun sebelumnya dibersihkan bila pemilik berganti.
+      claimDeviceForUser(user);
 
       // Persist credentials — localStorage + penyimpanan natif (tahan
       // pembersih HP / tutup paksa; lihat utils/authStorage.js).

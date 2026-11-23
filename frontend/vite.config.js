@@ -71,21 +71,12 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 86400,
-              },
-              networkTimeoutSeconds: 10,
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
+          // SENGAJA tak ada aturan cache untuk API & /uploads. Dulu ada aturan
+          // NetworkFirst untuk SEMUA path ('api-cache'): respons API berisi data
+          // responden, GPS & foto tersimpan 24 jam di Cache Storage, tak terhapus
+          // saat logout, dan saat jaringan lambat tersaji ke pengguna lain di PC
+          // yang sama (kunci cache tak memuat header Authorization). Audit
+          // 2026-11-23. Tanpa aturan, permintaan itu langsung ke jaringan.
         ],
       },
     }),

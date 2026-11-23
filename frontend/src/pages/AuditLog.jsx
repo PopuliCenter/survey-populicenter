@@ -22,6 +22,8 @@ const ACTION_OPTIONS = [
   { value: 'DELETE_SURVEY', label: 'Hapus Survei' },
   { value: 'DELETE_TPD_NOTIFICATION', label: 'Hapus Pesan TPD' },
   { value: 'DELETE_TPD_NOTIFICATIONS', label: 'Hapus Riwayat Pesan TPD' },
+  { value: 'UPDATE_REPORT_FEED', label: 'Ubah Feed Spreadsheet' },
+  { value: 'ROTATE_REPORT_FEED', label: 'Ganti Token Feed' },
 ];
 
 const ENTITY_TYPE_OPTIONS = [

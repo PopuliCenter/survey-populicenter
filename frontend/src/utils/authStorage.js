@@ -52,10 +52,23 @@ export async function persistAuth(token, user) {
   } catch { /* non-kritis — localStorage tetap terisi */ }
 }
 
+// Cache Storage peninggalan versi lama yang menyimpan respons API & media
+// (data responden). Dibersihkan saat boot web dan saat logout.
+export const SENSITIVE_CACHE_NAMES = ['api-cache'];
+
+/** Hapus cache berisi data responden. Tak pernah melempar. */
+export function purgeSensitiveCaches() {
+  try {
+    if (typeof window === 'undefined' || !window.caches?.delete) return;
+    SENSITIVE_CACHE_NAMES.forEach((name) => { window.caches.delete(name).catch(() => {}); });
+  } catch { /* non-kritis */ }
+}
+
 /** Hapus sesi di SEMUA lapisan (logout / 401 / token kedaluwarsa). */
 export function clearAuth() {
   localStore.removeItem('token');
   localStore.removeItem('user');
+  purgeSensitiveCaches();
   if (!isNative()) return;
   // Fire-and-forget: pemanggil sinkron (interceptor/route guard) tak perlu menunggu.
   import('@capacitor/preferences')

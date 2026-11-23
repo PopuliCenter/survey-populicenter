@@ -7,6 +7,8 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
+import { escapeHtml } from '../utils/escapeHtml';
+
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
@@ -72,12 +74,16 @@ function GeoMap({ points = [] }) {
           })
         : '-';
 
+      // Leaflet merender popup sebagai HTML: SEMUA nilai dari data wajib di-escape.
+      // Nama TPD & judul survei diisi pengguna (supervisor) — tanpa escape, nama
+      // seperti <img onerror=…> mencuri token admin yang membuka peta (audit
+      // 2026-11-23).
       const popupContent = `
         <div style="min-width:200px;font-size:13px;line-height:1.7">
-          <strong>TPD:</strong> ${point.surveyor_name || '-'}<br/>
-          ${point.survey_title ? `<strong>Survei:</strong> ${point.survey_title}<br/>` : ''}
-          <strong>No. Kuesioner:</strong> ${point.questionnaire_number ?? '-'}<br/>
-          <strong>Selesai:</strong> ${formattedTime}<br/>
+          <strong>TPD:</strong> ${escapeHtml(point.surveyor_name || '-')}<br/>
+          ${point.survey_title ? `<strong>Survei:</strong> ${escapeHtml(point.survey_title)}<br/>` : ''}
+          <strong>No. Kuesioner:</strong> ${escapeHtml(point.questionnaire_number ?? '-')}<br/>
+          <strong>Selesai:</strong> ${escapeHtml(formattedTime)}<br/>
           <strong>Koordinat:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}
         </div>
       `;

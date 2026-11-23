@@ -4,7 +4,7 @@ import App from './App.jsx';
 import GlobalNotifications from './components/GlobalNotifications.jsx';
 import './index.css';
 import { initSentry, setSentryUser } from './config/sentry.js';
-import { restoreAuthIfMissing } from './utils/authStorage.js';
+import { restoreAuthIfMissing, purgeSensitiveCaches } from './utils/authStorage.js';
 import { initTheme } from './theme/themeMode.js';
 
 // Initialize Sentry error tracking (before anything else)
@@ -30,6 +30,8 @@ try {
 
 if ('serviceWorker' in navigator && !isNativeApp) {
   window.addEventListener('load', () => {
+    // Buang cache API/media peninggalan SW lama (berisi data responden).
+    purgeSensitiveCaches();
     import('virtual:pwa-register').then(({ registerSW }) => {
       const updateSW = registerSW({
         onNeedRefresh() {
