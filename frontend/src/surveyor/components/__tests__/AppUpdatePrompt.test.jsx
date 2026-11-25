@@ -34,18 +34,25 @@ test('available: banner → lembar detail → Perbarui menjalankan pembaruan', a
   startUpdate.mockResolvedValue('opened_page');
   render(<AppUpdatePrompt state="available" release={release} />);
 
-  fireEvent.click(screen.getByRole('button', { name: /pembaruan tersedia \(versi 1\.0\.1\)/i }));
+  expect(screen.getByRole('region', { name: /pembaruan tersedia \(versi 1\.0\.1\)/i })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Perbarui' }));
   expect(screen.getByText('Perbaikan keamanan.')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Perbarui sekarang' }));
 
   await waitFor(() => expect(startUpdate).toHaveBeenCalledWith(release, expect.any(Object)));
 });
 
-test('available: Nanti menyembunyikan banner', () => {
-  render(<AppUpdatePrompt state="available" release={release} />);
-  fireEvent.click(screen.getByRole('button', { name: /pembaruan tersedia/i }));
+test('available: Nanti (di lembar) maupun ✕ (di kartu) menyembunyikan kartu', () => {
+  const { unmount } = render(<AppUpdatePrompt state="available" release={release} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Perbarui' }));
   fireEvent.click(screen.getByRole('button', { name: 'Nanti' }));
-  expect(screen.queryByRole('button', { name: /pembaruan tersedia/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: /pembaruan tersedia/i })).not.toBeInTheDocument();
+  unmount();
+  localStorage.clear();
+
+  render(<AppUpdatePrompt state="available" release={release} />);
+  fireEvent.click(screen.getByRole('button', { name: /tutup pengingat: pembaruan tersedia/i }));
+  expect(screen.queryByRole('region', { name: /pembaruan tersedia/i })).not.toBeInTheDocument();
 });
 
 test('required: layar penuh tanpa Nanti; data tertunda bisa dikirim dulu', () => {

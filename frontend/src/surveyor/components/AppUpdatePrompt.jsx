@@ -19,6 +19,7 @@
  */
 import React, { useState } from 'react';
 import Icon from '../../components/Icon';
+import ReminderCard from './ReminderCard';
 import {
   dismissRelease, isDismissed, startUpdate, openReleasePage, openInstallSettings,
   installDownloaded, updateErrorMessage,
@@ -180,16 +181,14 @@ function AppUpdatePrompt({ state, release, pendingCount = 0, isSyncing = false, 
   return (
     <>
       {!dismissed && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="w-full flex items-center gap-3 rounded-xl border border-accent-200 bg-accent-50 px-4 py-3 text-left"
-        >
-          <Icon name="download" className="w-5 h-5 text-accent-700 shrink-0" />
-          <span className="flex-1 min-w-0 text-sm text-gray-800">
-            <span className="font-semibold">Pembaruan tersedia ({label}).</span> Ketuk untuk memperbarui.
-          </span>
-        </button>
+        <ReminderCard
+          icon="download"
+          title={`Pembaruan tersedia (${label})`}
+          desc="Perbaikan terbaru untuk aplikasi survei. Data di HP tetap aman."
+          actionLabel="Perbarui"
+          onAction={() => setOpen(true)}
+          onDismiss={() => { dismissRelease(release); setDismissed(true); }}
+        />
       )}
       {open && (
         <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="app-update-title">

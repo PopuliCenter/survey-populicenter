@@ -32,6 +32,7 @@ public class MainActivity extends BridgeActivity {
     purgeServiceWorkerState();
     // Plugin lokal (bukan paket npm) wajib didaftarkan SEBELUM super.onCreate.
     registerPlugin(AppUpdaterPlugin.class);
+    registerPlugin(DeviceSetupPlugin.class);
     super.onCreate(savedInstanceState);
     applySavedThemeBackground();
     themeListener = (prefs, key) -> {

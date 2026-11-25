@@ -9,6 +9,7 @@ import { initPushNotifications, clearDeliveredNotifications } from '../../utils/
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import Icon from '../../components/Icon';
 import AppUpdatePrompt from '../components/AppUpdatePrompt';
+import SetupReminders from '../components/SetupReminders';
 import { checkForUpdate } from '../../utils/appUpdate';
 import ThemeToggle from '../../components/ThemeToggle';
 import ConfirmSheet from '../../components/ConfirmSheet';
@@ -160,6 +161,9 @@ function SurveyList() {
   // Dicek saat dibuka, saat kembali ke depan, dan saat push tiba (admin
   // mengumumkan rilis → push type app_update). No-op di web.
   const [appUpdate, setAppUpdate] = useState({ state: 'none', release: null });
+  // Dinaikkan saat aplikasi kembali ke depan → kartu kesiapan HP membaca ulang
+  // status (TPD baru saja menyalakan GPS / izin di pengaturan).
+  const [setupSignal, setSetupSignal] = useState(0);
   const refreshAppUpdate = useCallback(async () => {
     const r = await checkForUpdate();
     setAppUpdate({ state: r.state, release: r.release });
@@ -401,7 +405,7 @@ function SurveyList() {
       // fetchNotifications ikut di sini: tanpanya, kotak pesan hanya dimuat saat
       // cold start — push yang tiba selagi aplikasi di latar belakang tak
       // terlihat di panel meski notifikasi sistemnya masuk (lapangan 2026-07-23).
-      const unsub = await addResumeListener(() => { if (active) { fetchData(); refreshDrafts(); fetchNotifications(); refreshAppUpdate(); } });
+      const unsub = await addResumeListener(() => { if (active) { fetchData(); refreshDrafts(); fetchNotifications(); refreshAppUpdate(); setSetupSignal((n) => n + 1); } });
       if (active) cleanup = unsub; else unsub();
     })();
     return () => { active = false; if (typeof cleanup === 'function') cleanup(); };
@@ -797,7 +801,7 @@ function SurveyList() {
       {/* Main content */}
       <main className="max-w-3xl mx-auto px-screen py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         {appUpdate.state !== 'none' && (
-          <div className="mb-4">
+          <div className="mb-4 empty:hidden">
             <AppUpdatePrompt
               key={appUpdate.release?.version_code}
               state={appUpdate.state}
@@ -809,6 +813,11 @@ function SurveyList() {
             />
           </div>
         )}
+        {/* Kartu pengingat: pembaruan aplikasi (paling atas), lalu satu kartu
+            kesiapan HP (GPS / izin lokasi / notifikasi / kamera & mikrofon). */}
+        <div className="mb-4 empty:hidden">
+          <SetupReminders refreshSignal={setupSignal} hidden={showPermOnboard} />
+        </div>
         {loading && (
           <div className="flex items-center justify-center py-16">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-600" />

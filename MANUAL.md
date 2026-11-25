@@ -637,6 +637,13 @@ Cara mengumumkan rilis (admin):
 
 Tautan hanya boleh **https** ke `populicenter.org`, `populicenter.com`, atau `play.google.com`. Server dan aplikasi sama-sama menolak domain lain, dan Android menolak APK yang ditandatangani kunci berbeda. Setelah rilis di **Google Play**, isi halaman unduh dengan tautan Play dan kosongkan tautan APK. Build AAB untuk Play otomatis membuang izin pemasangan langsung (kebijakan Play).
 
+### 10.19 Kartu Pengingat Kesiapan HP (APK)
+
+Mulai **APK code 30**, Daftar Survei TPD menampilkan **satu kartu pengingat** bila HP belum siap. Urutannya dari yang paling penting: **GPS mati** → **izin lokasi** → **notifikasi** (termasuk kanal "Pesan Admin" yang dibisukan) → **kamera & mikrofon**. Kartu pembaruan aplikasi selalu tampil paling atas.
+
+- Tombol aksi (**Nyalakan / Izinkan / Aktifkan**) memunculkan dialog izin Android. Bila Android sudah tidak mau menampilkannya (pernah ditolak permanen), tombol membuka halaman pengaturan yang tepat.
+- **✕** menunda kartu itu 24 jam. Status dibaca ulang saat aplikasi kembali dari pengaturan.
+
 ---
 
 ## 11. Troubleshooting

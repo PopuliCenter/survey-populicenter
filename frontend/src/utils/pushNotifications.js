@@ -82,9 +82,14 @@ export async function clearDeliveredNotifications() {
   } catch { /* plugin absen — abaikan */ }
 }
 
+// Opsi pemanggil terakhir — dipakai ulang retryPushRegistration() setelah TPD
+// menyalakan notifikasi dari kartu pengingat (tanpa perlu buka ulang aplikasi).
+let lastOpts = {};
+
 export async function initPushNotifications(opts = {}) {
   if (!Capacitor.isNativePlatform() || initialized) return;
   initialized = true;
+  lastOpts = opts;
 
   try {
     const { PushNotifications } = await import('@capacitor/push-notifications');
@@ -93,7 +98,12 @@ export async function initPushNotifications(opts = {}) {
     if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
       perm = await PushNotifications.requestPermissions();
     }
-    if (perm.receive !== 'granted') return; // TPD menolak — kotak pesan tetap jalan
+    if (perm.receive !== 'granted') {
+      // TPD menolak — kotak pesan tetap jalan. Boleh dicoba lagi (retryPushRegistration)
+      // begitu izin diberikan lewat kartu pengingat / pengaturan.
+      initialized = false;
+      return;
+    }
 
     // Kanal pesan dibuat di muka: push server menunjuk kanal ini, dan schedule
     // lokal ke kanal yang belum ada dibuang diam-diam oleh Android 8+.
@@ -142,4 +152,9 @@ export async function initPushNotifications(opts = {}) {
     // Plugin tak tersedia / WebView lawas — fitur inti tidak terpengaruh.
     initialized = false;
   }
+}
+
+/** Daftarkan ulang push setelah izin notifikasi baru diberikan. */
+export function retryPushRegistration() {
+  return initPushNotifications(lastOpts);
 }
