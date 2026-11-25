@@ -53,4 +53,5 @@ sampling-service/**/__pycache__/
 # Transkrip chat / catatan scratch — jangan commit (bisa memuat IP origin/rahasia)
 /chat*.md
 /AUDIT-PROMPT.md
+/PEKERJAAN-TERTUNDA.md
 *.local.txt
