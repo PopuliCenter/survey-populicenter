@@ -10,7 +10,8 @@
 
 const express = require('express');
 const { stringify } = require('csv-stringify');
-const { PublishedResult, MonitoringReport, Survey, Question } = require('../models');
+const { PublishedResult, MonitoringReport, Survey, Question, AppRelease } = require('../models');
+const { toPublicRelease } = require('../utils/appRelease');
 const { buildSnapshot, buildMonitoringSnapshot } = require('../utils/aggregateResults');
 const { aggregateToCsv, monitoringToCsv } = require('../utils/reportFeedCsv');
 // Bangun ekspor MENTAH memakai helper yang SAMA dengan ekspor manual (header
@@ -40,6 +41,25 @@ router.use((req, res, next) => {
     return res.status(204).end();
   }
   next();
+});
+
+/**
+ * GET /public/app-version
+ * Rilis terbaru aplikasi TPD — dibaca APK saat dibuka untuk memunculkan
+ * "versi baru tersedia" / wajib update. Tanpa login (layar wajib-update juga
+ * harus tampil sebelum login) dan tanpa data pribadi. Tak di-cache (no-store,
+ * lihat middleware di atas) agar pengumuman rilis langsung terbaca.
+ */
+router.get('/app-version', async (req, res, next) => {
+  try {
+    const latest = await AppRelease.findOne({
+      where: { platform: 'android' },
+      order: [['created_at', 'DESC']],
+    });
+    res.json({ release: toPublicRelease(latest) });
+  } catch (error) {
+    next(error);
+  }
 });
 
 /**

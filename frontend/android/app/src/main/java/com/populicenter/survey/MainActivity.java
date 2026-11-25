@@ -30,6 +30,8 @@ public class MainActivity extends BridgeActivity {
     // disentuh. Sejak rilis ini SW tidak lagi didaftarkan di native (lihat
     // main.jsx), jadi direktori ini akan tetap kosong ke depannya.
     purgeServiceWorkerState();
+    // Plugin lokal (bukan paket npm) wajib didaftarkan SEBELUM super.onCreate.
+    registerPlugin(AppUpdaterPlugin.class);
     super.onCreate(savedInstanceState);
     applySavedThemeBackground();
     themeListener = (prefs, key) -> {

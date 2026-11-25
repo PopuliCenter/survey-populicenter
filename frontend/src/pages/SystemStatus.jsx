@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
 import { SENTRY_DASHBOARD_URL } from '../config/appLinks';
+import AppReleasePanel from '../components/AppReleasePanel';
 
 function StatusPill({ ok }) {
   return (
@@ -159,6 +160,11 @@ function SystemStatus() {
             </Card>
           </div>
         )}
+
+        {/* Terpisah dari status: tetap bisa dipakai walau /monitoring/status gagal. */}
+        <div className="mt-4">
+          <AppReleasePanel />
+        </div>
       </div>
     </Layout>
   );

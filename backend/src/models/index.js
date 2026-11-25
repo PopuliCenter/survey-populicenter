@@ -28,6 +28,7 @@ const RtSelection = require('./RtSelection')(sequelize);
 const RtSeedTicket = require('./RtSeedTicket')(sequelize);
 const FcmToken = require('./FcmToken')(sequelize);
 const TpdNotification = require('./TpdNotification')(sequelize);
+const AppRelease = require('./AppRelease')(sequelize);
 
 // ─── Associations ─────────────────────────────────────────────────────────────
 
@@ -109,6 +110,9 @@ PublishedResult.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
 User.hasMany(PublishedResult, { foreignKey: 'published_by', as: 'publishedResults' });
 PublishedResult.belongsTo(User, { foreignKey: 'published_by', as: 'publisher' });
 
+// User → AppRelease (siapa mengumumkan rilis aplikasi TPD)
+AppRelease.belongsTo(User, { foreignKey: 'created_by', as: 'publisher' });
+
 // Survey → MonitoringReport (embed monitoring klien)
 Survey.hasOne(MonitoringReport, { foreignKey: 'survey_id', as: 'monitoringReport', onDelete: 'CASCADE' });
 MonitoringReport.belongsTo(Survey, { foreignKey: 'survey_id', as: 'survey' });
@@ -130,4 +134,5 @@ module.exports = {
   RtSeedTicket,
   FcmToken,
   TpdNotification,
+  AppRelease,
 };

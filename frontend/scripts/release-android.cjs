@@ -20,6 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { findPrivateAssets } = require('./privateAssets.cjs');
 
@@ -121,6 +122,12 @@ const distName = `SurveiPopuliCenter-v${name}-code${code}.${ext}`;
 const distPath = path.join(path.dirname(outPath), distName);
 fs.copyFileSync(outPath, distPath);
 
+// SHA-256 untuk pengumuman rilis (Status Sistem → Pembaruan Aplikasi TPD):
+// aplikasi memverifikasinya sebelum memasang APK yang diunduh.
+const sha256 = crypto.createHash('sha256').update(fs.readFileSync(distPath)).digest('hex');
+fs.writeFileSync(`${distPath}.sha256`, `${sha256}  ${distName}
+`);
+
 if (NO_BUMP) {
   // Bump dilewati atas permintaan (--no-bump).
 } else if (!signed) {
@@ -138,6 +145,8 @@ if (NO_BUMP) {
 console.log('\n─────────────────────────────────────────────');
 console.log(`✅ Sukses: ${artifact}  (${sizeMB} MB, v${name} / code ${code})`);
 console.log(`   📦 Ambil file ini (nama unik): ${distPath}`);
+console.log(`   🔐 SHA-256: ${sha256}`);
+console.log(`      (tersimpan di ${distName}.sha256 — tempel di Status Sistem saat mengumumkan rilis)`);
 console.log(`   (salinan asli: ${outPath})`);
 console.log(signed
   ? (BUILD_APK

@@ -8,6 +8,8 @@ import { buildOfflineChecklist } from '../../utils/offlineReadiness';
 import { initPushNotifications, clearDeliveredNotifications } from '../../utils/pushNotifications';
 import OfflineStatusBar from '../../components/OfflineStatusBar';
 import Icon from '../../components/Icon';
+import AppUpdatePrompt from '../components/AppUpdatePrompt';
+import { checkForUpdate } from '../../utils/appUpdate';
 import ThemeToggle from '../../components/ThemeToggle';
 import ConfirmSheet from '../../components/ConfirmSheet';
 import PermissionOnboarding, { permissionOnboardingDone } from '../components/PermissionOnboarding';
@@ -154,9 +156,21 @@ function SurveyList() {
 
   // Push FCM (APK): daftar token perangkat + segarkan kotak pesan saat push tiba.
   // No-op di web; TPD yang menolak izin tetap dapat kotak pesan dalam-aplikasi.
+  // ─── Pembaruan aplikasi (APK) — banner "versi baru" / layar wajib update ────
+  // Dicek saat dibuka, saat kembali ke depan, dan saat push tiba (admin
+  // mengumumkan rilis → push type app_update). No-op di web.
+  const [appUpdate, setAppUpdate] = useState({ state: 'none', release: null });
+  const refreshAppUpdate = useCallback(async () => {
+    const r = await checkForUpdate();
+    setAppUpdate({ state: r.state, release: r.release });
+  }, []);
+  useEffect(() => { refreshAppUpdate(); }, [refreshAppUpdate]);
+
   useEffect(() => {
-    initPushNotifications({ onNotificationReceived: fetchNotifications });
-  }, [fetchNotifications]);
+    initPushNotifications({
+      onNotificationReceived: () => { fetchNotifications(); refreshAppUpdate(); },
+    });
+  }, [fetchNotifications, refreshAppUpdate]);
 
   async function markAllNotifRead() {
     setNotifUnread(0);
@@ -387,11 +401,11 @@ function SurveyList() {
       // fetchNotifications ikut di sini: tanpanya, kotak pesan hanya dimuat saat
       // cold start — push yang tiba selagi aplikasi di latar belakang tak
       // terlihat di panel meski notifikasi sistemnya masuk (lapangan 2026-07-23).
-      const unsub = await addResumeListener(() => { if (active) { fetchData(); refreshDrafts(); fetchNotifications(); } });
+      const unsub = await addResumeListener(() => { if (active) { fetchData(); refreshDrafts(); fetchNotifications(); refreshAppUpdate(); } });
       if (active) cleanup = unsub; else unsub();
     })();
     return () => { active = false; if (typeof cleanup === 'function') cleanup(); };
-  }, [fetchData, refreshDrafts, fetchNotifications]);
+  }, [fetchData, refreshDrafts, fetchNotifications, refreshAppUpdate]);
 
   // ─── Check which surveys are already cached + cari pertanyaan unique_id ──────
   useEffect(() => {
@@ -782,6 +796,19 @@ function SurveyList() {
 
       {/* Main content */}
       <main className="max-w-3xl mx-auto px-screen py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+        {appUpdate.state !== 'none' && (
+          <div className="mb-4">
+            <AppUpdatePrompt
+              key={appUpdate.release?.version_code}
+              state={appUpdate.state}
+              release={appUpdate.release}
+              pendingCount={pendingCount}
+              isSyncing={isSyncing}
+              isOnline={isOnline}
+              onSync={() => { if (typeof syncNow === 'function') syncNow(); }}
+            />
+          </div>
+        )}
         {loading && (
           <div className="flex items-center justify-center py-16">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-600" />

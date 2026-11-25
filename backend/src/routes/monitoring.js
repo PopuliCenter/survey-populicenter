@@ -1,5 +1,7 @@
 const express = require('express');
-const { sequelize, Survey, User } = require('../models');
+const { sequelize, Survey, User, AppRelease, FcmToken, AuditLog } = require('../models');
+const { validateRelease, toPublicRelease } = require('../utils/appRelease');
+const { sendPushToUser } = require('../utils/push');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { getDashboardStats } = require('../utils/statisticsUpdater');
 const redis = require('../config/redis');
@@ -73,6 +75,90 @@ router.get('/status', authMiddleware, requireRole(['admin'], { deny: ['asisten_s
       summary,
       generated_at: new Date().toISOString(),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─── Rilis aplikasi TPD (APK Android) ────────────────────────────────────────
+// Admin mengumumkan versi terbaru: aplikasi membacanya lewat /public/app-version
+// (banner "versi baru" / wajib update) dan TPD mendapat push saat versi naik.
+
+/** Push "versi baru tersedia" ke semua TPD aktif yang punya token. Tak melempar. */
+async function announceRelease(release) {
+  try {
+    const users = await User.findAll({
+      where: { role: 'surveyor', is_active: true },
+      attributes: ['id'],
+      include: [{ model: FcmToken, as: 'fcmTokens', attributes: [], required: true }],
+    });
+    const ids = [...new Set(users.map((u) => u.id))];
+    const title = `Versi baru aplikasi tersedia${release.version_name ? ` (${release.version_name})` : ''}`;
+    const body = release.min_version_code >= release.version_code
+      ? 'Pembaruan WAJIB. Ketuk untuk memperbarui aplikasi.'
+      : 'Ketuk untuk melihat dan memperbarui aplikasi.';
+    // Bertahap (20 per gelombang) agar FCM & DB tak dibanjiri sekaligus.
+    for (let i = 0; i < ids.length; i += 20) {
+      await Promise.allSettled(ids.slice(i, i + 20).map((id) => sendPushToUser(id, {
+        title,
+        body,
+        data: { type: 'app_update', version_code: String(release.version_code) },
+      })));
+    }
+    console.log(`[AppRelease] versi ${release.version_code} diumumkan ke ${ids.length} TPD.`);
+  } catch (e) {
+    console.warn('[AppRelease] gagal mengirim pengumuman:', e.message);
+  }
+}
+
+/** GET /monitoring/app-releases — rilis terbaru + riwayat (admin). */
+router.get('/app-releases', authMiddleware, requireRole('admin'), async (req, res, next) => {
+  try {
+    const rows = await AppRelease.findAll({
+      where: { platform: 'android' },
+      order: [['created_at', 'DESC']],
+      limit: 20,
+      include: [{ model: User, as: 'publisher', attributes: ['id', 'name'] }],
+    });
+    res.json({
+      latest: toPublicRelease(rows[0] || null),
+      history: rows.map((r) => ({
+        ...toPublicRelease(r),
+        id: r.id,
+        publisher_name: r.publisher ? r.publisher.name : null,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /monitoring/app-releases — umumkan rilis baru (admin).
+ * Kode versi naik → push ke semua TPD. Kode sama → koreksi tautan/catatan/versi
+ * minimum tanpa push ulang.
+ */
+router.post('/app-releases', authMiddleware, requireRole('admin'), async (req, res, next) => {
+  try {
+    const latest = await AppRelease.findOne({ where: { platform: 'android' }, order: [['created_at', 'DESC']] });
+    const { errors, value } = validateRelease(req.body, latest);
+    if (errors.length) return res.status(422).json({ error: errors[0], errors });
+
+    const row = await AppRelease.create({ ...value, created_by: req.user.id });
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'PUBLISH_APP_RELEASE',
+      entity_type: 'app_release',
+      entity_id: row.id,
+      old_value: latest ? toPublicRelease(latest) : null,
+      new_value: toPublicRelease(row),
+      ip_address: req.ip,
+    });
+
+    const isNewVersion = !latest || value.version_code > latest.version_code;
+    if (isNewVersion) announceRelease(row).catch(() => {}); // fire-and-forget
+
+    res.status(201).json({ release: toPublicRelease(row), announced: isNewVersion });
   } catch (error) {
     next(error);
   }

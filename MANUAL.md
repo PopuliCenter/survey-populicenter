@@ -619,7 +619,23 @@ Cara pakai:
 - **Google Sheets**: tempel `=IMPORTDATA("<url>")` di satu sel.
 - **Excel**: *Data → Ambil Data → Dari Web*, tempel URL, lalu *Muat*/*Refresh All*.
 
-Keamanan: tautan bertoken (hanya pemegang link bisa buka). Untuk mencabut akses, tekan **Ganti token** (memutus semua tautan lama) atau **Nonaktifkan**. Data mentah baru muncul bila kotak "Izinkan tarik data mentah" dicentang.
+Keamanan: tautan bertoken (hanya pemegang link bisa buka). Untuk mencabut akses, tekan **Ganti token** (memutus semua tautan lama) atau **Nonaktifkan**. Data mentah baru muncul bila kotak "Izinkan tarik data mentah" dicentang. **Menyalakan data mentah khusus admin**; supervisor hanya bisa mematikannya, dan asisten SPV tidak melihat panel ini. Setiap perubahan tercatat di Audit Log.
+
+### 10.18 Pembaruan Aplikasi TPD (APK)
+
+Aplikasi TPD (mulai **APK code 29**) memeriksa versi terbaru setiap kali dibuka dan saat kembali ke depan:
+
+- **Versi baru tersedia** → banner *"Pembaruan tersedia — ketuk untuk memperbarui"* di Daftar Survei (bisa ditunda 24 jam).
+- **Versi di bawah minimum** → layar **wajib update**. Data yang belum terkirim tetap bisa dikirim dulu, dan memperbarui APK **tidak menghapus** data di HP.
+- Bila tautan berkas APK diisi, TPD memperbarui **langsung dari aplikasi**: unduh → cek SHA-256 → layar pemasangan Android. Pertama kali, Android meminta izin *"Izinkan dari sumber ini"*. Tanpa tautan APK, aplikasi membuka halaman unduh resmi.
+
+Cara mengumumkan rilis (admin):
+1. Bangun APK: `npm run cap:release -- --apk` di `frontend/`. Skrip mencetak **SHA-256** dan menyimpannya di berkas `.sha256` di sebelah APK.
+2. Unggah APK ke situs resmi (populicenter.org) dan catat tautan langsungnya.
+3. **Status Sistem → Pembaruan Aplikasi TPD**: isi kode versi (angka di nama berkas `…-codeNN.apk`), versi minimum, catatan perubahan, halaman unduh resmi, tautan berkas APK, dan SHA-256 → **Umumkan rilis**. Semua TPD menerima notifikasi push.
+4. Perbaikan wajib (keamanan/bug data) → isi **versi minimum = kode versi**, supaya versi lama dipaksa update.
+
+Tautan hanya boleh **https** ke `populicenter.org`, `populicenter.com`, atau `play.google.com`. Server dan aplikasi sama-sama menolak domain lain, dan Android menolak APK yang ditandatangani kunci berbeda. Setelah rilis di **Google Play**, isi halaman unduh dengan tautan Play dan kosongkan tautan APK. Build AAB untuk Play otomatis membuang izin pemasangan langsung (kebijakan Play).
 
 ---
 

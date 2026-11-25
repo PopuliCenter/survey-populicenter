@@ -67,6 +67,11 @@
     <!-- Notifikasi push FCM — Android 13+ mewajibkan izin runtime -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Pembaruan APK langsung dari aplikasi (AppUpdaterPlugin; distribusi di luar
+         Play). DIBUANG otomatis pada build Google Play (AAB / -PplayStore) lewat
+         src/playstore/AndroidManifest.xml — lihat app/build.gradle. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Catatan: READ/WRITE_EXTERNAL_STORAGE sudah usang sejak Android 13 (API 33)
          dan tidak diperlukan oleh plugin Capacitor Camera/Filesystem.
          Dihapus agar lolos kebijakan Google Play. Jika perlu baca media di

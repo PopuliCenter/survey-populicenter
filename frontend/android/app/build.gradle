@@ -59,6 +59,18 @@ android {
         }
     }
 
+    // ─── Build Google Play: buang izin pasang-APK ────────────────────────────
+    // APK sideload (assembleRelease) memakai pembaruan langsung dari aplikasi
+    // (AppUpdaterPlugin, butuh REQUEST_INSTALL_PACKAGES). Kebijakan Play melarang
+    // itu → saat membangun AAB (bundle*) atau dengan -PplayStore, overlay
+    // src/playstore/AndroidManifest.xml menghapus izinnya dan aplikasi beralih
+    // membuka halaman Play untuk update.
+    def playStoreBuild = project.hasProperty('playStore') ||
+        gradle.startParameter.taskNames.any { it.toLowerCase().contains('bundle') }
+    if (playStoreBuild) {
+        sourceSets.release.manifest.srcFile 'src/playstore/AndroidManifest.xml'
+    }
+
     // ─── Optimasi: skip unused build features ───────────────────────────────
     buildFeatures {
         buildConfig false

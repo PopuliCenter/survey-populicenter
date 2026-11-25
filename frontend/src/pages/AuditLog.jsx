@@ -24,6 +24,7 @@ const ACTION_OPTIONS = [
   { value: 'DELETE_TPD_NOTIFICATIONS', label: 'Hapus Riwayat Pesan TPD' },
   { value: 'UPDATE_REPORT_FEED', label: 'Ubah Feed Spreadsheet' },
   { value: 'ROTATE_REPORT_FEED', label: 'Ganti Token Feed' },
+  { value: 'PUBLISH_APP_RELEASE', label: 'Umumkan Rilis Aplikasi' },
 ];
 
 const ENTITY_TYPE_OPTIONS = [
