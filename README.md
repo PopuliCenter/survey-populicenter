@@ -13,7 +13,9 @@ Platform survei lapangan full-stack untuk Populi Center — dirancang khusus unt
 | **Offline-First** | Survey diunduh & diisi tanpa internet; antrian sinkron otomatis saat online; **checklist pra-lapangan "siap offline"** di aplikasi TPD |
 | **Field Tools** | GPS lokasi wawancara (start & submit), rekaman audio (multi-klip), foto kamera native, tanda tangan digital, **undian RT** (replika Form A + grid verifikasi visual, mode offline bertiket seed) |
 | **Kontrol Lapangan** | **Kunci perangkat** (1 akun TPD = 1 HP), badge durasi wawancara, kuota + nomor kuesioner per TPD, kebijakan GPS wajib (APK hard-block, web best-effort + penanda kuning) |
-| **Notifikasi** | **Kotak pesan (ikon amplop)** — pesan satu arah admin/SPV + respons ditandai review; **push FCM** ke HP TPD dengan nada & getar khusus (kanal "Pesan Admin"); admin dapat menghapus riwayat (tercatat di audit log); **pembaruan APK** diumumkan dari Status Sistem → banner/wajib-update di aplikasi, unduh & pasang langsung (SHA-256 diverifikasi) |
+| **Notifikasi** | **Kotak pesan (ikon amplop)** — pesan satu arah admin/SPV + respons ditandai review; **push FCM** ke HP TPD dengan nada & getar khusus (kanal "Pesan Admin"); admin dapat menghapus riwayat (tercatat di audit log) |
+| **Pembaruan Aplikasi** | Admin mengumumkan APK baru di **Status Sistem** → TPD mendapat push + kartu **"Pembaruan tersedia"**; versi terlalu lama **wajib update** (data tertunda tetap bisa dikirim dulu); **unduh & pasang langsung dari aplikasi** (hanya domain resmi, SHA-256 diverifikasi); build Google Play otomatis tanpa izin pasang-APK |
+| **Kesiapan HP** | **Kartu pengingat** di Daftar Survei: GPS mati, izin lokasi, notifikasi, kamera & mikrofon — tombol langsung ke dialog izin / halaman pengaturan yang tepat; **HP bergantian**: akun TPD lain ditolak selama data TPD sebelumnya belum terkirim |
 | **Android** | APK native via Capacitor 8; kamera + kompresi otomatis, GPS watchPosition, notifikasi lokal + FCM |
 | **Dashboard** | Statistik real-time (WIB), tren 7 hari, progress per survei & TPD, Top 5 TPD, peta sebaran GPS |
 | **Laporan & Analisis** | Export Excel/CSV per survei (filter tanggal/TPD), **generator laporan PPTX otomatis** (template Populi), **hasil publik** (snapshot agregat opt-in + embed iframe ke website), **Tarik ke Spreadsheet** (feed CSV bertoken untuk Google Sheets `IMPORTDATA`/Excel — rekap, monitoring, data mentah opt-in) |
@@ -21,7 +23,7 @@ Platform survei lapangan full-stack untuk Populi Center — dirancang khusus unt
 | **Random Sampling** | Microservice Python/FastAPI (engine MFD/BPS) — 3 metode: Proporsional + bobot desain, √N + bobot, PPS Sistematik |
 | **Tampilan** | **Mode gelap** (Terang/Gelap/Ikuti sistem; bawaan web ikut sistem, bawaan APK terang), Font formulir per survei (skala normal/besar/lebih besar + jenis, termasuk **Atkinson Hyperlegible** yang dibundel) |
 | **Manajemen** | Explorer survei (filter faset + grouping tahun-bulan + toggle folder), pagination server-side, penugasan TPD massal |
-| **Keamanan** | JWT (TPD 30 hari, dashboard 8 jam), kunci perangkat, rate limiting dua lapis, audit log, bcrypt, Helmet, Sentry |
+| **Keamanan** | JWT (TPD 30 hari, dashboard 8 jam) yang **dicabut saat akun dinonaktifkan atau password diganti**, kunci perangkat, rate limiting dua lapis (IP tervalidasi nginx), media hanya lewat token berumur pendek (`no-store`, berkas non-gambar/audio dipaksa unduh), feed data mentah khusus admin, audit log, bcrypt, Helmet, Sentry |
 | **Role** | Admin · Supervisor · Asisten Supervisor · Viewer / Partner Lokal · Surveyor (TPD) — dengan pewarisan hak akses |
 
 ---
@@ -155,7 +157,7 @@ Platform survei lapangan full-stack untuk Populi Center — dirancang khusus unt
 │   ├── sampling_engine.py         # Engine metodologi (di-vendor dari MFD/BPS)
 │   └── tests/                     # Tes metode sampling
 │
-├── docs/                          # Dokumentasi (play-store, legal, ops, embed WordPress, iOS)
+├── docs/                          # Dokumentasi INTERNAL — lokal tim, tidak ikut repo publik
 ├── nginx.conf                     # Nginx reverse proxy
 ├── docker-compose.yml
 ├── ARCHITECTURE.md                # Arsitektur lengkap
@@ -163,6 +165,19 @@ Platform survei lapangan full-stack untuk Populi Center — dirancang khusus unt
 ├── MANUAL.md                      # Manual pengguna
 └── ROADMAP.md                     # Rencana fitur
 ```
+
+### Dokumentasi
+
+| Dokumen | Isi |
+|---|---|
+| [MANUAL.md](MANUAL.md) | Manual pengguna & admin, fitur, troubleshooting |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Arsitektur sistem |
+| [DEPLOY.md](DEPLOY.md) | Deploy & pembaruan server |
+| [ROADMAP.md](ROADMAP.md) | Status & rencana fitur |
+| [scripts/BACKUP.md](scripts/BACKUP.md) | Backup database & media |
+| [frontend/ANDROID_BUILD.md](frontend/ANDROID_BUILD.md) | Build & rilis APK Android |
+
+Repo ini **publik**. Dokumentasi internal — runbook operasional (`docs/ops`), draf Play Store & legal, metodologi sampling, hasil audit keamanan, dan spec pengembangan (`.kiro/`) — **disimpan lokal oleh tim** dan sengaja di-*ignore* (lihat `.gitignore`). Jangan pernah meng-commit kredensial, alamat IP origin server, atau dokumen klien.
 
 ---
 

@@ -55,3 +55,20 @@ sampling-service/**/__pycache__/
 /AUDIT-PROMPT.md
 /PEKERJAAN-TERTUNDA.md
 *.local.txt
+
+# ── Dokumentasi & catatan INTERNAL — tidak dipublikasikan (repo GitHub publik) ──
+# Tetap ada di PC tim; hanya tidak ikut ter-push. Runbook ops, draf Play Store,
+# hasil audit keamanan, dan spec pengembangan memuat detail yang tak perlu
+# dilihat publik (topologi backup, celah yang sudah/akan diperbaiki, dsb.).
+/docs/
+/.kiro/
+/.config.kiro
+/.claude/
+/.vite/
+/SECURITY_AUDIT.md
+/FIX_REVIEW_405.md
+/Upgrade_architecture.md
+/requirements.md
+/design.md
+/tasks.md
+/Dokumentasi-*.docx

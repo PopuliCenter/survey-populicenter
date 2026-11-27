@@ -2,7 +2,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # populi-pull.sh — QNAP menarik backup Populi dari VPS (rsync read-only lewat
 # rrsync) lalu melapor ke Healthchecks.io. Dijadwalkan cron 04:00 oleh
-# ensure-cron.sh. Lihat docs/ops/backup-qnap.md.
+# ensure-cron.sh. Lihat docs/ops/backup-qnap.md (dokumentasi internal, tak di repo publik).
 #
 # TAHAN REBOOT & UPDATE FIRMWARE: kunci SSH, known_hosts, konfigurasi, dan
 # skrip ini disimpan di volume data /share/Backup/.populi — BUKAN di:
@@ -62,7 +62,7 @@ rc=0
   echo "=== START $(ts) ==="
   avail_kb=$(df -P "$(dirname "$DEST")" 2>/dev/null | awk 'NR==2 {print $4}')
   if [ "$VPS_HOST" = "IP_VPS" ]; then
-    echo "GAGAL: VPS_HOST belum diisi — buat $CONF (lihat docs/ops/backup-qnap.md)"
+    echo "GAGAL: VPS_HOST belum diisi — buat $CONF (lihat panduan backup QNAP di dokumentasi internal)"
     rc=93
   elif [ -z "$avail_kb" ] || [ "$avail_kb" -lt $((MIN_FREE_GB * 1024 * 1024)) ]; then
     echo "GAGAL: sisa disk ${avail_kb:-?} KB < ${MIN_FREE_GB} GB — kosongkan /share/Backup dulu"

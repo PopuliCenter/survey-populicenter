@@ -5,6 +5,8 @@ Setiap fitur sudah dianalisis dan dapat langsung dibuatkan spec oleh Kiro.
 
 ---
 
+> **Catatan:** spec pengembangan di `.kiro/specs/` dan dokumentasi `docs/` disimpan **lokal oleh tim** dan tidak ikut repo publik.
+
 ## Cara Menggunakan Dokumen Ini
 
 Ketika siap mengimplementasikan suatu fitur, cukup minta Kiro:

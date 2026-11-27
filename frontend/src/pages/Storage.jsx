@@ -246,7 +246,7 @@ function Storage() {
             </div>
 
             <p className="text-xs text-gray-500">
-              Arsip berisi <code>responses.json</code> + folder <code>media/</code>. Untuk backup berkala &amp; dataset sangat besar, gunakan backup server (docs/ops/backup.md).
+              Arsip berisi <code>responses.json</code> + folder <code>media/</code>. Untuk backup berkala &amp; dataset sangat besar, gunakan backup server (lihat panduan backup operasional).
             </p>
           </>
         )}

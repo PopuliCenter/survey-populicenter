@@ -92,7 +92,7 @@ Dua jalur, boleh dipakai bersamaan (justru dianjurkan — aturan 3-2-1):
 
 | Jalur | Melindungi dari | Panduan |
 |---|---|---|
-| **QNAP di kantor** (NAS **menarik** dari VPS) | VPS hilang/diretas | [`docs/ops/backup-qnap.md`](../docs/ops/backup-qnap.md) |
+| **QNAP di kantor** (NAS **menarik** dari VPS) | VPS hilang/diretas | `docs/ops/backup-qnap.md` (dokumentasi internal) |
 | **Cloud** (VPS **mendorong** via rclone) | kantor & VPS hilang sekaligus | bagian di bawah |
 
 ### Cloud — `sync-offsite.sh`

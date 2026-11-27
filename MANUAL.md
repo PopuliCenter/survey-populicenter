@@ -69,7 +69,7 @@ web-survey-platform/
 │   ├── main.py           # Endpoint HTTP (/inspect, /preview, /run, /template)
 │   ├── sampling_engine.py# Engine metodologi (MFD/BPS)
 │   └── requirements.txt
-├── docs/                 # Dokumentasi (play-store, legal, ops, embed WordPress)
+├── docs/                 # Dokumentasi INTERNAL — tidak ikut repo publik (play-store, legal, ops)
 ├── docker-compose.yml    # Orchestrasi semua service
 ├── nginx.conf            # Reverse proxy config untuk Docker
 ├── .env.docker           # Template env untuk Docker deployment

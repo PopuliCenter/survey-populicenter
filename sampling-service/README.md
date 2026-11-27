@@ -7,7 +7,7 @@ lewat proxy backend Node.
 ## Metodologi (rumus & panduan manual Excel)
 Penjelasan lengkap rumus tiap metode (proporsional + largest-remainder, √N,
 PPS sistematik), bobot desain, stratifikasi, dan **cara reproduksi manual di
-Excel** ada di [docs/metodologi-sampling.md](../docs/metodologi-sampling.md).
+Excel** ada di dokumen internal `docs/metodologi-sampling.md` (tidak dipublikasikan; minta ke tim).
 
 ## Asal engine
 `sampling_engine.py` **di-vendor** dari aplikasi Streamlit `Asisten_random_sampling`

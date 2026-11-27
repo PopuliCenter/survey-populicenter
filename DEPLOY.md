@@ -27,7 +27,7 @@ ssh root@IP_VPS
 > di dokumen ini disengaja). IP itu ada di balik Cloudflare; membocorkannya
 > memudahkan penyerang melewati WAF/rate-limit dengan menyerang server langsung.
 > **Kunci firewall origin agar HANYA menerima rentang IP Cloudflare** (lihat
-> `docs/ops/`), sehingga IP yang bocor pun tak bisa diakses langsung.
+> dokumentasi internal `docs/ops/`), sehingga IP yang bocor pun tak bisa diakses langsung.
 
 Download dan jalankan deploy script:
 ```bash
