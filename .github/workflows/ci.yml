@@ -31,7 +31,9 @@ jobs:
         run: npm run lint
       # GERBANG: test unit frontend (209/209 hijau) wajib lulus.
       - name: Test
-        run: npm run test:ci
+        # Reporter github-actions: tes yang gagal muncul sebagai ANOTASI publik
+        # (terbaca tanpa login), bukan hanya di log yang butuh login.
+        run: npm run test:ci -- --reporter=default --reporter=github-actions
       # GERBANG: build produksi wajib sukses.
       - name: Build
         run: npm run build
@@ -57,7 +59,8 @@ jobs:
       # DB/Redis nyata). Env dummy hanya untuk lolos fail-fast REQUIRED_ENV di
       # app.js saat modul di-require; bukan rahasia nyata.
       - name: Test
-        run: npm test
+        # Reporter github-actions: lihat catatan di job frontend.
+        run: npm test -- --reporters=default --reporters=github-actions
         env:
           NODE_ENV: test
           JWT_SECRET: ci-dummy-jwt-secret
